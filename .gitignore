@@ -48,6 +48,9 @@ bin/
 config.*
 .settings/
 libtool
+<<<<<<< HEAD
 autom4te.cache/
 m4/
 Makefile.in
+=======
+>>>>>>> branch 'master' of https://github.com/SpectreV/Multi2Sim-RCSL.git
