@@ -32,7 +32,7 @@
 *.dSYM/
 
 # Auto created Makefiles
-*.in
+Makefile.in
 
 # Eclipse project configuration
 *.cproject
