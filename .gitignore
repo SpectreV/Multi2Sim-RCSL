@@ -30,3 +30,12 @@
 
 # Debug files
 *.dSYM/
+
+# Auto created Makefiles
+*.in
+
+# Eclipse project configuration
+*.cproject
+
+# Configure File
+configure
