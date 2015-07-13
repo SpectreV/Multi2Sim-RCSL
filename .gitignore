@@ -39,3 +39,6 @@ Makefile.in
 
 # Configure File
 configure
+
+# Temp Folders
+Debug/*
