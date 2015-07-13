@@ -40,5 +40,11 @@ Makefile.in
 # Configure File
 configure
 
-# Temp Folders
-Debug/*
+# Temp Files
+Makefile
+.deps/
+Debug/
+bin/
+config.*
+.settings/
+libtool
