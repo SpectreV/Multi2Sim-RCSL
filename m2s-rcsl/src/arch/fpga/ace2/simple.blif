@@ -1,0 +1,27 @@
+.model simple
+.inputs in
+.outputs out
+
+.names gnd
+.names hbpad
+.names vcc
+1
+
+.names net1 net2 gnd vcc net3
+1-1- 1
+-1-1 1
+
+.names in vcc net5
+00 1
+11 1
+
+.names net5 net1
+1 1
+
+.names net1 net2
+0 1
+
+.names net3 out
+1 1
+.end
+
