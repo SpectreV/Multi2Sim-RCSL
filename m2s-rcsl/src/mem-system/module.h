@@ -89,6 +89,7 @@ struct mod_t
 	int block_size;
 	int log_block_size;
 	int latency;
+	int latency_add;
 	int dir_latency;
 	int mshr_size;
 
@@ -242,7 +243,7 @@ struct mod_t *mod_stack_set_peer(struct mod_t *peer, int state);
 
 long long mod_access(struct mod_t *mod, enum mod_access_kind_t access_kind, 
 	unsigned int addr, int *witness_ptr, struct linked_list_t *event_queue,
-	void *event_queue_item, struct mod_client_info_t *client_info);
+	void *event_queue_item, struct mod_client_info_t *client_info, int latency_add);
 int mod_can_access(struct mod_t *mod, unsigned int addr);
 
 int mod_find_block(struct mod_t *mod, unsigned int addr, int *set_ptr, int *way_ptr, 
@@ -268,7 +269,7 @@ struct mod_stack_t *mod_in_flight_write(struct mod_t *mod,
 int mod_serves_address(struct mod_t *mod, unsigned int addr);
 struct mod_t *mod_get_low_mod(struct mod_t *mod, unsigned int addr);
 
-int mod_get_retry_latency(struct mod_t *mod);
+int mod_get_retry_latency(struct mod_t *mod, int latency_add);
 
 struct mod_stack_t *mod_can_coalesce(struct mod_t *mod,
 	enum mod_access_kind_t access_kind, unsigned int addr,

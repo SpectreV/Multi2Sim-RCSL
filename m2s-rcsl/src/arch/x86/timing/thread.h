@@ -89,7 +89,9 @@ CLASS_BEGIN(X86Thread, Object)
 	/* Entries to the memory system */
 	struct mod_t *data_mod;  /* Entry for data */
 	struct mod_t *inst_mod;  /* Entry for instructions */
-
+     
+    int data_latency;
+    int inst_latency;
 	/* Cycle in which last micro-instruction committed */
 	long long last_commit_cycle;
 

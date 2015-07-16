@@ -53,6 +53,7 @@ void mod_handler_local_mem_load(int event, void *data)
 	struct mod_stack_t *new_stack;
 
 	struct mod_t *mod = stack->mod;
+	int latency_add = stack->latency_add;
 
 
 	if (event == EV_MOD_LOCAL_MEM_LOAD)
@@ -114,7 +115,7 @@ void mod_handler_local_mem_load(int event, void *data)
 
 		/* Call find and lock to lock the port */
 		new_stack = mod_stack_create(stack->id, mod, stack->addr,
-			EV_MOD_LOCAL_MEM_LOAD_FINISH, stack);
+			EV_MOD_LOCAL_MEM_LOAD_FINISH, stack, latency_add);
 		new_stack->read = 1;
 		esim_schedule_event(EV_MOD_LOCAL_MEM_FIND_AND_LOCK, new_stack, 0);
 		return;
@@ -155,6 +156,7 @@ void mod_handler_local_mem_store(int event, void *data)
 	struct mod_stack_t *new_stack;
 
 	struct mod_t *mod = stack->mod;
+	int latency_add = stack->latency_add;
 
 
 	if (event == EV_MOD_LOCAL_MEM_STORE)
@@ -212,7 +214,7 @@ void mod_handler_local_mem_store(int event, void *data)
 
 		/* Call find and lock */
 		new_stack = mod_stack_create(stack->id, mod, stack->addr,
-			EV_MOD_LOCAL_MEM_STORE_FINISH, stack);
+			EV_MOD_LOCAL_MEM_STORE_FINISH, stack, latency_add);
 		new_stack->read = 0;
 		new_stack->witness_ptr = stack->witness_ptr;
 		esim_schedule_event(EV_MOD_LOCAL_MEM_FIND_AND_LOCK, new_stack, 0);
@@ -254,6 +256,7 @@ void mod_handler_local_mem_find_and_lock(int event, void *data)
 	struct mod_stack_t *ret = stack->ret_stack;
 
 	struct mod_t *mod = stack->mod;
+	int latency_add = stack->latency_add;
 
 
 	if (event == EV_MOD_LOCAL_MEM_FIND_AND_LOCK)
@@ -301,7 +304,7 @@ void mod_handler_local_mem_find_and_lock(int event, void *data)
 		}
 
 		/* Access latency */
-		esim_schedule_event(EV_MOD_LOCAL_MEM_FIND_AND_LOCK_ACTION, stack, mod->latency);
+		esim_schedule_event(EV_MOD_LOCAL_MEM_FIND_AND_LOCK_ACTION, stack, mod->latency + latency_add);
 		return;
 	}
 

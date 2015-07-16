@@ -232,7 +232,7 @@ void si_lds_mem(struct si_lds_t *lds)
 				mod_access(lds->compute_unit->lds_module, 
 					access_type, 
 					work_item_uop->lds_access_addr[j],
-					&uop->lds_witness, NULL, NULL, NULL);
+					&uop->lds_witness, NULL, NULL, NULL, 0 );
 				uop->lds_witness--;
 			}
 		}

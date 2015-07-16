@@ -230,7 +230,7 @@ void frm_lds_mem(struct frm_lds_t *lds)
 				mod_access(lds->sm->lds_module, 
 					access_type, 
 					thread_uop->lds_access_addr[j],
-					&uop->lds_witness, NULL, NULL, NULL);
+					&uop->lds_witness, NULL, NULL, NULL, 0);
 				uop->lds_witness--;
 			}
 		}

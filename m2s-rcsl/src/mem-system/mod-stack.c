@@ -32,7 +32,7 @@
 long long mod_stack_id;
 
 struct mod_stack_t *mod_stack_create(long long id, struct mod_t *mod,
-	unsigned int addr, int ret_event, struct mod_stack_t *ret_stack)
+	unsigned int addr, int ret_event, struct mod_stack_t *ret_stack, int latency_add)
 {
 	struct mod_stack_t *stack;
 
@@ -41,6 +41,7 @@ struct mod_stack_t *mod_stack_create(long long id, struct mod_t *mod,
 	stack->id = id;
 	stack->mod = mod;
 	stack->addr = addr;
+	stack->latency_add = latency_add;
 	stack->ret_event = ret_event;
 	stack->ret_stack = ret_stack;
 	if (ret_stack != NULL)

@@ -122,6 +122,9 @@ void X86CpuMemConfigParseEntry(Timing *self, struct config_t *config, char *sect
 	int unified_present;
 	int data_inst_present;
 
+	int data_latency;
+	int inst_latency;
+
 	char *data_module_name;
 	char *inst_module_name;
 
@@ -187,12 +190,15 @@ void X86CpuMemConfigParseEntry(Timing *self, struct config_t *config, char *sect
 		inst_module_name = config_read_string(config, section, "InstModule", NULL);
 		assert(data_module_name);
 		assert(inst_module_name);
+		data_latency = config_read_int(config, section, "DataLatency", 0);
+		inst_latency = config_read_int(config, section, "InstLatency", 0); 
 	}
 	else
 	{
 		data_module_name = inst_module_name =
 			config_read_string(config, section, "Module", NULL);
 		assert(data_module_name);
+		data_latency = inst_latency = config_read_int(config, section, "Latency", 0);
 	}
 
 	/* Assign data module */
@@ -210,7 +216,19 @@ void X86CpuMemConfigParseEntry(Timing *self, struct config_t *config, char *sect
 			"\tThe given module name must match a module declared in a section\n"
 			"\t[Module <name>] in the memory configuration file.\n",
 			file_name, section, inst_module_name);
+
+	if (data_latency < 0)
+		fatal("%s: section [%s]: invalid data latency value for module '%s'.\n"
+			 "'DataLatency'. %d \n", file_name, section, 
+			data_module_name, data_latency);
+
+	if (inst_latency < 0)
+		fatal("%s: section [%s]: invalid instruction latency value for module '%s'.\n"
+			 "'InstLatency'. %d \n", file_name, section, 
+			inst_module_name, inst_latency);
 	
+	thread->data_latency = data_latency;
+	thread->inst_latency = inst_latency;
 	/* Add modules to entry list */
 	linked_list_add(arch_x86->mem_entry_mod_list, thread->data_mod);
 	if (thread->data_mod != thread->inst_mod)

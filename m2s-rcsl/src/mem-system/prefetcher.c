@@ -191,6 +191,7 @@ static void prefetcher_do_prefetch(struct mod_t *mod, struct mod_stack_t *stack,
 				   unsigned int prefetch_addr)
 {
 	int set1, tag1, set2, tag2;
+	int latency_add;
 
 	assert(prefetch_addr > 0);
 
@@ -220,7 +221,8 @@ static void prefetcher_do_prefetch(struct mod_t *mod, struct mod_stack_t *stack,
 	mem_debug("  miss_addr 0x%x, prefetch_addr 0x%x, %s : prefetcher\n", stack->addr,
 		  prefetch_addr, mod->name);
 
-	mod_access(mod, mod_access_prefetch, prefetch_addr, NULL, NULL, NULL, NULL);
+    latency_add = stack->mod == mod ? stack->latency_add:stack->mod->latency_add;     
+	mod_access(mod, mod_access_prefetch, prefetch_addr, NULL, NULL, NULL, NULL, latency_add);
 }
 
 /* This function implements the GHB based PC/CS prefetching as described in the

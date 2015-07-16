@@ -74,7 +74,7 @@ static int X86ThreadIssueSQ(X86Thread *self, int quantum)
 
 		/* Issue store */
 		mod_access(self->data_mod, mod_access_store,
-		       store->phy_addr, NULL, core->event_queue, store, client_info);
+		       store->phy_addr, NULL, core->event_queue, store, client_info, self-> data_latency);
 
 		/* The cache system will place the store at the head of the
 		 * event queue when it is ready. For now, mark "in_event_queue" to
@@ -146,7 +146,7 @@ static int X86ThreadIssueLQ(X86Thread *self, int quant)
 
 		/* Access memory system */
 		mod_access(self->data_mod, mod_access_load,
-			load->phy_addr, NULL, core->event_queue, load, client_info);
+			load->phy_addr, NULL, core->event_queue, load, client_info, self->data_latency);
 
 		/* The cache system will place the load at the head of the
 		 * event queue when it is ready. For now, mark "in_event_queue" to
@@ -235,7 +235,7 @@ static int X86ThreadIssuePreQ(X86Thread *self, int quantum)
 
 		/* Access memory system */
 		mod_access(self->data_mod, mod_access_prefetch,
-			prefetch->phy_addr, NULL, core->event_queue, prefetch, NULL);
+			prefetch->phy_addr, NULL, core->event_queue, prefetch, NULL, self->data_latency);
 
 		/* Record prefetched address */
 		prefetch_history_record(core->prefetch_history, prefetch->phy_addr);

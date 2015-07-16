@@ -108,7 +108,7 @@ void mod_dump(struct mod_t *mod, FILE *f)
  */
 long long mod_access(struct mod_t *mod, enum mod_access_kind_t access_kind, 
 	unsigned int addr, int *witness_ptr, struct linked_list_t *event_queue,
-	void *event_queue_item, struct mod_client_info_t *client_info)
+	void *event_queue_item, struct mod_client_info_t *client_info, int latency_add)
 {
 	struct mod_stack_t *stack;
 	int event;
@@ -116,7 +116,7 @@ long long mod_access(struct mod_t *mod, enum mod_access_kind_t access_kind,
 	/* Create module stack with new ID */
 	mod_stack_id++;
 	stack = mod_stack_create(mod_stack_id,
-		mod, addr, ESIM_EV_NONE, NULL);
+		mod, addr, ESIM_EV_NONE, NULL, latency_add);
 
 	/* Initialize */
 	stack->witness_ptr = witness_ptr;
@@ -546,9 +546,9 @@ struct mod_t *mod_get_low_mod(struct mod_t *mod, unsigned int addr)
 }
 
 
-int mod_get_retry_latency(struct mod_t *mod)
+int mod_get_retry_latency(struct mod_t *mod, int latency_add)
 {
-	return random() % mod->latency + mod->latency;
+	return random() % (mod->latency + latency_add) + (mod->latency + latency_add);
 }
 
 

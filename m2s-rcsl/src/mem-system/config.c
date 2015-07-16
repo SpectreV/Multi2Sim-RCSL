@@ -515,6 +515,7 @@ static struct mod_t *mem_config_read_cache(struct config_t *config,
 	int block_size;
 	int latency;
 	int dir_latency;
+	int latency_add;
 
 	char *policy_str;
 	enum cache_policy_t policy;
@@ -585,13 +586,13 @@ static struct mod_t *mem_config_read_cache(struct config_t *config,
 		fatal("%s: cache %s: block size must be power of two and "
 			"at least 4.\n%s", mem_config_file_name, mod_name, 
 			mem_err_config_note);
+	if (latency < 1)
+		fatal("%s: cache %s: invalid value for variable 'Latency'.\n%s",
+			mem_config_file_name, mod_name, mem_err_config_note);
 	if (dir_latency < 1)
 		fatal("%s: cache %s: invalid value for variable "
 			"'DirectoryLatency'.\n%s", mem_config_file_name, 
 			mod_name, mem_err_config_note);
-	if (latency < 1)
-		fatal("%s: cache %s: invalid value for variable 'Latency'.\n%s",
-			mem_config_file_name, mod_name, mem_err_config_note);
 	if (mshr_size < 1)
 		fatal("%s: cache %s: invalid value for variable 'MSHR'.\n%s",
 			mem_config_file_name, mod_name, mem_err_config_note);
@@ -614,6 +615,15 @@ static struct mod_t *mem_config_read_cache(struct config_t *config,
 		}
 	}
 
+
+	
+	latency_add = config_read_int(config, section, "AdditionalLatency", 0);
+	
+    if (latency_add < 0)
+		fatal("%s: cache %s: invalid value for variable "
+			"'AdditionalLatency'.\n%s %d", mem_config_file_name, 
+			mod_name, mem_err_config_note, latency_add); 
+
 	/* Create module */
 	mod = mod_create(mod_name, mod_kind_cache, num_ports,
 		block_size, latency);
@@ -624,6 +634,7 @@ static struct mod_t *mem_config_read_cache(struct config_t *config,
 	mod->dir_num_sets = num_sets;
 	mod->dir_size = num_sets * assoc;
 	mod->dir_latency = dir_latency;
+	mod->latency_add = latency_add; 
 
 	/* High network */
 	net_name = config_read_string(config, section, "HighNetwork", "");
@@ -1560,8 +1571,8 @@ void mem_config_read(void)
 	mem_config_check_routes();
 
 	/* Check for disjoint memory hierarchies for different architectures. */
-	if (!si_gpu_fused_device)
-		arch_for_each(mem_config_check_disjoint, NULL);
+	/*if (!si_gpu_fused_device)
+		arch_for_each(mem_config_check_disjoint, NULL);*/
 
 	/* Compute sub-block sizes, based on high modules. This function also
 	 * initializes the directories in modules other than L1. */
@@ -1573,4 +1584,3 @@ void mem_config_read(void)
 	/* Dump configuration to trace file */
 	mem_config_trace();
 }
-

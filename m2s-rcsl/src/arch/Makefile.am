@@ -6,5 +6,4 @@ SUBDIRS = \
 	kepler \
 	mips \
 	southern-islands \
-	x86 \
-	fpga
+	x86

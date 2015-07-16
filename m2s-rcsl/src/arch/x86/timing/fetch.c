@@ -305,7 +305,7 @@ static void X86ThreadFetch(X86Thread *self)
 		self->fetch_block = block;
 		self->fetch_address = phy_addr;
 		self->fetch_access = mod_access(self->inst_mod,
-			mod_access_load, phy_addr, NULL, NULL, NULL, NULL);
+			mod_access_load, phy_addr, NULL, NULL, NULL, NULL, self->inst_latency);
 		self->btb_reads++;
 
 		/* MMU statistics */

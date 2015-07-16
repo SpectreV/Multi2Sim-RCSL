@@ -370,7 +370,7 @@ void si_scalar_unit_execute(struct si_scalar_unit_t *scalar_unit)
 				global_mem_access_addr;
 			mod_access(scalar_unit->compute_unit->scalar_cache,
 				mod_access_load, uop->global_mem_access_addr,
-				&uop->global_mem_witness, NULL, NULL, NULL);
+				&uop->global_mem_witness, NULL, NULL, NULL,0);
 
 			/* Transfer the uop to the execution buffer */
 			list_remove(scalar_unit->read_buffer, uop);

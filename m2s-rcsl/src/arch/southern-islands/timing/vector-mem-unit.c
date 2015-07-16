@@ -242,7 +242,7 @@ void si_vector_mem_mem(struct si_vector_mem_unit_t *vector_mem)
 			mod_access(vector_mem->compute_unit->vector_cache, 
 				access_kind, 
 				work_item_uop->global_mem_access_addr,
-				&uop->global_mem_witness, NULL, NULL, NULL);
+				&uop->global_mem_witness, NULL, NULL, NULL, 0);
 			uop->global_mem_witness--;
 		}
 

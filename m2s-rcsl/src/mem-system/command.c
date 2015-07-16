@@ -465,7 +465,7 @@ void mem_system_command_handler(int event, void *data)
 		}
 
 		/* Access module */
-		mod_access(mod, access_kind, addr, NULL, NULL, NULL, NULL);
+		mod_access(mod, access_kind, addr, NULL, NULL, NULL, NULL, 0);
 	}
 
 	/* Command not supported */
