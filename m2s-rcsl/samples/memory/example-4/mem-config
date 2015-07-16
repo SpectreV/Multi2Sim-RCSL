@@ -27,20 +27,23 @@ Ports = 4
 [Module mod-cpu-l1-0]
 Type = Cache
 Geometry = geo-cpu-l1
-LowNetwork = net-cpu-l1-mm
-LowModules = mod-cpu-mm
+AdditionalLatency = 10
+LowNetwork = net-gpu-l1-l2
+LowModules = mod-gpu-l2-0
 
 [Module mod-cpu-l1-1]
 Type = Cache
 Geometry = geo-cpu-l1
-LowNetwork = net-cpu-l1-mm
-LowModules = mod-cpu-mm
+AdditionalLatency = 10
+LowNetwork = net-gpu-l1-l2
+LowModules = mod-gpu-l2-0
 
 ; 2 l1 gpu caches
 
 [Module mod-gpu-l1-0]
 Type = Cache
 Geometry = geo-gpu-l1
+AdditionalLatency = 10
 LowNetwork = net-gpu-l1-l2
 LowModules = mod-gpu-l2-0
 
@@ -48,6 +51,7 @@ LowModules = mod-gpu-l2-0
 [Module mod-gpu-l1-1]
 Type = Cache
 Geometry = geo-gpu-l1
+AdditionalLatency = 10
 LowNetwork = net-gpu-l1-l2
 LowModules = mod-gpu-l2-0
 
@@ -56,24 +60,20 @@ LowModules = mod-gpu-l2-0
 [Module mod-gpu-l2-0]
 Type = Cache
 Geometry = geo-gpu-l2
+AdditionalLatency = 10
 HighNetwork = net-gpu-l1-l2
-LowNetwork = net-gpu-l2-mm
-LowModules = mod-gpu-mm
+LowNetwork = net-cpu-l1-mm
+LowModules = mod-mm
 
 
-; 2 Memory banks, 1GPU and 1 CPU
+; 1 shared Memory bank
 
-[Module mod-cpu-mm]
+
+[Module mod-mm]
 Type = MainMemory
 BlockSize = 256
 Latency = 100
 HighNetwork = net-cpu-l1-mm
-
-[Module mod-gpu-mm]
-Type = MainMemory
-BlockSize = 256
-Latency = 100
-HighNetwork = net-gpu-l2-mm
 
 
 ; Two networks between 2 sets of cores
@@ -86,13 +86,7 @@ DefaultBandwidth = 256
 [Network net-gpu-l1-l2]
 DefaultInputBufferSize = 1024 
 DefaultOutputBufferSize = 1024
-DefaultBandwidth = 256 
-
-[Network net-gpu-l2-mm]
-DefaultInputBufferSize = 1024 
-DefaultOutputBufferSize = 1024
-DefaultBandwidth = 256 
-
+DefaultBandwidth = 256  
 
 [Entry core-0]
 Arch = x86
@@ -100,6 +94,8 @@ Core = 0
 Thread = 0
 DataModule = mod-cpu-l1-0
 InstModule = mod-cpu-l1-0
+DataLatency = 10
+InstLatency = 10
 
 [Entry core-1]
 Arch = x86
@@ -107,6 +103,9 @@ Core = 0
 Thread = 1
 DataModule = mod-cpu-l1-1
 InstModule = mod-cpu-l1-1
+DataLatency = 0
+InstLatency = 0
+
 
 [Entry gpu-cu-0]
 Arch = Evergreen
