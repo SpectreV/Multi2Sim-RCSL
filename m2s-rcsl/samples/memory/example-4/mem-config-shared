@@ -28,15 +28,15 @@ Ports = 4
 Type = Cache
 Geometry = geo-cpu-l1
 AdditionalLatency = 10
-LowNetwork = net-cpu-l1-mm
-LowModules = mod-mm-cpu
+LowNetwork = net-gpu-l2-mm
+LowModules = mod-mm-gpu
 
 [Module mod-cpu-l1-1]
 Type = Cache
 Geometry = geo-cpu-l1
 AdditionalLatency = 10
-LowNetwork = net-cpu-l1-mm
-LowModules = mod-mm-cpu
+LowNetwork = net-gpu-l2-mm
+LowModules = mod-mm-gpu
 
 ; 2 l1 gpu caches
 
@@ -75,12 +75,6 @@ BlockSize = 256
 Latency = 100
 HighNetwork = net-gpu-l2-mm
 
-[Module mod-mm-cpu]
-Type = MainMemory
-BlockSize = 256
-Latency = 200
-HighNetwork = net-cpu-l1-mm
-
 
 ; Two networks between 2 sets of cores
 
@@ -94,10 +88,6 @@ DefaultInputBufferSize = 1024
 DefaultOutputBufferSize = 1024
 DefaultBandwidth = 256 
 
-[Network net-cpu-l1-mm]
-DefaultInputBufferSize = 1024 
-DefaultOutputBufferSize = 1024
-DefaultBandwidth = 256 
 
 [Entry core-0]
 Arch = x86

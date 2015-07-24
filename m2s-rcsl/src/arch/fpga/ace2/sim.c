@@ -13,7 +13,9 @@ void get_pi_values(Abc_Ntk_t * ntk, Vec_Ptr_t * nodes, int cycle) {
 	Abc_NtkForEachObj(ntk, obj, i)
 	{
 		info = Ace_ObjInfo(obj);
+		info->cycle = -1;
 		if (Abc_ObjType(obj) == ABC_OBJ_PI) {
+			info->cycle = 0;
 			if (info->values) {
 				if (info->status == ACE_UNDEF) {
 					info->status = ACE_NEW;
@@ -164,10 +166,10 @@ ace_status_t getFaninStatus(Abc_Obj_t * obj_ptr) {
 	return ACE_OLD;
 }
 
-void evaluate_circuit(Abc_Ntk_t * ntk, Vec_Ptr_t * node_vec, int cycle) {
-	Abc_Obj_t * obj;
+void evaluate_circuit(Abc_Ntk_t * ntk, Vec_Ptr_t * node_vec) {
+	Abc_Obj_t * obj, *fanin;
 	Ace_Obj_Info_t * info;
-	int i;
+	int i, j, cycle;
 	int value;
 	int * faninValues;
 	ace_status_t status;
@@ -236,6 +238,19 @@ void evaluate_circuit(Abc_Ntk_t * ntk, Vec_Ptr_t * node_vec, int cycle) {
 			assert(0);
 			break;
 		}
+
+		cycle = 0;
+		Abc_ForEachFanin(obj, fanin, j)
+		{
+			info = Ace_ObjInfo(fanin);
+			if (info->cycle == -1) {
+				Ace_ObjInfo(obj)->cycle = -1;
+				break;
+			}
+			cycle = MAX(cycle, Ace_ObjInfo(fanin)->cycle);
+		}
+
+
 	}
 }
 
@@ -282,14 +297,14 @@ void update_FF_and_Pos(Abc_Ntk_t * ntk, int cycle) {
 	}
 }
 
-void ace_sim_activities(Abc_Ntk_t * ntk, Vec_Ptr_t * nodes, int max_cycles,
-		double threshold) {
+void ace_sim_activities(Abc_Ntk_t * ntk, Vec_Ptr_t * nodes, int num_vectors,
+		Vec_Int_t * delays) {
 	Abc_Obj_t * obj;
 	Ace_Obj_Info_t * info;
-	int i, j;
+	int i, j, delay;
 
-	assert(max_cycles > 0);
-	assert(threshold > 0.0);
+	assert(num_vectors > 0);
+	assert(delays->nCap == num_vectors);
 
 	srand((unsigned) time(NULL));
 
@@ -306,14 +321,20 @@ void ace_sim_activities(Abc_Ntk_t * ntk, Vec_Ptr_t * nodes, int max_cycles,
 		}
 		info->num_ones = 0;
 		info->num_toggles = 0;
-
 	}
 
+	/* Major Change: Hao Liang
+	 * Input: Only allow vector inputs, and each line of vector inputs presents one task.
+	 * Output: the output of each line of vector inputs, and the delay associated with it.
+	 */
+
 	Vec_Ptr_t * logic_nodes = Abc_NtkDfs(ntk, TRUE);
-	for (i = 0; i < max_cycles; i++) {
+	for (i = 0; i < num_vectors; i++) {
 		get_pi_values(ntk, nodes, i);
-		evaluate_circuit(ntk, logic_nodes, i);
-		update_FF_and_Pos(ntk, i);
+		while (!Vec_IntEntry(delays, i)) {
+			evaluate_circuit(ntk, logic_nodes, &Vec_IntArray(delays)[i]);
+			update_FF_and_Pos(ntk, &Vec_IntArray(delays)[i]);
+		}
 	}
 
 	//Vec_PtrForEachEntry(Abc_Obj_t *, nodes, obj, i)
@@ -321,9 +342,9 @@ void ace_sim_activities(Abc_Ntk_t * ntk, Vec_Ptr_t * nodes, int max_cycles,
 	{
 
 		info = Ace_ObjInfo(obj);
-		info->static_prob = info->num_ones / (double) max_cycles;
+		info->static_prob = info->num_ones / (double) num_vectors;
 		assert(info->static_prob >= 0.0 && info->static_prob <= 1.0);
-		info->switch_prob = info->num_toggles / (double) max_cycles;
+		info->switch_prob = info->num_toggles / (double) num_vectors;
 		assert(info->switch_prob >= 0.0 && info->switch_prob <= 1.0);
 
 		assert(info->switch_prob - EPSILON <= 2.0 * (1.0 - info->static_prob));

@@ -41,6 +41,8 @@ typedef struct {
 	int flag;
 	int depth;
 
+	int cycle;
+
 	int num_ones;
 	int num_toggles;
 	int num_valid;

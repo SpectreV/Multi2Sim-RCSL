@@ -51,3 +51,4 @@ config.*
 libtool
 autom4te.cache/
 m4/
+*~

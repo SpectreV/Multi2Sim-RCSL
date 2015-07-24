@@ -129,7 +129,7 @@ void print_nodes(Vec_Ptr_t * nodes) {
 	fflush(0);
 }
 
-int ace_calc_activity(Abc_Ntk_t * ntk, int num_vectors) {
+int ace_calc_activity(Abc_Ntk_t * ntk, int num_vectors, Vec_Int_t * delays) {
 	int error = 0;
 	Vec_Ptr_t * nodes_all;
 	Vec_Ptr_t * nodes_logic;
@@ -311,6 +311,8 @@ int main(int argc, char * argv[]) {
 	Abc_Ntk_t * ntk;
 	Abc_Obj_t * obj;
 
+
+
 	srand(0);
 
 	p = ACE_PI_STATIC_PROB;
@@ -419,7 +421,8 @@ int main(int argc, char * argv[]) {
 	}
 
 	if (!error) {
-		error = ace_calc_activity(ntk, num_vec);
+		Vec_Int_t* delays = Vec_IntStart(num_vec);
+		error = ace_calc_activity(ntk, num_vec, delays);
 	}
 
 	//Abc_NtkToSop(ntk, 0);
