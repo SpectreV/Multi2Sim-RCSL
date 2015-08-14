@@ -21,7 +21,7 @@
 #include <poll.h>
 #include <unistd.h>
 
-#include <arch/x86/timing/cpu.h>
+#include <arch/fpga/timing/cpu.h>
 #include <driver/glew/glew.h>
 #include <driver/glu/glu.h>
 #include <driver/glut/glut.h>
@@ -49,85 +49,85 @@
  */
 
 /* Configuration parameters */
-long long x86_emu_max_inst = 0;
-long long x86_emu_max_cycles = 0;
-char x86_emu_last_inst_bytes[20];
-int x86_emu_last_inst_size = 0;
-int x86_emu_process_prefetch_hints = 0;
+long long fpga_emu_max_inst = 0;
+long long fpga_emu_max_cycles = 0;
+char fpga_emu_last_inst_bytes[20];
+int fpga_emu_last_inst_size = 0;
+int fpga_emu_process_prefetch_hints = 0;
 
-X86Emu *x86_emu;
+FPGAEmu *fpga_emu;
 
 
 
 
 /*
- * Class 'X86Emu'
+ * Class 'FPGAEmu'
  */
 
-CLASS_IMPLEMENTATION(X86Emu);
+CLASS_IMPLEMENTATION(FPGAEmu);
 
-void X86EmuCreate(X86Emu *self)
+void FPGAEmuCreate(FPGAEmu *self)
 {
 	/* Parent */
-	EmuCreate(asEmu(self), "x86");
+	EmuCreate(asEmu(self), "fpga");
 
 	/* Initialize */
 	self->current_pid = 100;
 	pthread_mutex_init(&self->process_events_mutex, NULL);
 
 	/* Virtual functions */
-	asObject(self)->Dump = X86EmuDump;
-	asEmu(self)->DumpSummary = X86EmuDumpSummary;
-	asEmu(self)->Run = X86EmuRun;
+	asObject(self)->Dump = FPGAEmuDump;
+	asEmu(self)->DumpSummary = FPGAEmuDumpSummary;
+	asEmu(self)->Run = FPGAEmuRun;
 }
 
 
-void X86EmuDestroy(X86Emu *self)
+void FPGAEmuDestroy(FPGAEmu *self)
 {
-	X86Context *ctx;
+	FPGAKernel *kernel;
 
 	/* Finish all contexts */
-	for (ctx = self->context_list_head; ctx; ctx = ctx->context_list_next)
-		if (!X86ContextGetState(ctx, X86ContextFinished))
-			X86ContextFinish(ctx, 0);
+	for (kernel = self->kernel_list_head; kernel; kernel = kernel->kernel_list_next)
+		if (!FPGAKernelGetState(ctx, FPGAKernelFinished))
+			FPGAKernelFinish(ctx, 0);
 
 	/* Free contexts */
-	while (self->context_list_head)
-		delete(self->context_list_head);
+	while (self->kernel_list_head)
+		delete(self->kernel_list_head);
 	
 }
 
 
-void X86EmuDump(Object *self, FILE *f)
+void FPGAEmuDump(Object *self, FILE *f)
 {
-	X86Context *context;
-	X86Emu *emu = asX86Emu(self);
+	FPGAKernel *kernel;
+	FPGAEmu *emu = asFPGAEmu(self);
 
 	/* Call parent */
 	EmuDump(self, f);
 
 	/* More */
 	fprintf(f, "List of contexts (shows in any order)\n\n");
-	DOUBLE_LINKED_LIST_FOR_EACH(emu, context, context)
-		X86ContextDump(asObject(context), f);
+	DOUBLE_LINKED_LIST_FOR_EACH(emu, kernel, kernel)
+		FPGAKernelDump(asObject(context), f);
 }
 
 
-void X86EmuDumpSummary(Emu *self, FILE *f)
+void FPGAEmuDumpSummary(Emu *self, FILE *f)
 {
-	X86Emu *emu = asX86Emu(self);
+	FPGAEmu *emu = asFPGAEmu(self);
 
 	/* Call parent */
 	EmuDumpSummary(self, f);
 
 	/* More statistics */
-	fprintf(f, "Contexts = %d\n", emu->running_list_max);
+	fprintf(f, "Kernels = %d\n", emu->running_list_max);
 	fprintf(f, "Memory = %lu\n", mem_max_mapped_space);
 }
 
 
-/* Schedule a call to 'X86EmuProcessEvents' */
-void X86EmuProcessEventsSchedule(X86Emu *self)
+/* Schedule a call to 'FPGAEmuProcessEvents' */
+void FPGAEmuProcessEventsSchedule(FPGAEmu *self)
 {
 	pthread_mutex_lock(&self->process_events_mutex);
 	self->process_events_force = 1;
@@ -138,9 +138,9 @@ void X86EmuProcessEventsSchedule(X86Emu *self)
 /* Check for events detected in spawned host threads, like waking up contexts or
  * sending signals.
  * The list is only processed if flag 'self->process_events_force' is set. */
-void X86EmuProcessEvents(X86Emu *self)
+void FPGAEmuProcessEvents(FPGAEmu *self)
 {
-	X86Context *ctx, *next;
+	FPGAKernel *ctx, *next;
 	long long now = esim_real_time();
 	
 	/* Check if events need actually be checked. */
@@ -151,7 +151,7 @@ void X86EmuProcessEvents(X86Emu *self)
 		return;
 	}
 	
-	/* By default, no subsequent call to 'X86EmuProcessEvents' is assumed */
+	/* By default, no subsequent call to 'FPGAEmuProcessEvents' is assumed */
 	self->process_events_force = 0;
 
 	/*
@@ -164,15 +164,15 @@ void X86EmuProcessEvents(X86Emu *self)
 		/* Save next */
 		next = ctx->suspended_list_next;
 
-		/* Context is suspended in 'nanosleep' system call. */
-		if (X86ContextGetState(ctx, X86ContextNanosleep))
+		/* Kernel is suspended in 'nanosleep' system call. */
+		if (FPGAKernelGetState(ctx, FPGAKernelNanosleep))
 		{
 			unsigned int rmtp = ctx->regs->ecx;
 			unsigned long long zero = 0;
 			unsigned int sec, usec;
 			unsigned long long diff;
 
-			/* If 'X86EmuHostThreadSuspend' is still running for this context, do nothing. */
+			/* If 'FPGAEmuHostThreadSuspend' is still running for this context, do nothing. */
 			if (ctx->host_thread_suspend_active)
 				continue;
 
@@ -181,13 +181,13 @@ void X86EmuProcessEvents(X86Emu *self)
 			{
 				if (rmtp)
 					mem_write(ctx->mem, rmtp, 8, &zero);
-				x86_sys_debug("syscall 'nanosleep' - continue (pid %d)\n", ctx->pid);
-				x86_sys_debug("  return=0x%x\n", ctx->regs->eax);
-				X86ContextClearState(ctx, X86ContextSuspended | X86ContextNanosleep);
+				fpga_sys_debug("syscall 'nanosleep' - continue (pid %d)\n", ctx->pid);
+				fpga_sys_debug("  return=0x%x\n", ctx->regs->eax);
+				FPGAKernelClearState(ctx, FPGAKernelSuspended | FPGAKernelNanosleep);
 				continue;
 			}
 
-			/* Context received a signal */
+			/* Kernel received a signal */
 			if (ctx->signal_mask_table->pending & ~ctx->signal_mask_table->blocked)
 			{
 				if (rmtp)
@@ -199,60 +199,60 @@ void X86EmuProcessEvents(X86Emu *self)
 					mem_write(ctx->mem, rmtp + 4, 4, &usec);
 				}
 				ctx->regs->eax = -EINTR;
-				x86_sys_debug("syscall 'nanosleep' - interrupted by signal (pid %d)\n", ctx->pid);
-				X86ContextClearState(ctx, X86ContextSuspended | X86ContextNanosleep);
+				fpga_sys_debug("syscall 'nanosleep' - interrupted by signal (pid %d)\n", ctx->pid);
+				FPGAKernelClearState(ctx, FPGAKernelSuspended | FPGAKernelNanosleep);
 				continue;
 			}
 
-			/* No event available, launch 'X86EmuHostThreadSuspend' again */
+			/* No event available, launch 'FPGAEmuHostThreadSuspend' again */
 			ctx->host_thread_suspend_active = 1;
-			if (pthread_create(&ctx->host_thread_suspend, NULL, X86EmuHostThreadSuspend, ctx))
+			if (pthread_create(&ctx->host_thread_suspend, NULL, FPGAEmuHostThreadSuspend, ctx))
 				fatal("syscall 'poll': could not create child thread");
 			continue;
 		}
 
-		/* Context suspended in 'rt_sigsuspend' system call */
-		if (X86ContextGetState(ctx, X86ContextSigsuspend))
+		/* Kernel suspended in 'rt_sigsuspend' system call */
+		if (FPGAKernelGetState(ctx, FPGAKernelSigsuspend))
 		{
-			/* Context received a signal */
+			/* Kernel received a signal */
 			if (ctx->signal_mask_table->pending & ~ctx->signal_mask_table->blocked)
 			{
-				X86ContextCheckSignalHandlerIntr(ctx);
+				FPGAKernelCheckSignalHandlerIntr(ctx);
 				ctx->signal_mask_table->blocked = ctx->signal_mask_table->backup;
-				x86_sys_debug("syscall 'rt_sigsuspend' - interrupted by signal (pid %d)\n", ctx->pid);
-				X86ContextClearState(ctx, X86ContextSuspended | X86ContextSigsuspend);
+				fpga_sys_debug("syscall 'rt_sigsuspend' - interrupted by signal (pid %d)\n", ctx->pid);
+				FPGAKernelClearState(ctx, FPGAKernelSuspended | FPGAKernelSigsuspend);
 				continue;
 			}
 
 			/* No event available. The context will never awake on its own, so no
-			 * 'X86EmuHostThreadSuspend' is necessary. */
+			 * 'FPGAEmuHostThreadSuspend' is necessary. */
 			continue;
 		}
 
-		/* Context suspended in 'poll' system call */
-		if (X86ContextGetState(ctx, X86ContextPoll))
+		/* Kernel suspended in 'poll' system call */
+		if (FPGAKernelGetState(ctx, FPGAKernelPoll))
 		{
 			uint32_t prevents = ctx->regs->ebx + 6;
 			uint16_t revents = 0;
-			struct x86_file_desc_t *fd;
+			struct fpga_file_desc_t *fd;
 			struct pollfd host_fds;
 			int err;
 
-			/* If 'X86EmuHostThreadSuspend' is still running for this context, do nothing. */
+			/* If 'FPGAEmuHostThreadSuspend' is still running for this context, do nothing. */
 			if (ctx->host_thread_suspend_active)
 				continue;
 
 			/* Get file descriptor */
-			fd = x86_file_desc_table_entry_get(ctx->file_desc_table, ctx->wakeup_fd);
+			fd = fpga_file_desc_table_entry_get(ctx->file_desc_table, ctx->wakeup_fd);
 			if (!fd)
 				fatal("syscall 'poll': invalid 'wakeup_fd'");
 
-			/* Context received a signal */
+			/* Kernel received a signal */
 			if (ctx->signal_mask_table->pending & ~ctx->signal_mask_table->blocked)
 			{
-				X86ContextCheckSignalHandlerIntr(ctx);
-				x86_sys_debug("syscall 'poll' - interrupted by signal (pid %d)\n", ctx->pid);
-				X86ContextClearState(ctx, X86ContextSuspended | X86ContextPoll);
+				FPGAKernelCheckSignalHandlerIntr(ctx);
+				fpga_sys_debug("syscall 'poll' - interrupted by signal (pid %d)\n", ctx->pid);
+				FPGAKernelClearState(ctx, FPGAKernelSuspended | FPGAKernelPoll);
 				continue;
 			}
 
@@ -269,9 +269,9 @@ void X86EmuProcessEvents(X86Emu *self)
 				revents = POLLOUT;
 				mem_write(ctx->mem, prevents, 2, &revents);
 				ctx->regs->eax = 1;
-				x86_sys_debug("syscall poll - continue (pid %d) - POLLOUT occurred in file\n", ctx->pid);
-				x86_sys_debug("  retval=%d\n", ctx->regs->eax);
-				X86ContextClearState(ctx, X86ContextSuspended | X86ContextPoll);
+				fpga_sys_debug("syscall poll - continue (pid %d) - POLLOUT occurred in file\n", ctx->pid);
+				fpga_sys_debug("  retval=%d\n", ctx->regs->eax);
+				FPGAKernelClearState(ctx, FPGAKernelSuspended | FPGAKernelPoll);
 				continue;
 			}
 
@@ -281,9 +281,9 @@ void X86EmuProcessEvents(X86Emu *self)
 				revents = POLLIN;
 				mem_write(ctx->mem, prevents, 2, &revents);
 				ctx->regs->eax = 1;
-				x86_sys_debug("syscall poll - continue (pid %d) - POLLIN occurred in file\n", ctx->pid);
-				x86_sys_debug("  retval=%d\n", ctx->regs->eax);
-				X86ContextClearState(ctx, X86ContextSuspended | X86ContextPoll);
+				fpga_sys_debug("syscall poll - continue (pid %d) - POLLIN occurred in file\n", ctx->pid);
+				fpga_sys_debug("  retval=%d\n", ctx->regs->eax);
+				FPGAKernelClearState(ctx, FPGAKernelSuspended | FPGAKernelPoll);
 				continue;
 			}
 
@@ -292,44 +292,44 @@ void X86EmuProcessEvents(X86Emu *self)
 			{
 				revents = 0;
 				mem_write(ctx->mem, prevents, 2, &revents);
-				x86_sys_debug("syscall poll - continue (pid %d) - time out\n", ctx->pid);
-				x86_sys_debug("  return=0x%x\n", ctx->regs->eax);
-				X86ContextClearState(ctx, X86ContextSuspended | X86ContextPoll);
+				fpga_sys_debug("syscall poll - continue (pid %d) - time out\n", ctx->pid);
+				fpga_sys_debug("  return=0x%x\n", ctx->regs->eax);
+				FPGAKernelClearState(ctx, FPGAKernelSuspended | FPGAKernelPoll);
 				continue;
 			}
 
-			/* No event available, launch 'X86EmuHostThreadSuspend' again */
+			/* No event available, launch 'FPGAEmuHostThreadSuspend' again */
 			ctx->host_thread_suspend_active = 1;
-			if (pthread_create(&ctx->host_thread_suspend, NULL, X86EmuHostThreadSuspend, ctx))
+			if (pthread_create(&ctx->host_thread_suspend, NULL, FPGAEmuHostThreadSuspend, ctx))
 				fatal("syscall 'poll': could not create child thread");
 			continue;
 		}
 
 
-		/* Context suspended in a 'write' system call  */
-		if (X86ContextGetState(ctx, X86ContextWrite))
+		/* Kernel suspended in a 'write' system call  */
+		if (FPGAKernelGetState(ctx, FPGAKernelWrite))
 		{
-			struct x86_file_desc_t *fd;
+			struct fpga_file_desc_t *fd;
 			int count, err;
 			uint32_t pbuf;
 			void *buf;
 			struct pollfd host_fds;
 
-			/* If 'X86EmuHostThreadSuspend' is still running for this context, do nothing. */
+			/* If 'FPGAEmuHostThreadSuspend' is still running for this context, do nothing. */
 			if (ctx->host_thread_suspend_active)
 				continue;
 
-			/* Context received a signal */
+			/* Kernel received a signal */
 			if (ctx->signal_mask_table->pending & ~ctx->signal_mask_table->blocked)
 			{
-				X86ContextCheckSignalHandlerIntr(ctx);
-				x86_sys_debug("syscall 'write' - interrupted by signal (pid %d)\n", ctx->pid);
-				X86ContextClearState(ctx, X86ContextSuspended | X86ContextWrite);
+				FPGAKernelCheckSignalHandlerIntr(ctx);
+				fpga_sys_debug("syscall 'write' - interrupted by signal (pid %d)\n", ctx->pid);
+				FPGAKernelClearState(ctx, FPGAKernelSuspended | FPGAKernelWrite);
 				continue;
 			}
 
 			/* Get file descriptor */
-			fd = x86_file_desc_table_entry_get(ctx->file_desc_table, ctx->wakeup_fd);
+			fd = fpga_file_desc_table_entry_get(ctx->file_desc_table, ctx->wakeup_fd);
 			if (!fd)
 				fatal("syscall 'write': invalid 'wakeup_fd'");
 
@@ -354,43 +354,43 @@ void X86EmuProcessEvents(X86Emu *self)
 				ctx->regs->eax = count;
 				free(buf);
 
-				x86_sys_debug("syscall write - continue (pid %d)\n", ctx->pid);
-				x86_sys_debug("  return=0x%x\n", ctx->regs->eax);
-				X86ContextClearState(ctx, X86ContextSuspended | X86ContextWrite);
+				fpga_sys_debug("syscall write - continue (pid %d)\n", ctx->pid);
+				fpga_sys_debug("  return=0x%x\n", ctx->regs->eax);
+				FPGAKernelClearState(ctx, FPGAKernelSuspended | FPGAKernelWrite);
 				continue;
 			}
 
-			/* Data is not ready to be written - launch 'X86EmuHostThreadSuspend' again */
+			/* Data is not ready to be written - launch 'FPGAEmuHostThreadSuspend' again */
 			ctx->host_thread_suspend_active = 1;
-			if (pthread_create(&ctx->host_thread_suspend, NULL, X86EmuHostThreadSuspend, ctx))
+			if (pthread_create(&ctx->host_thread_suspend, NULL, FPGAEmuHostThreadSuspend, ctx))
 				fatal("syscall 'write': could not create child thread");
 			continue;
 		}
 
-		/* Context suspended in 'read' system call */
-		if (X86ContextGetState(ctx, X86ContextRead))
+		/* Kernel suspended in 'read' system call */
+		if (FPGAKernelGetState(ctx, FPGAKernelRead))
 		{
-			struct x86_file_desc_t *fd;
+			struct fpga_file_desc_t *fd;
 			uint32_t pbuf;
 			int count, err;
 			void *buf;
 			struct pollfd host_fds;
 
-			/* If 'X86EmuHostThreadSuspend' is still running for this context, do nothing. */
+			/* If 'FPGAEmuHostThreadSuspend' is still running for this context, do nothing. */
 			if (ctx->host_thread_suspend_active)
 				continue;
 
-			/* Context received a signal */
+			/* Kernel received a signal */
 			if (ctx->signal_mask_table->pending & ~ctx->signal_mask_table->blocked)
 			{
-				X86ContextCheckSignalHandlerIntr(ctx);
-				x86_sys_debug("syscall 'read' - interrupted by signal (pid %d)\n", ctx->pid);
-				X86ContextClearState(ctx, X86ContextSuspended | X86ContextRead);
+				FPGAKernelCheckSignalHandlerIntr(ctx);
+				fpga_sys_debug("syscall 'read' - interrupted by signal (pid %d)\n", ctx->pid);
+				FPGAKernelClearState(ctx, FPGAKernelSuspended | FPGAKernelRead);
 				continue;
 			}
 
 			/* Get file descriptor */
-			fd = x86_file_desc_table_entry_get(ctx->file_desc_table, ctx->wakeup_fd);
+			fd = fpga_file_desc_table_entry_get(ctx->file_desc_table, ctx->wakeup_fd);
 			if (!fd)
 				fatal("syscall 'read': invalid 'wakeup_fd'");
 
@@ -416,27 +416,27 @@ void X86EmuProcessEvents(X86Emu *self)
 				mem_write(ctx->mem, pbuf, count, buf);
 				free(buf);
 
-				x86_sys_debug("syscall 'read' - continue (pid %d)\n", ctx->pid);
-				x86_sys_debug("  return=0x%x\n", ctx->regs->eax);
-				X86ContextClearState(ctx, X86ContextSuspended | X86ContextRead);
+				fpga_sys_debug("syscall 'read' - continue (pid %d)\n", ctx->pid);
+				fpga_sys_debug("  return=0x%x\n", ctx->regs->eax);
+				FPGAKernelClearState(ctx, FPGAKernelSuspended | FPGAKernelRead);
 				continue;
 			}
 
-			/* Data is not ready. Launch 'X86EmuHostThreadSuspend' again */
+			/* Data is not ready. Launch 'FPGAEmuHostThreadSuspend' again */
 			ctx->host_thread_suspend_active = 1;
-			if (pthread_create(&ctx->host_thread_suspend, NULL, X86EmuHostThreadSuspend, ctx))
+			if (pthread_create(&ctx->host_thread_suspend, NULL, FPGAEmuHostThreadSuspend, ctx))
 				fatal("syscall 'read': could not create child thread");
 			continue;
 		}
 
-		/* Context suspended in a 'waitpid' system call */
-		if (X86ContextGetState(ctx, X86ContextWaitpid))
+		/* Kernel suspended in a 'waitpid' system call */
+		if (FPGAKernelGetState(ctx, FPGAKernelWaitpid))
 		{
-			X86Context *child;
+			FPGAKernel *child;
 			uint32_t pstatus;
 
 			/* A zombie child is available to 'waitpid' it */
-			child = X86ContextGetZombie(ctx, ctx->wakeup_pid);
+			child = FPGAKernelGetZombie(ctx, ctx->wakeup_pid);
 			if (child)
 			{
 				/* Continue with 'waitpid' system call */
@@ -444,31 +444,31 @@ void X86EmuProcessEvents(X86Emu *self)
 				ctx->regs->eax = child->pid;
 				if (pstatus)
 					mem_write(ctx->mem, pstatus, 4, &child->exit_code);
-				X86ContextSetState(child, X86ContextFinished);
+				FPGAKernelSetState(child, FPGAKernelFinished);
 
-				x86_sys_debug("syscall waitpid - continue (pid %d)\n", ctx->pid);
-				x86_sys_debug("  return=0x%x\n", ctx->regs->eax);
-				X86ContextClearState(ctx, X86ContextSuspended | X86ContextWaitpid);
+				fpga_sys_debug("syscall waitpid - continue (pid %d)\n", ctx->pid);
+				fpga_sys_debug("  return=0x%x\n", ctx->regs->eax);
+				FPGAKernelClearState(ctx, FPGAKernelSuspended | FPGAKernelWaitpid);
 				continue;
 			}
 
 			/* No event available. Since this context won't wake up on its own, no
-			 * 'X86EmuHostThreadSuspend' is needed. */
+			 * 'FPGAEmuHostThreadSuspend' is needed. */
 			continue;
 		}
 
-		/* Context suspended in a system call using a custom wake up check call-back
+		/* Kernel suspended in a system call using a custom wake up check call-back
 		 * function. NOTE: this is a new mechanism. It'd be nice if all other system
 		 * calls started using it. It is nicer, since it allows for a check of wake up
 		 * conditions together with the system call itself, without having distributed
 		 * code for the implementation of a system call (e.g. 'read'). */
-		if (X86ContextGetState(ctx, X86ContextCallback))
+		if (FPGAKernelGetState(ctx, FPGAKernelCallback))
 		{
 			assert(ctx->can_wakeup_callback_func);
 			if (ctx->can_wakeup_callback_func(ctx, ctx->can_wakeup_callback_data))
 			{
 				/* Set context status to 'running' again. */
-				X86ContextClearState(ctx, X86ContextSuspended | X86ContextCallback);
+				FPGAKernelClearState(ctx, FPGAKernelSuspended | FPGAKernelCallback);
 
 				/* Call wake up function */
 				if (ctx->wakeup_callback_func)
@@ -509,11 +509,11 @@ void X86EmuProcessEvents(X86Emu *self)
 
 			/* Timer expired - send a signal.
 			 * The target process might be suspended, so the host thread is canceled, and a new
-			 * call to 'X86EmuProcessEvents' is scheduled. Since 'ke_process_events_mutex' is
-			 * already locked, the thread-unsafe version of 'x86_ctx_host_thread_suspend_cancel' is used. */
-			X86ContextHostThreadSuspendCancelUnsafe(ctx);
+			 * call to 'FPGAEmuProcessEvents' is scheduled. Since 'ke_process_events_mutex' is
+			 * already locked, the thread-unsafe version of 'fpga_ctx_host_thread_suspend_cancel' is used. */
+			FPGAKernelHostThreadSuspendCancelUnsafe(ctx);
 			self->process_events_force = 1;
-			x86_sigset_add(&ctx->signal_mask_table->pending, sig[i]);
+			fpga_sigset_add(&ctx->signal_mask_table->pending, sig[i]);
 
 			/* Calculate next occurrence */
 			ctx->itimer_value[i] = 0;
@@ -536,7 +536,7 @@ void X86EmuProcessEvents(X86Emu *self)
 		if (ctx->host_thread_timer_wakeup)
 		{
 			ctx->host_thread_timer_active = 1;
-			if (pthread_create(&ctx->host_thread_timer, NULL, X86ContextHostThreadTimer, ctx))
+			if (pthread_create(&ctx->host_thread_timer, NULL, FPGAKernelHostThreadTimer, ctx))
 				fatal("%s: could not create child thread", __FUNCTION__);
 		}
 	}
@@ -548,7 +548,7 @@ void X86EmuProcessEvents(X86Emu *self)
 	 */
 	for (ctx = self->running_list_head; ctx; ctx = ctx->running_list_next)
 	{
-		X86ContextCheckSignalHandler(ctx);
+		FPGAKernelCheckSignalHandler(ctx);
 	}
 
 	
@@ -557,33 +557,21 @@ void X86EmuProcessEvents(X86Emu *self)
 }
 
 
-int X86EmuRun(Emu *self)
+int FPGAEmuRun(Emu *self)
 {
-	X86Emu *emu = asX86Emu(self);
-	X86Context *ctx;
+	FPGAEmu *emu = asFPGAEmu(self);
+	FPGAKernel *kernel;
 
 	/* Stop if there is no context running */
-	if (emu->finished_list_count >= emu->context_list_count)
+	if (emu->running_list_count <= 0)
 		return FALSE;
 
-	/* Stop if maximum number of CPU instructions exceeded */
-	if (x86_emu_max_inst && asEmu(self)->instructions >= x86_emu_max_inst)
-		esim_finish = esim_finish_x86_max_inst;
-
-	/* Stop if any previous reason met */
-	if (esim_finish)
-		return TRUE;
-
 	/* Run an instruction from every running process */
-	for (ctx = emu->running_list_head; ctx; ctx = ctx->running_list_next)
-		X86ContextExecute(ctx);
-
-	/* Free finished contexts */
-	while (emu->finished_list_head)
-		delete(emu->finished_list_head);
+	for (kernel = emu->running_list_head; kernel; kernel = kernel->running_list_next)
+		FPGAKernelExecute(kernel);
 
 	/* Process list of suspended contexts */
-	X86EmuProcessEvents(emu);
+	FPGAEmuProcessEvents(emu);
 
 	/* Still running */
 	return TRUE;
@@ -591,31 +579,29 @@ int X86EmuRun(Emu *self)
 
 
 /* Search a context based on its PID */
-X86Context *X86EmuGetContext(X86Emu *self, int pid)
+FPGAKernel *FPGAEmuGetKernel(FPGAEmu *self, int pid)
 {
-	X86Context *context;
+	FPGAKernel *kernel;
 
-	context = self->context_list_head;
-	while (context && context->pid != pid)
-		context = context->context_list_next;
-	return context;
+	kernel = self->kernel_list_head;
+	while (kernel && kernel->kid != pid)
+		kernel = kernel->kernel_list_next;
+	return kernel;
 }
 
 
-void X86EmuLoadContextsFromConfig(X86Emu *self, struct config_t *config, char *section)
+void FPGAEmuLoadKernelsFromConfig(FPGAEmu *self, struct config_t *config, char *section)
 {
-	X86Context *ctx;
-	struct x86_loader_t *loader;
+	FPGAKernel *kernel;
+	struct fpga_loader_t *loader;
 
 	char buf[MAX_STRING_SIZE];
 
-	char *exe;
-	char *cwd;
-	char *args;
-	char *env;
-
-	char *in;
-	char *out;
+	char *blif;
+	char *imps;
+	char *widths;
+	char *lengths;
+	char *heights;
 
 	char *config_file_name;
 
@@ -623,95 +609,41 @@ void X86EmuLoadContextsFromConfig(X86Emu *self, struct config_t *config, char *s
 	config_file_name = config_get_file_name(config);
 
 	/* Create new context */
-	ctx = new(X86Context, self);
-	loader = ctx->loader;
+	kernel = new(FPGAKernel, self);
+	loader = kernel->loader;
 
 	/* Executable */
-	exe = config_read_string(config, section, "Exe", "");
-	exe = str_set(NULL, exe);
-	if (!*exe)
-		fatal("%s: [%s]: invalid executable", config_file_name,
+	blif = config_read_string(config, section, "Blif", "");
+	blif = str_set(NULL, blif);
+	if (!*blif)
+		fatal("%s: [%s]: invalid blif", config_file_name,
 			section);
 
 	/* Arguments */
-	args = config_read_string(config, section, "Args", "");
-	linked_list_add(loader->args, exe);
-	X86ContextAddArgsString(ctx, args);
+	imps = config_read_string(config, section, "Implements", "");
+	FPGAKernelSetSetNumImplements(kernel, imps);
 
 	/* Environment variables */
-	env = config_read_string(config, section, "Env", "");
-	X86ContextAddEnv(ctx, env);
-
-	/* Current working directory */
-	cwd = config_read_string(config, section, "Cwd", "");
-	if (*cwd)
-		loader->cwd = str_set(NULL, cwd);
-	else
-	{
-		/* Get current directory */
-		loader->cwd = getcwd(buf, sizeof buf);
-		if (!loader->cwd)
-			panic("%s: buffer too small", __FUNCTION__);
-
-		/* Duplicate string */
-		loader->cwd = str_set(NULL, loader->cwd);
-	}
-
-	/* Standard input */
-	in = config_read_string(config, section, "Stdin", "");
-	loader->stdin_file = str_set(NULL, in);
-
-	/* Standard output */
-	out = config_read_string(config, section, "Stdout", "");
-	loader->stdout_file = str_set(NULL, out);
+	widths = config_read_string(config, section, "Widths", "");
+	FPGAKernelAddImpsString(kernel, widths, WIDTH);
+	lengths = config_read_string(config, section, "Lengths", "");
+	FPGAKernelAddImpsString(kernel, lengths, LENGTH);
+	heights = config_read_string(config, section, "Heights", "");
+	FPGAKernelAddImpsString(kernel, heights, HEIGHT);
 
 	/* Load executable */
-	X86ContextLoadExe(ctx, exe);
+	FPGAKernelLoadBlif(kernel, blif);
 }
-
-
-void X86EmuLoadContextFromCommandLine(X86Emu *self, int argc, char **argv)
-{
-	X86Context *ctx;
-	struct x86_loader_t *loader;
-
-	char buf[MAX_STRING_SIZE];
-
-	/* Create context */
-	ctx = new(X86Context, self);
-	loader = ctx->loader;
-
-	/* Arguments and environment */
-	X86ContextAddArgsVector(ctx, argc, argv);
-	X86ContextAddEnv(ctx, "");
-
-	/* Get current directory */
-	loader->cwd = getcwd(buf, sizeof buf);
-	if (!loader->cwd)
-		panic("%s: buffer too small", __FUNCTION__);
-	loader->cwd = str_set(NULL, loader->cwd);
-
-	/* Redirections */
-	loader->stdin_file = str_set(NULL, "");
-	loader->stdout_file = str_set(NULL, "");
-
-	/* Load executable */
-	X86ContextLoadExe(ctx, argv[0]);
-}
-
-
-
 
 /*
  * Non-Class Functions
  */
 
-
-void x86_emu_init(void)
+void fpga_emu_init(void)
 {
 	/* Classes */
-	CLASS_REGISTER(X86Emu);
-	CLASS_REGISTER(X86Context);
+	CLASS_REGISTER(FPGAEmu);
+	CLASS_REGISTER(FPGAKernel);
 
 	/* Endian check */
 	union
@@ -728,12 +660,12 @@ void x86_emu_init(void)
 	M2S_HOST_GUEST_MATCH(sizeof(int), 4);
 	M2S_HOST_GUEST_MATCH(sizeof(short), 2);
 
-	/* Create x86 emulator */
-	x86_emu = new(X86Emu);
+	/* Create fpga emulator */
+	fpga_emu = new(FPGAEmu);
 
 	/* Initialize */
-	x86_asm_init();
-	x86_uinst_init();
+	fpga_asm_init();
+	fpga_uinst_init();
 
 #ifdef HAVE_OPENGL
 	/* GLUT */
@@ -750,7 +682,7 @@ void x86_emu_init(void)
 
 
 /* Finalization */
-void x86_emu_done(void)
+void fpga_emu_done(void)
 {
 
 #ifdef HAVE_OPENGL
@@ -763,14 +695,14 @@ void x86_emu_done(void)
 	opengl_done();
 
 	/* End */
-	x86_uinst_done();
-	x86_asm_done();
+	fpga_uinst_done();
+	fpga_asm_done();
 
 	/* Print system call summary */
-	if (debug_status(x86_sys_debug_category))
-		x86_sys_dump_stats(debug_file(x86_sys_debug_category));
+	if (debug_status(fpga_sys_debug_category))
+		fpga_sys_dump_stats(debug_file(fpga_sys_debug_category));
 
 	/* Free emulator */
-	delete(x86_emu);
+	delete(fpga_emu);
 }
 

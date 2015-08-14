@@ -17,51 +17,55 @@
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
-#ifndef ARCH_X86_EMU_LOADER_H
-#define ARCH_X86_EMU_LOADER_H
+#ifndef ARCH_FPGA_EMU_LOADER_H
+#define ARCH_FPGA_EMU_LOADER_H
 
 /* Forward type declarations */
 struct config_t;
 struct elf_file_t;
 
-
+typedef enum {
+	WIDTH, LENGTH, HEIGHT
+} implement_param;
 
 /*
- * Class 'X86Context'
+ * Class 'FPGAKernel'
  * Additional Functions
  */
 
-void X86ContextAddArgsVector(X86Context *self, int argc, char **argv);
-void X86ContextAddArgsString(X86Context *self, char *args);
-void X86ContextAddEnv(X86Context *self, char *env);
+void FPGAKernelAddArgsVector(FPGAKernel *self, int argc, char **argv);
+void FPGAKernelAddArgsString(FPGAKernel *self, char *args);
+void FPGAKernelSetNumImplements(FPGAKernel *self, char *num_implements);
+void FPGAKernelAddImpsString(FPGAKernel *self, char *imps, implement_param type);
 
-void X86ContextLoadELFSections(X86Context *self, struct elf_file_t *elf_file);
-void X86ContextLoadInterp(X86Context *self);
-void X86ContextLoadProgramHeaders(X86Context *self);
-unsigned int X86ContextLoadAV(X86Context *self, unsigned int where);
-void X86ContextLoadStack(X86Context *self);
+void FPGAKernelLoadELFSections(FPGAKernel *self, struct elf_file_t *elf_file);
+void FPGAKernelLoadInterp(FPGAKernel *self);
+void FPGAKernelLoadProgramHeaders(FPGAKernel *self);
+unsigned int FPGAKernelLoadAV(FPGAKernel *self, unsigned int where);
+void FPGAKernelLoadStack(FPGAKernel *self);
 
-void X86ContextLoadExe(X86Context *self, char *exe);
-void X86ContextGetFullPath(X86Context *self, char *file_name, char *full_path, int size);
+void FPGAKernelLoadExe(FPGAKernel *self, char *exe);
+void FPGAKernelGetFullPath(FPGAKernel *self, char *file_name, char *full_path, int size);
 
 
 
 /*
- * Object 'x86_loader_t'
+ * Object 'fpga_loader_t'
  */
 
-struct x86_loader_t
+struct fpga_loader_t
 {
 	/* Number of extra contexts using this loader */
-	int num_links;
+	int num_implements;
 
 	/* Program data */
 	struct elf_file_t *elf_file;
-	struct linked_list_t *args;
-	struct linked_list_t *env;
-	char *interp;  /* Executable interpreter */
-	char *exe;  /* Executable file name */
-	char *cwd;  /* Current working directory */
+	struct linked_list_t *widths;
+	struct linked_list_t *lengths;
+	struct linked_list_t *heights;
+
+	char *blif;  /* Executable file name */
+
 	char *stdin_file;  /* File name for stdin */
 	char *stdout_file;  /* File name for stdout */
 
@@ -88,11 +92,11 @@ struct x86_loader_t
 };
 
 
-struct x86_loader_t *x86_loader_create(void);
-void x86_loader_free(struct x86_loader_t *loader);
+struct fpga_loader_t *fpga_loader_create(void);
+void fpga_loader_free(struct fpga_loader_t *loader);
 
-struct x86_loader_t *x86_loader_link(struct x86_loader_t *loader);
-void x86_loader_unlink(struct x86_loader_t *loader);
+struct fpga_loader_t *fpga_loader_link(struct fpga_loader_t *loader);
+void fpga_loader_unlink(struct fpga_loader_t *loader);
 
 
 
@@ -101,10 +105,10 @@ void x86_loader_unlink(struct x86_loader_t *loader);
  * Public
  */
 
-#define x86_loader_debug(...) debug(x86_loader_debug_category, __VA_ARGS__)
-extern int x86_loader_debug_category;
+#define fpga_loader_debug(...) debug(fpga_loader_debug_category, __VA_ARGS__)
+extern int fpga_loader_debug_category;
 
-extern char *x86_loader_help;
+extern char *fpga_loader_help;
 
 
 #endif

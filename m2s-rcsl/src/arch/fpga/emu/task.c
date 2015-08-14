@@ -20,7 +20,7 @@
 #include <poll.h>
 #include <unistd.h>
 
-#include <arch/x86/timing/cpu.h>
+#include <arch/fpga/timing/cpu.h>
 #include <lib/esim/esim.h>
 #include <lib/mhandle/mhandle.h>
 #include <lib/util/bit-map.h>
@@ -32,7 +32,7 @@
 #include <mem-system/mmu.h>
 #include <mem-system/spec-mem.h>
 
-#include "context.h"
+#include "task.h"
 #include "emu.h"
 #include "file-desc.h"
 #include "isa.h"
@@ -43,12 +43,12 @@
 
 
 /*
- * Class 'X86Context'
+ * Class 'FPGATask'
  */
 
-CLASS_IMPLEMENTATION(X86Context);
+CLASS_IMPLEMENTATION(FPGATask);
 
-static void X86ContextDoCreate(X86Context *self, X86Emu *emu)
+static void FPGATaskDoCreate(FPGATask *self, FPGAEmu *emu)
 {
 	int num_nodes;
 	int i;
@@ -58,35 +58,35 @@ static void X86ContextDoCreate(X86Context *self, X86Emu *emu)
 	self->pid = emu->current_pid++;
 
 	/* Update state so that the context is inserted in the
-	 * corresponding lists. The x86_ctx_running parameter has no
+	 * corresponding lists. The fpga_ctx_running parameter has no
 	 * effect, since it will be updated later. */
-	X86ContextSetState(self, X86ContextRunning);
-	DOUBLE_LINKED_LIST_INSERT_HEAD(emu, context, self);
+	FPGATaskSetState(self, FPGATaskRunning);
+	DOUBLE_LINKED_LIST_INSERT_HEAD(emu, task, self);
 
 	/* Structures */
-	self->regs = x86_regs_create();
-	self->backup_regs = x86_regs_create();
-	self->signal_mask_table = x86_signal_mask_table_create();
+	self->regs = fpga_regs_create();
+	self->backup_regs = fpga_regs_create();
+	self->signal_mask_table = fpga_signal_mask_table_create();
 
 	/* Thread affinity mask, used only for timing simulation. It is
 	 * initialized to all 1's. */
-	num_nodes = x86_cpu_num_cores * x86_cpu_num_threads;
+	num_nodes = fpga_cpu_num_cores * fpga_cpu_num_threads;
 	self->affinity = bit_map_create(num_nodes);
 	for (i = 0; i < num_nodes; i++)
 		bit_map_set(self->affinity, i, 1, 1);
 
 	/* Virtual functions */
-	asObject(self)->Dump = X86ContextDump;
+	asObject(self)->Dump = FPGATaskDump;
 }
 
 
-void X86ContextCreate(X86Context *self, X86Emu *emu)
+void FPGATaskCreate(FPGATask *self, FPGAEmu *emu)
 {
 	/* Baseline initialization */
-	X86ContextDoCreate(self, emu);
+	FPGATaskDoCreate(self, emu);
 
 	/* Loader */
-	self->loader = x86_loader_create();
+	self->loader = fpga_loader_create();
 
 	/* Memory */
 	self->address_space_index = mmu_address_space_new();
@@ -94,18 +94,18 @@ void X86ContextCreate(X86Context *self, X86Emu *emu)
 	self->spec_mem = spec_mem_create(self->mem);
 
 	/* Signal handlers and file descriptor table */
-	self->signal_handler_table = x86_signal_handler_table_create();
-	self->file_desc_table = x86_file_desc_table_create();
+	self->signal_handler_table = fpga_signal_handler_table_create();
+	self->file_desc_table = fpga_file_desc_table_create();
 }
 
 
-void X86ContextCreateAndClone(X86Context *self, X86Context *cloned)
+void FPGATaskCreateAndClone(FPGATask *self, FPGATask *cloned)
 {
 	/* Baseline initialization */
-	X86ContextDoCreate(self, cloned->emu);
+	FPGATaskDoCreate(self, cloned->emu);
 
 	/* Register file contexts are copied from parent. */
-	x86_regs_copy(self->regs, cloned->regs);
+	fpga_regs_copy(self->regs, cloned->regs);
 
 	/* The memory image of the cloned context if the same.
 	 * The memory structure must be only freed by the parent
@@ -116,11 +116,11 @@ void X86ContextCreateAndClone(X86Context *self, X86Context *cloned)
 	self->spec_mem = spec_mem_create(self->mem);
 
 	/* Loader */
-	self->loader = x86_loader_link(cloned->loader);
+	self->loader = fpga_loader_link(cloned->loader);
 
 	/* Signal handlers and file descriptor table */
-	self->signal_handler_table = x86_signal_handler_table_link(cloned->signal_handler_table);
-	self->file_desc_table = x86_file_desc_table_link(cloned->file_desc_table);
+	self->signal_handler_table = fpga_signal_handler_table_link(cloned->signal_handler_table);
+	self->file_desc_table = fpga_file_desc_table_link(cloned->file_desc_table);
 
 	/* Libc segment */
 	self->glibc_segment_base = cloned->glibc_segment_base;
@@ -131,13 +131,13 @@ void X86ContextCreateAndClone(X86Context *self, X86Context *cloned)
 }
 
 
-void X86ContextCreateAndFork(X86Context *self, X86Context *forked)
+void FPGATaskCreateAndFork(FPGATask *self, FPGATask *forked)
 {
 	/* Initialize baseline contect */
-	X86ContextDoCreate(self, forked->emu);
+	FPGATaskDoCreate(self, forked->emu);
 
 	/* Copy registers */
-	x86_regs_copy(self->regs, forked->regs);
+	fpga_regs_copy(self->regs, forked->regs);
 
 	/* Memory */
 	self->address_space_index = mmu_address_space_new();
@@ -146,11 +146,11 @@ void X86ContextCreateAndFork(X86Context *self, X86Context *forked)
 	mem_clone(self->mem, forked->mem);
 
 	/* Loader */
-	self->loader = x86_loader_link(forked->loader);
+	self->loader = fpga_loader_link(forked->loader);
 
 	/* Signal handlers and file descriptor table */
-	self->signal_handler_table = x86_signal_handler_table_create();
-	self->file_desc_table = x86_file_desc_table_create();
+	self->signal_handler_table = fpga_signal_handler_table_create();
+	self->file_desc_table = fpga_file_desc_table_create();
 
 	/* Libc segment */
 	self->glibc_segment_base = forked->glibc_segment_base;
@@ -161,14 +161,14 @@ void X86ContextCreateAndFork(X86Context *self, X86Context *forked)
 }
 
 
-void X86ContextDestroy(X86Context *self)
+void FPGATaskDestroy(FPGATask *self)
 {
-	X86Emu *emu = self->emu;
+	FPGAEmu *emu = self->emu;
 
 	/* If context is not finished/zombie, finish it first.
 	 * This removes all references to current freed context. */
-	if (!X86ContextGetState(self, X86ContextFinished | X86ContextZombie))
-		X86ContextFinish(self, 0);
+	if (!FPGATaskGetState(self, FPGATaskFinished | FPGATaskZombie))
+		FPGATaskFinish(self, 0);
 	
 	/* Remove context from finished contexts list. This should
 	 * be the only list the context is in right now. */
@@ -179,28 +179,28 @@ void X86ContextDestroy(X86Context *self)
 	DOUBLE_LINKED_LIST_REMOVE(emu, finished, self);
 		
 	/* Free private structures */
-	x86_regs_free(self->regs);
-	x86_regs_free(self->backup_regs);
-	x86_signal_mask_table_free(self->signal_mask_table);
+	fpga_regs_free(self->regs);
+	fpga_regs_free(self->backup_regs);
+	fpga_signal_mask_table_free(self->signal_mask_table);
 	spec_mem_free(self->spec_mem);
 	bit_map_free(self->affinity);
 
 	/* Unlink shared structures */
-	x86_loader_unlink(self->loader);
-	x86_signal_handler_table_unlink(self->signal_handler_table);
-	x86_file_desc_table_unlink(self->file_desc_table);
+	fpga_loader_unlink(self->loader);
+	fpga_signal_handler_table_unlink(self->signal_handler_table);
+	fpga_file_desc_table_unlink(self->file_desc_table);
 	mem_unlink(self->mem);
 
 	/* Remove context from contexts list and free */
 	DOUBLE_LINKED_LIST_REMOVE(emu, context, self);
-	X86ContextDebug("inst %lld: context %d freed\n",
+	FPGATaskDebug("inst %lld: context %d freed\n",
 			asEmu(emu)->instructions, self->pid);
 }
 
 
-void X86ContextDump(Object *self, FILE *f)
+void FPGATaskDump(Object *self, FILE *f)
 {
-	X86Context *context = asX86Context(self);
+	FPGATask *context = asFPGATask(self);
 	char state_str[MAX_STRING_SIZE];
 
 	/* Title */
@@ -208,7 +208,7 @@ void X86ContextDump(Object *self, FILE *f)
 	fprintf(f, "Context %d\n", context->pid);
 	fprintf(f, "------------\n\n");
 
-	str_map_flags(&x86_context_state_map, context->state, state_str, sizeof state_str);
+	str_map_flags(&fpga_context_state_map, context->state, state_str, sizeof state_str);
 	fprintf(f, "State = %s\n", state_str);
 	if (!context->parent)
 		fprintf(f, "Parent = None\n");
@@ -218,11 +218,11 @@ void X86ContextDump(Object *self, FILE *f)
 
 	/* Bit masks */
 	fprintf(f, "BlockedSignalMask = 0x%llx ", context->signal_mask_table->blocked);
-	x86_sigset_dump(context->signal_mask_table->blocked, f);
+	fpga_sigset_dump(context->signal_mask_table->blocked, f);
 	fprintf(f, "\nPendingSignalMask = 0x%llx ", context->signal_mask_table->pending);
-	x86_sigset_dump(context->signal_mask_table->pending, f);
+	fpga_sigset_dump(context->signal_mask_table->pending, f);
 	fprintf(f, "\nAffinity = ");
-	bit_map_dump(context->affinity, 0, x86_cpu_num_cores * x86_cpu_num_threads, f);
+	bit_map_dump(context->affinity, 0, fpga_cpu_num_cores * fpga_cpu_num_threads, f);
 	fprintf(f, "\n");
 
 	/* End */
@@ -230,11 +230,11 @@ void X86ContextDump(Object *self, FILE *f)
 }
 
 
-void X86ContextExecute(X86Context *self)
+void FPGATaskExecute(FPGATask *self)
 {
-	X86Emu *emu = self->emu;
+	FPGAEmu *emu = self->emu;
 
-	struct x86_regs_t *regs = self->regs;
+	struct fpga_regs_t *regs = self->regs;
 	struct mem_t *mem = self->mem;
 
 	unsigned char buffer[20];
@@ -244,7 +244,7 @@ void X86ContextExecute(X86Context *self)
 
 	/* Memory permissions should not be checked if the context is executing in
 	 * speculative mode. This will prevent guest segmentation faults to occur. */
-	spec_mode = X86ContextGetState(self, X86ContextSpecMode);
+	spec_mode = FPGATaskGetState(self, FPGATaskSpecMode);
 	mem->safe = spec_mode ? 0 : mem_safe_mode;
 
 	/* Read instruction from memory. Memory should be accessed here in unsafe mode
@@ -262,20 +262,20 @@ void X86ContextExecute(X86Context *self)
 	mem->safe = mem_safe_mode;
 
 	/* Disassemble */
-	x86_inst_decode(&self->inst, regs->eip, buffer_ptr);
-	if (self->inst.opcode == x86_inst_opcode_invalid && !spec_mode)
-		fatal("0x%x: not supported x86 instruction (%02x %02x %02x %02x...)",
+	fpga_inst_decode(&self->inst, regs->eip, buffer_ptr);
+	if (self->inst.opcode == fpga_inst_opcode_invalid && !spec_mode)
+		fatal("0x%x: not supported fpga instruction (%02x %02x %02x %02x...)",
 			regs->eip, buffer_ptr[0], buffer_ptr[1], buffer_ptr[2], buffer_ptr[3]);
 
 
 	/* Stop if instruction matches last instruction bytes */
-	if (x86_emu_last_inst_size &&
-		x86_emu_last_inst_size == self->inst.size &&
-		!memcmp(x86_emu_last_inst_bytes, buffer_ptr, x86_emu_last_inst_size))
-		esim_finish = esim_finish_x86_last_inst;
+	if (fpga_emu_last_inst_size &&
+		fpga_emu_last_inst_size == self->inst.size &&
+		!memcmp(fpga_emu_last_inst_bytes, buffer_ptr, fpga_emu_last_inst_size))
+		esim_finish = esim_finish_fpga_last_inst;
 
 	/* Execute instruction */
-	X86ContextExecuteInst(self);
+	FPGATaskExecuteInst(self);
 	
 	/* Statistics */
 	asEmu(emu)->instructions++;
@@ -284,14 +284,14 @@ void X86ContextExecute(X86Context *self)
 
 /* Force a new 'eip' value for the context. The forced value should be the same as
  * the current 'eip' under normal circumstances. If it is not, speculative execution
- * starts, which will end on the next call to 'x86_ctx_recover'. */
-void X86ContextSetEip(X86Context *self, unsigned int eip)
+ * starts, which will end on the next call to 'fpga_ctx_recover'. */
+void FPGATaskSetEip(FPGATask *self, unsigned int eip)
 {
 	/* Entering specmode */
-	if (self->regs->eip != eip && !X86ContextGetState(self, X86ContextSpecMode))
+	if (self->regs->eip != eip && !FPGATaskGetState(self, FPGATaskSpecMode))
 	{
-		X86ContextSetState(self, X86ContextSpecMode);
-		x86_regs_copy(self->backup_regs, self->regs);
+		FPGATaskSetState(self, FPGATaskSpecMode);
+		fpga_regs_copy(self->backup_regs, self->regs);
 		self->regs->fpu_ctrl |= 0x3f; /* mask all FP exceptions on wrong path */
 	}
 	
@@ -300,26 +300,26 @@ void X86ContextSetEip(X86Context *self, unsigned int eip)
 }
 
 
-void X86ContextRecover(X86Context *self)
+void FPGATaskRecover(FPGATask *self)
 {
-	assert(X86ContextGetState(self, X86ContextSpecMode));
-	X86ContextClearState(self, X86ContextSpecMode);
-	x86_regs_copy(self->regs, self->backup_regs);
+	assert(FPGATaskGetState(self, FPGATaskSpecMode));
+	FPGATaskClearState(self, FPGATaskSpecMode);
+	fpga_regs_copy(self->regs, self->backup_regs);
 	spec_mem_clear(self->spec_mem);
 }
 
 
-int X86ContextGetState(X86Context *self, X86ContextState state)
+int FPGATaskGetState(FPGATask *self, FPGATaskState state)
 {
 	return (self->state & state) > 0;
 }
 
 
-static void X86ContextUpdateState(X86Context *self, X86ContextState state)
+static void FPGATaskUpdateState(FPGATask *self, FPGATaskState state)
 {
-	X86Emu *emu = self->emu;
+	FPGAEmu *emu = self->emu;
 
-	X86ContextState status_diff;
+	FPGATaskState status_diff;
 	char state_str[MAX_STRING_SIZE];
 
 	/* Remove contexts from the following lists:
@@ -334,48 +334,48 @@ static void X86ContextUpdateState(X86Context *self, X86ContextState state)
 		DOUBLE_LINKED_LIST_REMOVE(emu, finished, self);
 	
 	/* If the difference between the old and new state lies in other
-	 * states other than 'x86_ctx_specmode', a reschedule is marked. */
+	 * states other than 'fpga_ctx_specmode', a reschedule is marked. */
 	status_diff = self->state ^ state;
-	if (status_diff & ~X86ContextSpecMode)
+	if (status_diff & ~FPGATaskSpecMode)
 		emu->schedule_signal = 1;
 	
 	/* Update state */
 	self->state = state;
-	if (self->state & X86ContextFinished)
-		self->state = X86ContextFinished
-				| (state & X86ContextAlloc)
-				| (state & X86ContextMapped);
-	if (self->state & X86ContextZombie)
-		self->state = X86ContextZombie
-				| (state & X86ContextAlloc)
-				| (state & X86ContextMapped);
-	if (!(self->state & X86ContextSuspended) &&
-		!(self->state & X86ContextFinished) &&
-		!(self->state & X86ContextZombie) &&
-		!(self->state & X86ContextLocked))
-		self->state |= X86ContextRunning;
+	if (self->state & FPGATaskFinished)
+		self->state = FPGATaskFinished
+				| (state & FPGATaskAlloc)
+				| (state & FPGATaskMapped);
+	if (self->state & FPGATaskZombie)
+		self->state = FPGATaskZombie
+				| (state & FPGATaskAlloc)
+				| (state & FPGATaskMapped);
+	if (!(self->state & FPGATaskSuspended) &&
+		!(self->state & FPGATaskFinished) &&
+		!(self->state & FPGATaskZombie) &&
+		!(self->state & FPGATaskLocked))
+		self->state |= FPGATaskRunning;
 	else
-		self->state &= ~X86ContextRunning;
+		self->state &= ~FPGATaskRunning;
 	
 	/* Insert context into the corresponding lists. */
-	if (self->state & X86ContextRunning)
+	if (self->state & FPGATaskRunning)
 		DOUBLE_LINKED_LIST_INSERT_HEAD(emu, running, self);
-	if (self->state & X86ContextZombie)
+	if (self->state & FPGATaskZombie)
 		DOUBLE_LINKED_LIST_INSERT_HEAD(emu, zombie, self);
-	if (self->state & X86ContextFinished)
+	if (self->state & FPGATaskFinished)
 		DOUBLE_LINKED_LIST_INSERT_HEAD(emu, finished, self);
-	if (self->state & X86ContextSuspended)
+	if (self->state & FPGATaskSuspended)
 		DOUBLE_LINKED_LIST_INSERT_HEAD(emu, suspended, self);
 	
-	/* Dump new state (ignore 'x86_ctx_specmode' state, it's too frequent) */
-	if (debug_status(x86_context_debug_category) && (status_diff & ~X86ContextSpecMode))
+	/* Dump new state (ignore 'fpga_ctx_specmode' state, it's too frequent) */
+	if (debug_status(fpga_context_debug_category) && (status_diff & ~FPGATaskSpecMode))
 	{
-		str_map_flags(&x86_context_state_map, self->state, state_str, sizeof state_str);
-		X86ContextDebug("inst %lld: ctx %d changed state to %s\n",
+		str_map_flags(&fpga_context_state_map, self->state, state_str, sizeof state_str);
+		FPGATaskDebug("inst %lld: ctx %d changed state to %s\n",
 			asEmu(emu)->instructions, self->pid, state_str);
 	}
 
-	/* Start/stop x86 timer depending on whether there are any contexts
+	/* Start/stop fpga timer depending on whether there are any contexts
 	 * currently running. */
 	if (emu->running_list_count)
 		m2s_timer_start(asEmu(emu)->timer);
@@ -384,25 +384,25 @@ static void X86ContextUpdateState(X86Context *self, X86ContextState state)
 }
 
 
-void X86ContextSetState(X86Context *self, X86ContextState state)
+void FPGATaskSetState(FPGATask *self, FPGATaskState state)
 {
-	X86ContextUpdateState(self, self->state | state);
+	FPGATaskUpdateState(self, self->state | state);
 }
 
 
-void X86ContextClearState(X86Context *self, X86ContextState state)
+void FPGATaskClearState(FPGATask *self, FPGATaskState state)
 {
-	X86ContextUpdateState(self, self->state & ~state);
+	FPGATaskUpdateState(self, self->state & ~state);
 }
 
 
 /* Look for zombie child. If 'pid' is -1, the first finished child
  * in the zombie contexts list is return. Otherwise, 'pid' is the
  * pid of the child process. If no child has finished, return NULL. */
-X86Context *X86ContextGetZombie(X86Context *self, int pid)
+FPGATask *FPGATaskGetZombie(FPGATask *self, int pid)
 {
-	X86Emu *emu = self->emu;
-	X86Context *context;
+	FPGAEmu *emu = self->emu;
+	FPGATask *context;
 
 	for (context = emu->zombie_list_head; context;
 			context = context->zombie_list_next)
@@ -416,11 +416,11 @@ X86Context *X86ContextGetZombie(X86Context *self, int pid)
 }
 
 
-/* If the context is running a 'x86_emu_host_thread_suspend' thread,
- * cancel it and schedule call to 'x86_emu_process_events' */
-void X86ContextHostThreadSuspendCancelUnsafe(X86Context *self)
+/* If the context is running a 'fpga_emu_host_thread_suspend' thread,
+ * cancel it and schedule call to 'fpga_emu_process_events' */
+void FPGATaskHostThreadSuspendCancelUnsafe(FPGATask *self)
 {
-	X86Emu *emu = self->emu;
+	FPGAEmu *emu = self->emu;
 
 	if (self->host_thread_suspend_active)
 	{
@@ -433,21 +433,21 @@ void X86ContextHostThreadSuspendCancelUnsafe(X86Context *self)
 }
 
 
-void X86ContextHostThreadSuspendCancel(X86Context *self)
+void FPGATaskHostThreadSuspendCancel(FPGATask *self)
 {
-	X86Emu *emu = self->emu;
+	FPGAEmu *emu = self->emu;
 
 	pthread_mutex_lock(&emu->process_events_mutex);
-	X86ContextHostThreadSuspendCancelUnsafe(self);
+	FPGATaskHostThreadSuspendCancelUnsafe(self);
 	pthread_mutex_unlock(&emu->process_events_mutex);
 }
 
 
 /* If the context is running a 'ke_host_thread_timer' thread,
- * cancel it and schedule call to 'x86_emu_process_events' */
-void X86ContextHostThreadTimerCancelUnsafe(X86Context *self)
+ * cancel it and schedule call to 'fpga_emu_process_events' */
+void FPGATaskHostThreadTimerCancelUnsafe(FPGATask *self)
 {
-	X86Emu *emu = self->emu;
+	FPGAEmu *emu = self->emu;
 
 	if (self->host_thread_timer_active)
 	{
@@ -459,27 +459,27 @@ void X86ContextHostThreadTimerCancelUnsafe(X86Context *self)
 	}
 }
 
-void X86ContextHostThreadTimerCancel(X86Context *self)
+void FPGATaskHostThreadTimerCancel(FPGATask *self)
 {
-	X86Emu *emu = self->emu;
+	FPGAEmu *emu = self->emu;
 
 	pthread_mutex_lock(&emu->process_events_mutex);
-	X86ContextHostThreadTimerCancelUnsafe(self);
+	FPGATaskHostThreadTimerCancelUnsafe(self);
 	pthread_mutex_unlock(&emu->process_events_mutex);
 }
 
 
 /* Suspend a context, using the specified callback function and data to decide
- * whether the process can wake up every time the x86 emulation events are
+ * whether the process can wake up every time the fpga emulation events are
  * processed. */
-void X86ContextSuspend(X86Context *self, X86ContextCanWakeupFunc can_wakeup_callback_func,
-	void *can_wakeup_callback_data, X86ContextWakeupFunc wakeup_callback_func,
+void FPGATaskSuspend(FPGATask *self, FPGATaskCanWakeupFunc can_wakeup_callback_func,
+	void *can_wakeup_callback_data, FPGATaskWakeupFunc wakeup_callback_func,
 	void *wakeup_callback_data)
 {
-	X86Emu *emu = self->emu;
+	FPGAEmu *emu = self->emu;
 
 	/* Checks */
-	assert(!X86ContextGetState(self, X86ContextSuspended));
+	assert(!FPGATaskGetState(self, FPGATaskSuspended));
 	assert(!self->can_wakeup_callback_func);
 	assert(!self->can_wakeup_callback_data);
 
@@ -488,17 +488,17 @@ void X86ContextSuspend(X86Context *self, X86ContextCanWakeupFunc can_wakeup_call
 	self->can_wakeup_callback_data = can_wakeup_callback_data;
 	self->wakeup_callback_func = wakeup_callback_func;
 	self->wakeup_callback_data = wakeup_callback_data;
-	X86ContextSetState(self, X86ContextSuspended | X86ContextCallback);
-	X86EmuProcessEventsSchedule(emu);
+	FPGATaskSetState(self, FPGATaskSuspended | FPGATaskCallback);
+	FPGAEmuProcessEventsSchedule(emu);
 }
 
 
-/* Finish a context group. This call does a subset of action of the 'x86_ctx_finish'
+/* Finish a context group. This call does a subset of action of the 'fpga_ctx_finish'
  * call, but for all parent and child contexts sharing a memory map. */
-void X86ContextFinishGroup(X86Context *self, int state)
+void FPGATaskFinishGroup(FPGATask *self, int state)
 {
-	X86Emu *emu = self->emu;
-	X86Context *aux;
+	FPGAEmu *emu = self->emu;
+	FPGATask *aux;
 
 	/* Get group parent */
 	if (self->group_parent)
@@ -506,7 +506,7 @@ void X86ContextFinishGroup(X86Context *self, int state)
 	assert(!self->group_parent);  /* Only one level */
 	
 	/* Context already finished */
-	if (X86ContextGetState(self, X86ContextFinished | X86ContextZombie))
+	if (FPGATaskGetState(self, FPGATaskFinished | FPGATaskZombie))
 		return;
 
 	/* Finish all contexts in the group */
@@ -515,44 +515,44 @@ void X86ContextFinishGroup(X86Context *self, int state)
 		if (aux->group_parent != self && aux != self)
 			continue;
 
-		if (X86ContextGetState(aux, X86ContextZombie))
-			X86ContextSetState(aux, X86ContextFinished);
-		if (X86ContextGetState(aux, X86ContextHandler))
-			X86ContextReturnFromSignalHandler(aux);
-		X86ContextHostThreadSuspendCancel(aux);
-		X86ContextHostThreadTimerCancel(aux);
+		if (FPGATaskGetState(aux, FPGATaskZombie))
+			FPGATaskSetState(aux, FPGATaskFinished);
+		if (FPGATaskGetState(aux, FPGATaskHandler))
+			FPGATaskReturnFromSignalHandler(aux);
+		FPGATaskHostThreadSuspendCancel(aux);
+		FPGATaskHostThreadTimerCancel(aux);
 
 		/* Child context of 'ctx' goes to state 'finished'.
 		 * Context 'ctx' goes to state 'zombie' or 'finished' if it has a parent */
 		if (aux == self)
-			X86ContextSetState(aux, aux->parent ? X86ContextZombie : X86ContextFinished);
+			FPGATaskSetState(aux, aux->parent ? FPGATaskZombie : FPGATaskFinished);
 		else
-			X86ContextSetState(aux, X86ContextFinished);
+			FPGATaskSetState(aux, FPGATaskFinished);
 		aux->exit_code = state;
 	}
 
 	/* Process events */
-	X86EmuProcessEventsSchedule(emu);
+	FPGAEmuProcessEventsSchedule(emu);
 }
 
 
 /* Finish a context. If the context has no parent, its state will be set
- * to 'x86_ctx_finished'. If it has, its state is set to 'x86_ctx_zombie', waiting for
+ * to 'fpga_ctx_finished'. If it has, its state is set to 'fpga_ctx_zombie', waiting for
  * a call to 'waitpid'.
  * The children of the finished context will set their 'parent' attribute to NULL.
  * The zombie children will be finished. */
-void X86ContextFinish(X86Context *self, int state)
+void FPGATaskFinish(FPGATask *self, int state)
 {
-	X86Emu *emu = self->emu;
-	X86Context *aux;
+	FPGAEmu *emu = self->emu;
+	FPGATask *aux;
 	
 	/* Context already finished */
-	if (X86ContextGetState(self, X86ContextFinished | X86ContextZombie))
+	if (FPGATaskGetState(self, FPGATaskFinished | FPGATaskZombie))
 		return;
 	
 	/* If context is waiting for host events, cancel spawned host threads. */
-	X86ContextHostThreadSuspendCancel(self);
-	X86ContextHostThreadTimerCancel(self);
+	FPGATaskHostThreadSuspendCancel(self);
+	FPGATaskHostThreadTimerCancel(self);
 
 	/* From now on, all children have lost their parent. If a child is
 	 * already zombie, finish it, since its parent won't be able to waitpid it
@@ -562,19 +562,19 @@ void X86ContextFinish(X86Context *self, int state)
 		if (aux->parent == self)
 		{
 			aux->parent = NULL;
-			if (X86ContextGetState(aux, X86ContextZombie))
-				X86ContextSetState(aux, X86ContextFinished);
+			if (FPGATaskGetState(aux, FPGATaskZombie))
+				FPGATaskSetState(aux, FPGATaskFinished);
 		}
 	}
 
 	/* Send finish signal to parent */
 	if (self->exit_signal && self->parent)
 	{
-		x86_sys_debug("  sending signal %d to pid %d\n",
+		fpga_sys_debug("  sending signal %d to pid %d\n",
 			self->exit_signal, self->parent->pid);
-		x86_sigset_add(&self->parent->signal_mask_table->pending,
+		fpga_sigset_add(&self->parent->signal_mask_table->pending,
 			self->exit_signal);
-		X86EmuProcessEventsSchedule(emu);
+		FPGAEmuProcessEventsSchedule(emu);
 	}
 
 	/* If clear_child_tid was set, a futex() call must be performed on
@@ -583,26 +583,26 @@ void X86ContextFinish(X86Context *self, int state)
 	{
 		unsigned int zero = 0;
 		mem_write(self->mem, self->clear_child_tid, 4, &zero);
-		X86ContextFutexWake(self, self->clear_child_tid, 1, -1);
+		FPGATaskFutexWake(self, self->clear_child_tid, 1, -1);
 	}
-	X86ContextExitRobustList(self);
+	FPGATaskExitRobustList(self);
 
 	/* If we are in a signal handler, stop it. */
-	if (X86ContextGetState(self, X86ContextHandler))
-		X86ContextReturnFromSignalHandler(self);
+	if (FPGATaskGetState(self, FPGATaskHandler))
+		FPGATaskReturnFromSignalHandler(self);
 
 	/* Finish context */
-	X86ContextSetState(self, self->parent ? X86ContextZombie : X86ContextFinished);
+	FPGATaskSetState(self, self->parent ? FPGATaskZombie : FPGATaskFinished);
 	self->exit_code = state;
-	X86EmuProcessEventsSchedule(emu);
+	FPGAEmuProcessEventsSchedule(emu);
 }
 
 
-int X86ContextFutexWake(X86Context *self, unsigned int futex, unsigned int count,
+int FPGATaskFutexWake(FPGATask *self, unsigned int futex, unsigned int count,
 		unsigned int bitset)
 {
-	X86Emu *emu = self->emu;
-	X86Context *wakeup_ctx;
+	FPGAEmu *emu = self->emu;
+	FPGATask *wakeup_ctx;
 
 	int wakeup_count = 0;
 
@@ -612,7 +612,7 @@ int X86ContextFutexWake(X86Context *self, unsigned int futex, unsigned int count
 		wakeup_ctx = NULL;
 		for (self = emu->suspended_list_head; self; self = self->suspended_list_next)
 		{
-			if (!X86ContextGetState(self, X86ContextFutex) || self->wakeup_futex != futex)
+			if (!FPGATaskGetState(self, FPGATaskFutex) || self->wakeup_futex != futex)
 				continue;
 			if (!(self->wakeup_futex_bitset & bitset))
 				continue;
@@ -623,8 +623,8 @@ int X86ContextFutexWake(X86Context *self, unsigned int futex, unsigned int count
 		if (wakeup_ctx)
 		{
 			/* Wake up context */
-			X86ContextClearState(wakeup_ctx, X86ContextSuspended | X86ContextFutex);
-			x86_sys_debug("  futex 0x%x: thread %d woken up\n", futex, wakeup_ctx->pid);
+			FPGATaskClearState(wakeup_ctx, FPGATaskSuspended | FPGATaskFutex);
+			fpga_sys_debug("  futex 0x%x: thread %d woken up\n", futex, wakeup_ctx->pid);
 			wakeup_count++;
 			count--;
 
@@ -640,7 +640,7 @@ int X86ContextFutexWake(X86Context *self, unsigned int futex, unsigned int count
 }
 
 
-void X86ContextExitRobustList(X86Context *self)
+void FPGATaskExitRobustList(FPGATask *self)
 {
 	unsigned int next, lock_entry, offset, lock_word;
 
@@ -662,7 +662,7 @@ void X86ContextExitRobustList(X86Context *self)
 	if (!lock_entry)
 		return;
 	
-	x86_sys_debug("ctx %d: processing robust futex list\n",
+	fpga_sys_debug("ctx %d: processing robust futex list\n",
 		self->pid);
 	for (;;)
 	{
@@ -670,7 +670,7 @@ void X86ContextExitRobustList(X86Context *self)
 		mem_read(self->mem, lock_entry + 4, 4, &offset);
 		mem_read(self->mem, lock_entry + offset, 4, &lock_word);
 
-		x86_sys_debug("  lock_entry=0x%x: offset=%d, lock_word=0x%x\n",
+		fpga_sys_debug("  lock_entry=0x%x: offset=%d, lock_word=0x%x\n",
 			lock_entry, offset, lock_word);
 
 		/* Stop processing list if 'next' points to robust list */
@@ -682,7 +682,7 @@ void X86ContextExitRobustList(X86Context *self)
 
 
 /* Generate virtual file '/proc/self/maps' and return it in 'path'. */
-void X86ContextProcSelfMaps(X86Context *self, char *path, int size)
+void FPGATaskProcSelfMaps(FPGATask *self, char *path, int size)
 {
 	unsigned int start, end;
 	enum mem_access_t perm, page_perm;
@@ -736,7 +736,7 @@ void X86ContextProcSelfMaps(X86Context *self, char *path, int size)
 
 
 /* Generate virtual file '/proc/cpuinfo' and return it in 'path'. */
-void X86ContextProcCPUInfo(X86Context *self, char *path, int size)
+void FPGATaskProcCPUInfo(FPGATask *self, char *path, int size)
 {
 	FILE *f = NULL;
 	
@@ -750,11 +750,11 @@ void X86ContextProcCPUInfo(X86Context *self, char *path, int size)
 	if ((fd = mkstemp(path)) == -1 || (f = fdopen(fd, "wt")) == NULL)
 		fatal("ctx_gen_proc_self_maps: cannot create temporary file");
 
-	for (i = 0; i < x86_cpu_num_cores; i++)
+	for (i = 0; i < fpga_cpu_num_cores; i++)
 	{
-		for (j = 0; j < x86_cpu_num_threads; j++)
+		for (j = 0; j < fpga_cpu_num_threads; j++)
 		{
-			node = i * x86_cpu_num_threads + j;
+			node = i * fpga_cpu_num_threads + j;
 			fprintf(f, "processor : %d\n", node);
 			fprintf(f, "vendor_id : Multi2Sim\n");
 			fprintf(f, "cpu family : 6\n");
@@ -765,9 +765,9 @@ void X86ContextProcCPUInfo(X86Context *self, char *path, int size)
 			fprintf(f, "cpu MHz : 800.000\n");
 			fprintf(f, "cache size : 3072 KB\n");
 			fprintf(f, "physical id : 0\n");
-			fprintf(f, "siblings : %d\n", x86_cpu_num_cores * x86_cpu_num_threads);
+			fprintf(f, "siblings : %d\n", fpga_cpu_num_cores * fpga_cpu_num_threads);
 			fprintf(f, "core id : %d\n", i);
-			fprintf(f, "cpu cores : %d\n", x86_cpu_num_cores);
+			fprintf(f, "cpu cores : %d\n", fpga_cpu_num_cores);
 			fprintf(f, "apicid : %d\n", node);
 			fprintf(f, "initial apicid : %d\n", node);
 			fprintf(f, "fpu : yes\n");
@@ -794,10 +794,10 @@ void X86ContextProcCPUInfo(X86Context *self, char *path, int size)
 }
 
 
-void *X86EmuHostThreadSuspend(void *arg)
+void *FPGAEmuHostThreadSuspend(void *arg)
 {
-	X86Context *self = asX86Context(arg);
-	X86Emu *emu = self->emu;
+	FPGATask *self = asFPGATask(arg);
+	FPGAEmu *emu = self->emu;
 
 	long long now = esim_real_time();
 
@@ -807,7 +807,7 @@ void *X86EmuHostThreadSuspend(void *arg)
 	pthread_detach(pthread_self());
 
 	/* Context suspended in 'poll' system call */
-	if (X86ContextGetState(self, X86ContextNanosleep))
+	if (FPGATaskGetState(self, FPGATaskNanosleep))
 	{
 		long long timeout;
 
@@ -816,14 +816,14 @@ void *X86EmuHostThreadSuspend(void *arg)
 		usleep(timeout);
 
 	}
-	else if (X86ContextGetState(self, X86ContextPoll))
+	else if (FPGATaskGetState(self, FPGATaskPoll))
 	{
-		struct x86_file_desc_t *fd;
+		struct fpga_file_desc_t *fd;
 		struct pollfd host_fds;
 		int err, timeout;
 
 		/* Get file descriptor */
-		fd = x86_file_desc_table_entry_get(self->file_desc_table, self->wakeup_fd);
+		fd = fpga_file_desc_table_entry_get(self->file_desc_table, self->wakeup_fd);
 		if (!fd)
 			fatal("syscall 'poll': invalid 'wakeup_fd'");
 
@@ -842,14 +842,14 @@ void *X86EmuHostThreadSuspend(void *arg)
 		if (err < 0)
 			fatal("syscall 'poll': unexpected error in host 'poll'");
 	}
-	else if (X86ContextGetState(self, X86ContextRead))
+	else if (FPGATaskGetState(self, FPGATaskRead))
 	{
-		struct x86_file_desc_t *fd;
+		struct fpga_file_desc_t *fd;
 		struct pollfd host_fds;
 		int err;
 
 		/* Get file descriptor */
-		fd = x86_file_desc_table_entry_get(self->file_desc_table, self->wakeup_fd);
+		fd = fpga_file_desc_table_entry_get(self->file_desc_table, self->wakeup_fd);
 		if (!fd)
 			fatal("syscall 'read': invalid 'wakeup_fd'");
 
@@ -860,14 +860,14 @@ void *X86EmuHostThreadSuspend(void *arg)
 		if (err < 0)
 			fatal("syscall 'read': unexpected error in host 'poll'");
 	}
-	else if (X86ContextGetState(self, X86ContextWrite))
+	else if (FPGATaskGetState(self, FPGATaskWrite))
 	{
-		struct x86_file_desc_t *fd;
+		struct fpga_file_desc_t *fd;
 		struct pollfd host_fds;
 		int err;
 
 		/* Get file descriptor */
-		fd = x86_file_desc_table_entry_get(self->file_desc_table, self->wakeup_fd);
+		fd = fpga_file_desc_table_entry_get(self->file_desc_table, self->wakeup_fd);
 		if (!fd)
 			fatal("syscall 'write': invalid 'wakeup_fd'");
 
@@ -889,10 +889,10 @@ void *X86EmuHostThreadSuspend(void *arg)
 }
 
 
-void *X86ContextHostThreadTimer(void *arg)
+void *FPGATaskHostThreadTimer(void *arg)
 {
-	X86Context *self = asX86Context(arg);
-	X86Emu *emu = self->emu;
+	FPGATask *self = asFPGATask(arg);
+	FPGAEmu *emu = self->emu;
 
 	long long now = esim_real_time();
 	struct timespec ts;
@@ -912,7 +912,7 @@ void *X86ContextHostThreadTimer(void *arg)
 		nanosleep(&ts, NULL);
 	}
 
-	/* Timer expired, schedule call to 'X86EmuProcessEvents' */
+	/* Timer expired, schedule call to 'FPGAEmuProcessEvents' */
 	pthread_mutex_lock(&emu->process_events_mutex);
 	emu->process_events_force = 1;
 	self->host_thread_timer_active = 0;
@@ -927,28 +927,28 @@ void *X86ContextHostThreadTimer(void *arg)
  * Non-Class
  */
 
-int x86_context_debug_category;
+int fpga_context_debug_category;
 
-struct str_map_t x86_context_state_map =
+struct str_map_t fpga_context_state_map =
 {
 	18, {
-		{ "running",      X86ContextRunning },
-		{ "specmode",     X86ContextSpecMode },
-		{ "suspended",    X86ContextSuspended },
-		{ "finished",     X86ContextFinished },
-		{ "exclusive",    X86ContextExclusive },
-		{ "locked",       X86ContextLocked },
-		{ "handler",      X86ContextHandler },
-		{ "sigsuspend",   X86ContextSigsuspend },
-		{ "nanosleep",    X86ContextNanosleep },
-		{ "poll",         X86ContextPoll },
-		{ "read",         X86ContextRead },
-		{ "write",        X86ContextWrite },
-		{ "waitpid",      X86ContextWaitpid },
-		{ "zombie",       X86ContextZombie },
-		{ "futex",        X86ContextFutex },
-		{ "alloc",        X86ContextAlloc },
-		{ "callback",     X86ContextCallback },
-		{ "mapped",       X86ContextMapped }
+		{ "running",      FPGATaskRunning },
+		{ "specmode",     FPGATaskSpecMode },
+		{ "suspended",    FPGATaskSuspended },
+		{ "finished",     FPGATaskFinished },
+		{ "exclusive",    FPGATaskExclusive },
+		{ "locked",       FPGATaskLocked },
+		{ "handler",      FPGATaskHandler },
+		{ "sigsuspend",   FPGATaskSigsuspend },
+		{ "nanosleep",    FPGATaskNanosleep },
+		{ "poll",         FPGATaskPoll },
+		{ "read",         FPGATaskRead },
+		{ "write",        FPGATaskWrite },
+		{ "waitpid",      FPGATaskWaitpid },
+		{ "zombie",       FPGATaskZombie },
+		{ "futex",        FPGATaskFutex },
+		{ "alloc",        FPGATaskAlloc },
+		{ "callback",     FPGATaskCallback },
+		{ "mapped",       FPGATaskMapped }
 	}
 };

@@ -17,8 +17,8 @@
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
-#ifndef ARCH_X86_EMU_EMU_H
-#define ARCH_X86_EMU_EMU_H
+#ifndef ARCH_FPGA_EMU_EMU_H
+#define ARCH_FPGA_EMU_EMU_H
 
 #include <pthread.h>
 #include <stdio.h>
@@ -29,15 +29,13 @@
 /* Forward declarations */
 struct config_t;
 
-
-
 /*
- * Class 'X86Emu'
+ * Class 'FPGAEmu'
  */
 
-CLASS_BEGIN(X86Emu, Emu)
+CLASS_BEGIN(FPGAEmu, Emu)
 
-	/* PID assignment */
+/* PID assignment */
 	int current_pid;
 
 	/* Schedule next call to 'X86EmuProcessEvents()'.
@@ -49,7 +47,7 @@ CLASS_BEGIN(X86Emu, Emu)
 	/* Counter of times that a context has been suspended in a
 	 * futex. Used for FIFO wakeups. */
 	long long futex_sleep_count;
-	
+
 	/* Flag set to force a call to the scheduler 'x86_cpu_schedule()' in the
 	 * beginning of next cycle. This flag is set any time a context changes its
 	 * state in any bit other than 'spec_mode'. It can be set anywhere in the
@@ -57,72 +55,65 @@ CLASS_BEGIN(X86Emu, Emu)
 	 * executed to change the context's affinity. */
 	int schedule_signal;
 
-	/* List of contexts */
-	X86Context *context_list_head;
-	X86Context *context_list_tail;
-	int context_list_count;
-	int context_list_max;
+	/* List of kernels */
+	FPGAKernel *kernel_list_head;
+	FPGAKernel *kernel_list_tail;
+	int kernel_list_count;
+	int kernel_list_max;
 
-	/* List of running contexts */
-	X86Context *running_list_head;
-	X86Context *running_list_tail;
+	/* List of running kernels */
+	FPGAKernel *running_list_head;
+	FPGAKernel *running_list_tail;
 	int running_list_count;
 	int running_list_max;
 
-	/* List of suspended contexts */
-	X86Context *suspended_list_head;
-	X86Context *suspended_list_tail;
+	/* List of suspended kernels */
+	FPGAKernel *suspended_list_head;
+	FPGAKernel *suspended_list_tail;
 	int suspended_list_count;
 	int suspended_list_max;
 
-	/* List of zombie contexts */
-	X86Context *zombie_list_head;
-	X86Context *zombie_list_tail;
+	/* List of zombie kernels */
+	FPGAKernel *zombie_list_head;
+	FPGAKernel *zombie_list_tail;
 	int zombie_list_count;
 	int zombie_list_max;
 
-	/* List of finished contexts */
-	X86Context *finished_list_head;
-	X86Context *finished_list_tail;
-	int finished_list_count;
-	int finished_list_max;
+	/* Table of tasks associated with each kernel */
+	FPGATask **kernel_task_table;
+	int *task_count_of_kernel;
 
-CLASS_END(X86Emu)
+CLASS_END(FPGAEmu)
 
+void FPGAEmuCreate(FPGAEmu *self);
+void FPGAEmuDestroy(FPGAEmu *self);
 
-void X86EmuCreate(X86Emu *self);
-void X86EmuDestroy(X86Emu *self);
+int FPGAEmuRun(Emu *self);
 
-int X86EmuRun(Emu *self);
+void FPGAEmuDump(Object *self, FILE *f);
+void FPGAEmuDumpSummary(Emu *self, FILE *f);
 
-void X86EmuDump(Object *self, FILE *f);
-void X86EmuDumpSummary(Emu *self, FILE *f);
+void FPGAEmuProcessEvents(FPGAEmu *self);
+void FPGAEmuProcessEventsSchedule(FPGAEmu *self);
 
-void X86EmuProcessEvents(X86Emu *self);
-void X86EmuProcessEventsSchedule(X86Emu *self);
+FPGAContext *FPGAEmuGetContext(FPGAEmu *self, int pid);
 
-X86Context *X86EmuGetContext(X86Emu *self, int pid);
-
-void X86EmuLoadContextsFromConfig(X86Emu *self, struct config_t *config, char *section);
-void X86EmuLoadContextFromCommandLine(X86Emu *self, int argc, char **argv);
-
-
-
+void FPGAEmuLoadContextsFromConfig(FPGAEmu *self, struct config_t *config,
+		char *section);
 /*
  * Non-Class
  */
 
-extern X86Emu *x86_emu;
+extern FPGAEmu *fpga_emu;
 
-extern long long x86_emu_max_cycles;
-extern long long x86_emu_max_inst;
-extern char x86_emu_last_inst_bytes[20];
-extern int x86_emu_last_inst_size;
-extern int x86_emu_process_prefetch_hints;
+extern long long fpga_emu_max_cycles;
+extern long long fpga_emu_max_inst;
+extern char fpga_emu_last_inst_bytes[20];
+extern int fpga_emu_last_inst_size;
+extern int fpga_emu_process_prefetch_hints;
 
-void x86_emu_init(void);
-void x86_emu_done(void);
-
+void fpga_emu_init(void);
+void fpga_emu_done(void);
 
 #endif
 
