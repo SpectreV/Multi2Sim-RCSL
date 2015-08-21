@@ -366,7 +366,7 @@ void FPGAKernelFinish(FPGAKernel *self, int state)
  * Non-Class
  */
 
-int fpga_context_debug_category;
+int fpga_kernel_debug_category;
 
 struct str_map_t fpga_context_state_map =
 {
