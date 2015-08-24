@@ -937,6 +937,10 @@ AC_CONFIG_FILES([
 		src/arch/x86/asm/Makefile
 		src/arch/x86/emu/Makefile
 		src/arch/x86/timing/Makefile
+		
+		src/arch/fpga/Makefile
+		src/arch/fpga/emu/Makefile
+		src/arch/fpga/timing/Makefile
 
 		src/driver/cuda/Makefile
 		src/driver/glu/Makefile
