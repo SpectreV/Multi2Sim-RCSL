@@ -20,7 +20,7 @@
 #include <poll.h>
 #include <unistd.h>
 
-#include <arch/fpga/timing/cpu.h>
+#include <arch/fpga/timing/fpga.h>
 #include <lib/esim/esim.h>
 #include <lib/mhandle/mhandle.h>
 #include <lib/util/bit-map.h>
@@ -41,18 +41,16 @@
 #include "signal.h"
 #include "syscall.h"
 
-
 /*
  * Class 'FPGAKernel'
  */
 
 CLASS_IMPLEMENTATION(FPGAKernel);
 
-static void FPGAKernelDoCreate(FPGAKernel *self, FPGAEmu *emu)
-{
+static void FPGAKernelDoCreate(FPGAKernel *self, FPGAEmu *emu) {
 	int num_nodes;
 	int i;
-	
+
 	/* Initialize */
 	self->emu = emu;
 	self->kid = emu->current_pid++;
@@ -64,24 +62,22 @@ static void FPGAKernelDoCreate(FPGAKernel *self, FPGAEmu *emu)
 	DOUBLE_LINKED_LIST_INSERT_HEAD(emu, kernel, self);
 
 	/* Structures
-	self->regs = fpga_regs_create();
-	self->backup_regs = fpga_regs_create();
-	self->signal_mask_table = fpga_signal_mask_table_create();
+	 self->regs = fpga_regs_create();
+	 self->backup_regs = fpga_regs_create();
+	 self->signal_mask_table = fpga_signal_mask_table_create();
 
 	 Thread affinity mask, used only for timing simulation. It is
 	 * initialized to all 1's.
-	num_nodes = fpga_cpu_num_cores * fpga_cpu_num_threads;
-	self->affinity = bit_map_create(num_nodes);
-	for (i = 0; i < num_nodes; i++)
-		bit_map_set(self->affinity, i, 1, 1);*/
+	 num_nodes = fpga_cpu_num_cores * fpga_cpu_num_threads;
+	 self->affinity = bit_map_create(num_nodes);
+	 for (i = 0; i < num_nodes; i++)
+	 bit_map_set(self->affinity, i, 1, 1);*/
 
 	/* Virtual functions */
 	asObject(self)->Dump = FPGAKernelDump;
 }
 
-
-void FPGAKernelCreate(FPGAKernel *self, FPGAEmu *emu)
-{
+void FPGAKernelCreate(FPGAKernel *self, FPGAEmu *emu) {
 	/* Baseline initialization */
 	FPGAKernelDoCreate(self, emu);
 
@@ -90,15 +86,14 @@ void FPGAKernelCreate(FPGAKernel *self, FPGAEmu *emu)
 
 }
 
-void FPGAKernelDestroy(FPGAKernel *self)
-{
+void FPGAKernelDestroy(FPGAKernel *self) {
 	FPGAEmu *emu = self->emu;
 
 	/* If context is not finished/zombie, finish it first.
 	 * This removes all references to current freed context. */
 	if (!FPGAKernelGetState(self, FPGAKernelFinished | FPGAKernelZombie))
 		FPGAKernelFinish(self, 0);
-	
+
 	/* Remove context from finished contexts list. This should
 	 * be the only list the context is in right now. */
 	assert(!DOUBLE_LINKED_LIST_MEMBER(emu, running, self));
@@ -106,7 +101,7 @@ void FPGAKernelDestroy(FPGAKernel *self)
 	assert(!DOUBLE_LINKED_LIST_MEMBER(emu, zombie, self));
 	assert(DOUBLE_LINKED_LIST_MEMBER(emu, finished, self));
 	DOUBLE_LINKED_LIST_REMOVE(emu, finished, self);
-		
+
 	/* Free private structures */
 	fpga_regs_free(self->regs);
 	fpga_regs_free(self->backup_regs);
@@ -122,13 +117,10 @@ void FPGAKernelDestroy(FPGAKernel *self)
 
 	/* Remove context from contexts list and free */
 	DOUBLE_LINKED_LIST_REMOVE(emu, context, self);
-	FPGAKernelDebug("inst %lld: context %d freed\n",
-			asEmu(emu)->instructions, self->pid);
+	FPGAKernelDebug("inst %lld: context %d freed\n", asEmu(emu)->instructions, self->pid);
 }
 
-
-void FPGAKernelDump(Object *self, FILE *f)
-{
+void FPGAKernelDump(Object *self, FILE *f) {
 	FPGAKernel *context = asFPGAKernel(self);
 	char state_str[MAX_STRING_SIZE];
 
@@ -139,88 +131,27 @@ void FPGAKernelDump(Object *self, FILE *f)
 
 	str_map_flags(&fpga_context_state_map, context->state, state_str, sizeof state_str);
 	fprintf(f, "State = %s\n", state_str);
-	if (!context->parent)
-		fprintf(f, "Parent = None\n");
-	else
-		fprintf(f, "Parent = %d\n", context->parent->pid);
-	fprintf(f, "Heap break: 0x%x\n", context->mem->heap_break);
-
-	/* Bit masks */
-	fprintf(f, "BlockedSignalMask = 0x%llx ", context->signal_mask_table->blocked);
-	fpga_sigset_dump(context->signal_mask_table->blocked, f);
-	fprintf(f, "\nPendingSignalMask = 0x%llx ", context->signal_mask_table->pending);
-	fpga_sigset_dump(context->signal_mask_table->pending, f);
-	fprintf(f, "\nAffinity = ");
-	bit_map_dump(context->affinity, 0, fpga_cpu_num_cores * fpga_cpu_num_threads, f);
-	fprintf(f, "\n");
 
 	/* End */
 	fprintf(f, "\n\n");
 }
 
-
-void FPGAKernelExecute(FPGAKernel *self)
-{
+void FPGAKernelProceed(FPGAKernel *self) {
 	FPGAEmu *emu = self->emu;
 
-	struct fpga_regs_t *regs = self->regs;
-	struct mem_t *mem = self->mem;
+	if (FPGAKernelGetState(self) != FPGAKernelRunning)
+		return;
 
-	unsigned char buffer[20];
-	unsigned char *buffer_ptr;
+	FPGATask *task = self.waiting_list_head;
+	FPGATaskExecute(task);
 
-	int spec_mode;
-
-	/* Memory permissions should not be checked if the context is executing in
-	 * speculative mode. This will prevent guest segmentation faults to occur. */
-	spec_mode = FPGAKernelGetState(self, FPGAKernelSpecMode);
-	mem->safe = spec_mode ? 0 : mem_safe_mode;
-
-	/* Read instruction from memory. Memory should be accessed here in unsafe mode
-	 * (i.e., allowing segmentation faults) if executing speculatively. */
-	buffer_ptr = mem_get_buffer(mem, regs->eip, 20, mem_access_exec);
-	if (!buffer_ptr)
-	{
-		/* Disable safe mode. If a part of the 20 read bytes does not belong to the
-		 * actual instruction, and they lie on a page with no permissions, this would
-		 * generate an undesired protection fault. */
-		mem->safe = 0;
-		buffer_ptr = buffer;
-		mem_access(mem, regs->eip, 20, buffer_ptr, mem_access_exec);
-	}
-	mem->safe = mem_safe_mode;
-
-	/* Disassemble */
-	fpga_inst_decode(&self->inst, regs->eip, buffer_ptr);
-	if (self->inst.opcode == fpga_inst_opcode_invalid && !spec_mode)
-		fatal("0x%x: not supported fpga instruction (%02x %02x %02x %02x...)",
-			regs->eip, buffer_ptr[0], buffer_ptr[1], buffer_ptr[2], buffer_ptr[3]);
-
-
-	/* Stop if instruction matches last instruction bytes */
-	if (fpga_emu_last_inst_size &&
-		fpga_emu_last_inst_size == self->inst.size &&
-		!memcmp(fpga_emu_last_inst_bytes, buffer_ptr, fpga_emu_last_inst_size))
-		esim_finish = esim_finish_fpga_last_inst;
-
-	/* Execute instruction */
-	FPGAKernelExecuteInst(self);
-	
-	/* Statistics */
-	asEmu(emu)->instructions++;
 }
 
-
-
-
-int FPGAKernelGetState(FPGAKernel *self, FPGAKernelState state)
-{
+int FPGAKernelGetState(FPGAKernel *self, FPGAKernelState state) {
 	return (self->state & state) > 0;
 }
 
-
-static void FPGAKernelUpdateState(FPGAKernel *self, FPGAKernelState state)
-{
+static void FPGAKernelUpdateState(FPGAKernel *self, FPGAKernelState state) {
 	FPGAEmu *emu = self->emu;
 
 	FPGAKernelState status_diff;
@@ -236,31 +167,25 @@ static void FPGAKernelUpdateState(FPGAKernel *self, FPGAKernelState state)
 		DOUBLE_LINKED_LIST_REMOVE(emu, zombie, self);
 	if (DOUBLE_LINKED_LIST_MEMBER(emu, finished, self))
 		DOUBLE_LINKED_LIST_REMOVE(emu, finished, self);
-	
+
 	/* If the difference between the old and new state lies in other
 	 * states other than 'fpga_ctx_specmode', a reschedule is marked. */
 	status_diff = self->state ^ state;
 	if (status_diff & ~FPGAKernelSpecMode)
 		emu->schedule_signal = 1;
-	
+
 	/* Update state */
 	self->state = state;
 	if (self->state & FPGAKernelFinished)
-		self->state = FPGAKernelFinished
-				| (state & FPGAKernelAlloc)
-				| (state & FPGAKernelMapped);
+		self->state = FPGAKernelFinished | (state & FPGAKernelAlloc) | (state & FPGAKernelMapped);
 	if (self->state & FPGAKernelZombie)
-		self->state = FPGAKernelZombie
-				| (state & FPGAKernelAlloc)
-				| (state & FPGAKernelMapped);
-	if (!(self->state & FPGAKernelSuspended) &&
-		!(self->state & FPGAKernelFinished) &&
-		!(self->state & FPGAKernelZombie) &&
-		!(self->state & FPGAKernelLocked))
+		self->state = FPGAKernelZombie | (state & FPGAKernelAlloc) | (state & FPGAKernelMapped);
+	if (!(self->state & FPGAKernelSuspended) && !(self->state & FPGAKernelFinished)
+			&& !(self->state & FPGAKernelZombie) && !(self->state & FPGAKernelLocked))
 		self->state |= FPGAKernelRunning;
 	else
 		self->state &= ~FPGAKernelRunning;
-	
+
 	/* Insert context into the corresponding lists. */
 	if (self->state & FPGAKernelRunning)
 		DOUBLE_LINKED_LIST_INSERT_HEAD(emu, running, self);
@@ -270,13 +195,12 @@ static void FPGAKernelUpdateState(FPGAKernel *self, FPGAKernelState state)
 		DOUBLE_LINKED_LIST_INSERT_HEAD(emu, finished, self);
 	if (self->state & FPGAKernelSuspended)
 		DOUBLE_LINKED_LIST_INSERT_HEAD(emu, suspended, self);
-	
+
 	/* Dump new state (ignore 'fpga_ctx_specmode' state, it's too frequent) */
-	if (debug_status(fpga_context_debug_category) && (status_diff & ~FPGAKernelSpecMode))
-	{
+	if (debug_status(fpga_context_debug_category) && (status_diff & ~FPGAKernelSpecMode)) {
 		str_map_flags(&fpga_context_state_map, self->state, state_str, sizeof state_str);
-		FPGAKernelDebug("inst %lld: ctx %d changed state to %s\n",
-			asEmu(emu)->instructions, self->pid, state_str);
+		FPGAKernelDebug("inst %lld: ctx %d changed state to %s\n", asEmu(emu)->instructions,
+				self->pid, state_str);
 	}
 
 	/* Start/stop fpga timer depending on whether there are any contexts
@@ -287,33 +211,27 @@ static void FPGAKernelUpdateState(FPGAKernel *self, FPGAKernelState state)
 		m2s_timer_stop(asEmu(emu)->timer);
 }
 
-
-void FPGAKernelSetState(FPGAKernel *self, FPGAKernelState state)
-{
+void FPGAKernelSetState(FPGAKernel *self, FPGAKernelState state) {
 	FPGAKernelUpdateState(self, self->state | state);
 }
 
-
-void FPGAKernelClearState(FPGAKernel *self, FPGAKernelState state)
-{
+void FPGAKernelClearState(FPGAKernel *self, FPGAKernelState state) {
 	FPGAKernelUpdateState(self, self->state & ~state);
 }
-
 
 /* Finish a context. If the context has no parent, its state will be set
  * to 'fpga_ctx_finished'. If it has, its state is set to 'fpga_ctx_zombie', waiting for
  * a call to 'waitpid'.
  * The children of the finished context will set their 'parent' attribute to NULL.
  * The zombie children will be finished. */
-void FPGAKernelFinish(FPGAKernel *self, int state)
-{
+void FPGAKernelFinish(FPGAKernel *self, int state) {
 	FPGAEmu *emu = self->emu;
 	FPGAKernel *aux;
-	
+
 	/* Context already finished */
 	if (FPGAKernelGetState(self, FPGAKernelFinished | FPGAKernelZombie))
 		return;
-	
+
 	/* If context is waiting for host events, cancel spawned host threads. */
 	FPGAKernelHostThreadSuspendCancel(self);
 	FPGAKernelHostThreadTimerCancel(self);
@@ -323,8 +241,7 @@ void FPGAKernelFinish(FPGAKernel *self, int state)
 	 * anymore. */
 	DOUBLE_LINKED_LIST_FOR_EACH(emu, context, aux)
 	{
-		if (aux->parent == self)
-		{
+		if (aux->parent == self) {
 			aux->parent = NULL;
 			if (FPGAKernelGetState(aux, FPGAKernelZombie))
 				FPGAKernelSetState(aux, FPGAKernelFinished);
@@ -332,19 +249,15 @@ void FPGAKernelFinish(FPGAKernel *self, int state)
 	}
 
 	/* Send finish signal to parent */
-	if (self->exit_signal && self->parent)
-	{
-		fpga_sys_debug("  sending signal %d to pid %d\n",
-			self->exit_signal, self->parent->pid);
-		fpga_sigset_add(&self->parent->signal_mask_table->pending,
-			self->exit_signal);
+	if (self->exit_signal && self->parent) {
+		fpga_sys_debug("  sending signal %d to pid %d\n", self->exit_signal, self->parent->pid);
+		fpga_sigset_add(&self->parent->signal_mask_table->pending, self->exit_signal);
 		FPGAEmuProcessEventsSchedule(emu);
 	}
 
 	/* If clear_child_tid was set, a futex() call must be performed on
 	 * that pointer. Also wake up futexes in the robust list. */
-	if (self->clear_child_tid)
-	{
+	if (self->clear_child_tid) {
 		unsigned int zero = 0;
 		mem_write(self->mem, self->clear_child_tid, 4, &zero);
 		FPGAKernelFutexWake(self, self->clear_child_tid, 1, -1);
@@ -361,20 +274,12 @@ void FPGAKernelFinish(FPGAKernel *self, int state)
 	FPGAEmuProcessEventsSchedule(emu);
 }
 
-
 /*
  * Non-Class
  */
 
 int fpga_kernel_debug_category;
 
-struct str_map_t fpga_context_state_map =
-{
-	5, {
-		{ "onchip",      FPGAKernelOnchip },
-		{ "ready",     FPGAKernelReady },
-		{ "blocked",    FPGAKernelBlocked },
-		{ "running",     FPGAKernelRunning },
-		{ "offchip",    FPGAKernelOffchip }
-	}
-};
+struct str_map_t fpga_context_state_map = { 5, { { "onchip", FPGAKernelOnchip }, { "ready",
+		FPGAKernelReady }, { "blocked", FPGAKernelBlocked }, { "running", FPGAKernelRunning }, {
+		"offchip", FPGAKernelOffchip } } };

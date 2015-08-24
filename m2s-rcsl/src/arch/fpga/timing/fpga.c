@@ -126,10 +126,10 @@ void FPGAReadConfig(void) {
 
 	fpga_clb_array_width = config_read_int(config, section, "ClbArrayWidth", fpga_clb_array_width);
 
-	fpga_clb_array_length = config_read_int(config, section, "ClbArrayLength", fpga_clb_array_length);
+	fpga_clb_array_length = config_read_int(config, section, "ClbArrayLength",
+			fpga_clb_array_length);
 
 	fpga_clb_ctx_depth = config_read_int(config, section, "ClbCtxDepth", fpga_clb_ctx_depth);
-
 
 	/* Section '[ Queues ]' */
 
@@ -138,7 +138,6 @@ void FPGAReadConfig(void) {
 	fpga_task_qsize = config_read_int(config, section, "KernelQueueSize", 10);
 
 	fpga_result_qsize = config_read_int(config, section, "ResultQueueSize", 10);
-
 
 	/* Close file */
 	config_check(config);
@@ -184,12 +183,13 @@ void FPGACreate(FPGA *self, FPGAEmu *emu) {
 	asTiming(self)->DumpSummary = FPGADumpSummary;
 	asTiming(self)->Run = FPGARun;
 	/*asTiming(self)->MemConfigCheck = FPGAMemConfigCheck;
-	asTiming(self)->MemConfigDefault = FPGAMemConfigDefault;
-	asTiming(self)->MemConfigParseEntry = FPGAMemConfigParseEntry;*/
+	 asTiming(self)->MemConfigDefault = FPGAMemConfigDefault;
+	 asTiming(self)->MemConfigParseEntry = FPGAMemConfigParseEntry;*/
 
 	/* Trace */
 	fpga_trace_header("fpga.init version=\"%d.%d\" width=%d length=%d height=%d\n",
-	FPGA_TRACE_VERSION_MAJOR, FPGA_TRACE_VERSION_MINOR, fpga_clb_array_width, fpga_clb_array_length, fpga_clb_ctx_depth);
+	FPGA_TRACE_VERSION_MAJOR, FPGA_TRACE_VERSION_MINOR, fpga_clb_array_width, fpga_clb_array_length,
+			fpga_clb_ctx_depth);
 }
 
 void FPGADestroy(FPGA *self) {
@@ -220,8 +220,6 @@ void FPGADump(Object *self, FILE *f) {
 					0);
 	fprintf(f, "\n");
 
-
-
 	/* Register last dump */
 	fpga->last_dump = asTiming(fpga)->cycle;
 
@@ -236,7 +234,8 @@ void FPGADumpSummary(Timing *self, FILE *f) {
 
 	/* Calculate statistics */
 	task_per_cycle =
-			asTiming(fpga)->cycle ? (double) fpga->num_committed_tasks / asTiming(fpga)->cycle : 0.0;
+			asTiming(fpga)->cycle ?
+					(double) fpga->num_committed_tasks / asTiming(fpga)->cycle : 0.0;
 
 	/* Print statistics */
 	fprintf(f, "CommittedInstructionsPerCycle = %.4g\n", task_per_cycle);
@@ -244,7 +243,6 @@ void FPGADumpSummary(Timing *self, FILE *f) {
 	/* Call parent */
 	TimingDumpSummary(self, f);
 }
-
 
 /* Dump the FPGA configuration */
 static void FPGADumpConfig(FILE *f) {
@@ -255,8 +253,6 @@ static void FPGADumpConfig(FILE *f) {
 	fprintf(f, "Length = %d\n", fpga_clb_array_length);
 	fprintf(f, "Height = %lld\n", fpga_clb_ctx_depth);
 	fprintf(f, "\n");
-
-
 
 	/* Queues */
 	fprintf(f, "[ Config.Queues ]\n");
@@ -313,12 +309,9 @@ int FPGARun(Timing *self) {
 	/* One more cycle of fpga timing simulation */
 	self->cycle++;
 
-	/* Empty uop trace list. This dumps the last trace line for instructions
-	 * that were freed in the previous simulation cycle. */
-	FPGAEmptyTraceList(fpga);
-
-	/* Processor stages */
-	FPGASchedule(self);
+	int i;
+	for (i = 0; i < emu->kernel_list_count; i++)
+		FPGAKernelProceed(emu->kernel_list_head[i]);
 
 	/* Process host threads generating events */
 	FPGAProcessEvents(emu);
@@ -326,5 +319,4 @@ int FPGARun(Timing *self) {
 	/* Still simulating */
 	return TRUE;
 }
-
 

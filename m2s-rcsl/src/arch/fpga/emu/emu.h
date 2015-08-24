@@ -98,7 +98,7 @@ void FPGAEmuProcessEventsSchedule(FPGAEmu *self);
 
 FPGAContext *FPGAEmuGetContext(FPGAEmu *self, int pid);
 
-void FPGAEmuLoadContextsFromConfig(FPGAEmu *self, struct config_t *config,
+void FPGAEmuLoadKernelsFromConfig(FPGAEmu *self, struct config_t *config,
 		char *section);
 /*
  * Non-Class

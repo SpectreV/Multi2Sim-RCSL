@@ -22,8 +22,6 @@
 
 #include <pthread.h>
 
-#include <arch/fpga/asm/asm.h>
-#include <arch/fpga/asm/inst.h>
 #include <lib/util/class.h>
 
 /* Forward declarations */
@@ -54,6 +52,9 @@ CLASS_BEGIN(FPGAKernel, Object)
 	int state;
 	int kid; /* Kernel ID */
 
+	char* kernel_name;
+	bool folding;
+
 	/* Implementations */
 	int num_implements;
 	int *widths, *lengths, *heights;
@@ -69,10 +70,6 @@ CLASS_BEGIN(FPGAKernel, Object)
 	/* Instruction pointers */
 	unsigned int last_stage; /* Address of last emulated instruction */
 	unsigned int curr_stage; /* Address of currently emulated instruction */
-
-	/*
-	 * Context scheduling (timing simulation)
-	 */
 
 	/* Cycle when the kernel was allocated and evicted to a node (core/thread),
 	 * respectively. */
@@ -90,16 +87,25 @@ CLASS_BEGIN(FPGAKernel, Object)
 	FPGAKernel *blocked_list_next, *blocked_list_prev;
 	FPGAKernel *onchip_list_next, *onchip_list_prev;
 	FPGAKernel *offchip_list_next, *offchip_list_prev;
+	FPGAKernel *ready_list_next, *ready_list_prev;
 
-	/* List of tasks mapped to a kernel. This list is
+	/* List of tasks assigned to a kernel. This list is
 	 * managed by the timing simulator for scheduling purposes. */
-	FPGATask *mapped_list_next, *mapped_list_prev;
-	int max_tasks;
+	FPGATask *task_list_head, *task_list_tail;
+	int task_list_count, task_list_max;
+
+	FPGATask *waiting_list_head, *waiting_list_tail;
+	int waiting_list_count, waiting_list_max;
+
+	FPGATask *finished_list_head, *finished_list_tail;
+	int finished_list_count, finished_list_max;
 
 	/* Substructures */
 	struct fpga_loader_t *loader;
 	/* Thread affinity mask */
 	struct bit_map_t *affinity;
+
+	Abc_Ntk_t * ntk;
 
 CLASS_END(FPGAKernel)
 

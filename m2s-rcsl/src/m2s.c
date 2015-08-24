@@ -100,8 +100,8 @@ static char *x86_sys_debug_file_name = "";
 static char *x86_trace_cache_debug_file_name = "";
 static enum arch_sim_kind_t x86_sim_kind = arch_sim_kind_functional;
 
-
 static char *fpga_kernel_debug_file_name = "";
+static char *kernel_config_file_name = "";
 static enum arch_sim_kind_t fpga_sim_kind = arch_sim_kind_functional;
 
 static char *evg_disasm_file_name = "";
@@ -596,6 +596,12 @@ static void m2s_read_command_line(int *argc_ptr, char **argv) {
 		if (!strcmp(argv[argi], "--ctx-config")) {
 			m2s_need_argument(argc, argv, argi);
 			ctx_config_file_name = argv[++argi];
+			continue;
+		}
+
+		if (!strcmp(argv[argi], "--kernel-config")) {
+			m2s_need_argument(argc, argv, argi);
+			kernel_config_file_name = argv[++argi];
 			continue;
 		}
 
@@ -1474,7 +1480,8 @@ static void m2s_load_programs(int argc, char **argv) {
 
 	char section[MAX_STRING_SIZE];
 	char exe_full_path[MAX_STRING_SIZE];
-	char *exe_file_name;
+	char blif_full_path[MAX_STRING_SIZE];
+	char *exe_file_name, *blif_file_name;
 	char *cwd_path;
 
 	Elf32_Ehdr ehdr;
@@ -1537,6 +1544,28 @@ static void m2s_load_programs(int argc, char **argv) {
 		default:
 			fatal("%s: unsupported ELF architecture", argv[1]);
 		}
+
+	}
+
+	/* Continue processing the kernel configuration file, if specified. */
+	if (!*kernel_config_file_name)
+		return;
+
+	config = config_create(kernel_config_file_name);
+	if (*kernel_config_file_name)
+		config_load(config);
+
+	/* Iterate through consecutive kernels */
+	for (id = 0;;id++) {
+		snprintf(section, sizeof section, "Kernel %d", id);
+		if (!config_section_exists(config, section))
+			break;
+
+		blif_file_name = config_read_string(config, section, "Blif", "");
+		cwd_path = config_read_string(config, section, "Cwd", "");
+		file_full_path(blif_file_name, cwd_path, blif_full_path, sizeof blif_full_path);
+
+		FPGAEmuLoadKernelsFromConfig(fpga_emu, config, section);
 	}
 
 	/* Close file */

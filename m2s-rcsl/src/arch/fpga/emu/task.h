@@ -41,9 +41,8 @@ typedef void (*FPGATaskWakeupFunc)(FPGATask *self, void *data);
 
 typedef enum
 {
-	FPGATaskRunning      = 0x00001,  /* it is able to run instructions */
-	FPGATaskWaiting     = 0x00002,  /* executing in speculative mode */
-	FPGATaskSuspended    = 0x00004,  /* suspended in a system call */
+	FPGATaskRunning      = 0x00001,  /* it is running */
+	FPGATaskWaiting     = 0x00002,  /* waiting in a kernel queue */
 	FPGATaskFinished     = 0x00008,  /* no more inst to execute */
 	FPGATaskNone         = 0x00000
 } FPGATaskState;
@@ -57,14 +56,21 @@ CLASS_BEGIN(FPGATask, Object)
 	/* Task properties */
 	int state;
 	int pid;  /* Task ID */
-	int address_space_index;  /* Virtual memory address space index */
 
 	/* Host kernel */
 	FPGAKernel *kernel;
 
+	FPGATask *task_list_next, *task_list_prev;
+	FPGATask *waiting_list_next, *waiting_list_prev;
+	FPGATask *finished_list_next, *finished_list_prev;
+
 	/* If task is in state 'mapped', these two variables represent the
 	 * node (core/thread) associated with the task. */
 	int kernel_index;
+
+	int task_ready_idx, task_done_idx;
+	int input_size, output_size;
+	bool *input, *output;
 
 CLASS_END(FPGATask)
 
