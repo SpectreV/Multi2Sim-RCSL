@@ -124,41 +124,41 @@ void FPGAEmuProcessEventsSchedule(FPGAEmu *self) {
 /* Check for events detected in spawned host threads, like waking up contexts or
  * sending signals.
  * The list is only processed if flag 'self->process_events_force' is set. */
-void FPGAEmuProcessEvents(FPGAEmu *self) {
+/*void FPGAEmuProcessEvents(FPGAEmu *self) {
 	FPGAKernel *kernel, *next;
 	long long now = esim_real_time();
 
-	/* Check if events need actually be checked. */
+	 Check if events need actually be checked.
 	pthread_mutex_lock(&self->process_events_mutex);
 	if (!self->process_events_force) {
 		pthread_mutex_unlock(&self->process_events_mutex);
 		return;
 	}
 
-	/* By default, no subsequent call to 'FPGAEmuProcessEvents' is assumed */
+	 By default, no subsequent call to 'FPGAEmuProcessEvents' is assumed
 	self->process_events_force = 0;
 
-	/*
+
 	 * LOOP 1
 	 * Look at the list of suspended contexts and try to find
 	 * one that needs to be waken up.
-	 */
+
 	for (kernel = self->suspended_list_head; kernel; kernel = next) {
-		/* Save next */
+		 Save next
 		next = kernel->suspended_list_next;
 
-		/* Kernel is suspended in 'nanosleep' system call. */
+		 Kernel is suspended in 'nanosleep' system call.
 		if (FPGAKernelGetState(kernel, FPGAKernelNanosleep)) {
 			unsigned int rmtp = kernel->regs->ecx;
 			unsigned long long zero = 0;
 			unsigned int sec, usec;
 			unsigned long long diff;
 
-			/* If 'FPGAEmuHostThreadSuspend' is still running for this context, do nothing. */
+			 If 'FPGAEmuHostThreadSuspend' is still running for this context, do nothing.
 			if (kernel->host_thread_suspend_active)
 				continue;
 
-			/* Timeout expired */
+			 Timeout expired
 			if (kernel->wakeup_time <= now) {
 				if (rmtp)
 					mem_write(kernel->mem, rmtp, 8, &zero);
@@ -168,7 +168,7 @@ void FPGAEmuProcessEvents(FPGAEmu *self) {
 				continue;
 			}
 
-			/* Kernel received a signal */
+			 Kernel received a signal
 			if (kernel->signal_mask_table->pending & ~kernel->signal_mask_table->blocked) {
 				if (rmtp) {
 					diff = kernel->wakeup_time - now;
@@ -184,7 +184,7 @@ void FPGAEmuProcessEvents(FPGAEmu *self) {
 				continue;
 			}
 
-			/* No event available, launch 'FPGAEmuHostThreadSuspend' again */
+			 No event available, launch 'FPGAEmuHostThreadSuspend' again
 			kernel->host_thread_suspend_active = 1;
 			if (pthread_create(&kernel->host_thread_suspend, NULL, FPGAEmuHostThreadSuspend,
 					kernel))
@@ -192,9 +192,9 @@ void FPGAEmuProcessEvents(FPGAEmu *self) {
 			continue;
 		}
 
-		/* Kernel suspended in 'rt_sigsuspend' system call */
+		 Kernel suspended in 'rt_sigsuspend' system call
 		if (FPGAKernelGetState(kernel, FPGAKernelSigsuspend)) {
-			/* Kernel received a signal */
+			 Kernel received a signal
 			if (kernel->signal_mask_table->pending & ~kernel->signal_mask_table->blocked) {
 				FPGAKernelCheckSignalHandlerIntr(kernel);
 				kernel->signal_mask_table->blocked = kernel->signal_mask_table->backup;
@@ -204,12 +204,12 @@ void FPGAEmuProcessEvents(FPGAEmu *self) {
 				continue;
 			}
 
-			/* No event available. The context will never awake on its own, so no
-			 * 'FPGAEmuHostThreadSuspend' is necessary. */
+			 No event available. The context will never awake on its own, so no
+			 * 'FPGAEmuHostThreadSuspend' is necessary.
 			continue;
 		}
 
-		/* Kernel suspended in 'poll' system call */
+		 Kernel suspended in 'poll' system call
 		if (FPGAKernelGetState(kernel, FPGAKernelPoll)) {
 			uint32_t prevents = kernel->regs->ebx + 6;
 			uint16_t revents = 0;
@@ -217,16 +217,16 @@ void FPGAEmuProcessEvents(FPGAEmu *self) {
 			struct pollfd host_fds;
 			int err;
 
-			/* If 'FPGAEmuHostThreadSuspend' is still running for this context, do nothing. */
+			 If 'FPGAEmuHostThreadSuspend' is still running for this context, do nothing.
 			if (kernel->host_thread_suspend_active)
 				continue;
 
-			/* Get file descriptor */
+			 Get file descriptor
 			fd = fpga_file_desc_table_entry_get(kernel->file_desc_table, kernel->wakeup_fd);
 			if (!fd)
 				fatal("syscall 'poll': invalid 'wakeup_fd'");
 
-			/* Kernel received a signal */
+			 Kernel received a signal
 			if (kernel->signal_mask_table->pending & ~kernel->signal_mask_table->blocked) {
 				FPGAKernelCheckSignalHandlerIntr(kernel);
 				fpga_sys_debug("syscall 'poll' - interrupted by signal (pid %d)\n", kernel->pid);
@@ -234,7 +234,7 @@ void FPGAEmuProcessEvents(FPGAEmu *self) {
 				continue;
 			}
 
-			/* Perform host 'poll' call */
+			 Perform host 'poll' call
 			host_fds.fd = fd->host_fd;
 			host_fds.events = ((kernel->wakeup_events & 4) ? POLLOUT : 0)
 					| ((kernel->wakeup_events & 1) ? POLLIN : 0);
@@ -242,7 +242,7 @@ void FPGAEmuProcessEvents(FPGAEmu *self) {
 			if (err < 0)
 				fatal("syscall 'poll': unexpected error in host 'poll'");
 
-			/* POLLOUT event available */
+			 POLLOUT event available
 			if (kernel->wakeup_events & host_fds.revents & POLLOUT) {
 				revents = POLLOUT;
 				mem_write(kernel->mem, prevents, 2, &revents);
@@ -254,7 +254,7 @@ void FPGAEmuProcessEvents(FPGAEmu *self) {
 				continue;
 			}
 
-			/* POLLIN event available */
+			 POLLIN event available
 			if (kernel->wakeup_events & host_fds.revents & POLLIN) {
 				revents = POLLIN;
 				mem_write(kernel->mem, prevents, 2, &revents);
@@ -266,7 +266,7 @@ void FPGAEmuProcessEvents(FPGAEmu *self) {
 				continue;
 			}
 
-			/* Timeout expired */
+			 Timeout expired
 			if (kernel->wakeup_time && kernel->wakeup_time < now) {
 				revents = 0;
 				mem_write(kernel->mem, prevents, 2, &revents);
@@ -276,7 +276,7 @@ void FPGAEmuProcessEvents(FPGAEmu *self) {
 				continue;
 			}
 
-			/* No event available, launch 'FPGAEmuHostThreadSuspend' again */
+			 No event available, launch 'FPGAEmuHostThreadSuspend' again
 			kernel->host_thread_suspend_active = 1;
 			if (pthread_create(&kernel->host_thread_suspend, NULL, FPGAEmuHostThreadSuspend,
 					kernel))
@@ -284,7 +284,7 @@ void FPGAEmuProcessEvents(FPGAEmu *self) {
 			continue;
 		}
 
-		/* Kernel suspended in a 'write' system call  */
+		 Kernel suspended in a 'write' system call
 		if (FPGAKernelGetState(kernel, FPGAKernelWrite)) {
 			struct fpga_file_desc_t *fd;
 			int count, err;
@@ -292,11 +292,11 @@ void FPGAEmuProcessEvents(FPGAEmu *self) {
 			void *buf;
 			struct pollfd host_fds;
 
-			/* If 'FPGAEmuHostThreadSuspend' is still running for this context, do nothing. */
+			 If 'FPGAEmuHostThreadSuspend' is still running for this context, do nothing.
 			if (kernel->host_thread_suspend_active)
 				continue;
 
-			/* Kernel received a signal */
+			 Kernel received a signal
 			if (kernel->signal_mask_table->pending & ~kernel->signal_mask_table->blocked) {
 				FPGAKernelCheckSignalHandlerIntr(kernel);
 				fpga_sys_debug("syscall 'write' - interrupted by signal (pid %d)\n", kernel->pid);
@@ -304,19 +304,19 @@ void FPGAEmuProcessEvents(FPGAEmu *self) {
 				continue;
 			}
 
-			/* Get file descriptor */
+			 Get file descriptor
 			fd = fpga_file_desc_table_entry_get(kernel->file_desc_table, kernel->wakeup_fd);
 			if (!fd)
 				fatal("syscall 'write': invalid 'wakeup_fd'");
 
-			/* Check if data is ready in file by polling it */
+			 Check if data is ready in file by polling it
 			host_fds.fd = fd->host_fd;
 			host_fds.events = POLLOUT;
 			err = poll(&host_fds, 1, 0);
 			if (err < 0)
 				fatal("syscall 'write': unexpected error in host 'poll'");
 
-			/* If data is ready in the file, wake up context */
+			 If data is ready in the file, wake up context
 			if (host_fds.revents) {
 				pbuf = kernel->regs->ecx;
 				count = kernel->regs->edx;
@@ -336,7 +336,7 @@ void FPGAEmuProcessEvents(FPGAEmu *self) {
 				continue;
 			}
 
-			/* Data is not ready to be written - launch 'FPGAEmuHostThreadSuspend' again */
+			 Data is not ready to be written - launch 'FPGAEmuHostThreadSuspend' again
 			kernel->host_thread_suspend_active = 1;
 			if (pthread_create(&kernel->host_thread_suspend, NULL, FPGAEmuHostThreadSuspend,
 					kernel))
@@ -344,7 +344,7 @@ void FPGAEmuProcessEvents(FPGAEmu *self) {
 			continue;
 		}
 
-		/* Kernel suspended in 'read' system call */
+		 Kernel suspended in 'read' system call
 		if (FPGAKernelGetState(kernel, FPGAKernelRead)) {
 			struct fpga_file_desc_t *fd;
 			uint32_t pbuf;
@@ -352,11 +352,11 @@ void FPGAEmuProcessEvents(FPGAEmu *self) {
 			void *buf;
 			struct pollfd host_fds;
 
-			/* If 'FPGAEmuHostThreadSuspend' is still running for this context, do nothing. */
+			 If 'FPGAEmuHostThreadSuspend' is still running for this context, do nothing.
 			if (kernel->host_thread_suspend_active)
 				continue;
 
-			/* Kernel received a signal */
+			 Kernel received a signal
 			if (kernel->signal_mask_table->pending & ~kernel->signal_mask_table->blocked) {
 				FPGAKernelCheckSignalHandlerIntr(kernel);
 				fpga_sys_debug("syscall 'read' - interrupted by signal (pid %d)\n", kernel->pid);
@@ -364,19 +364,19 @@ void FPGAEmuProcessEvents(FPGAEmu *self) {
 				continue;
 			}
 
-			/* Get file descriptor */
+			 Get file descriptor
 			fd = fpga_file_desc_table_entry_get(kernel->file_desc_table, kernel->wakeup_fd);
 			if (!fd)
 				fatal("syscall 'read': invalid 'wakeup_fd'");
 
-			/* Check if data is ready in file by polling it */
+			 Check if data is ready in file by polling it
 			host_fds.fd = fd->host_fd;
 			host_fds.events = POLLIN;
 			err = poll(&host_fds, 1, 0);
 			if (err < 0)
 				fatal("syscall 'read': unexpected error in host 'poll'");
 
-			/* If data is ready, perform host 'read' call and wake up */
+			 If data is ready, perform host 'read' call and wake up
 			if (host_fds.revents) {
 				pbuf = kernel->regs->ecx;
 				count = kernel->regs->edx;
@@ -396,7 +396,7 @@ void FPGAEmuProcessEvents(FPGAEmu *self) {
 				continue;
 			}
 
-			/* Data is not ready. Launch 'FPGAEmuHostThreadSuspend' again */
+			 Data is not ready. Launch 'FPGAEmuHostThreadSuspend' again
 			kernel->host_thread_suspend_active = 1;
 			if (pthread_create(&kernel->host_thread_suspend, NULL, FPGAEmuHostThreadSuspend,
 					kernel))
@@ -404,15 +404,15 @@ void FPGAEmuProcessEvents(FPGAEmu *self) {
 			continue;
 		}
 
-		/* Kernel suspended in a 'waitpid' system call */
+		 Kernel suspended in a 'waitpid' system call
 		if (FPGAKernelGetState(kernel, FPGAKernelWaitpid)) {
 			FPGAKernel *child;
 			uint32_t pstatus;
 
-			/* A zombie child is available to 'waitpid' it */
+			 A zombie child is available to 'waitpid' it
 			child = FPGAKernelGetZombie(kernel, kernel->wakeup_pid);
 			if (child) {
-				/* Continue with 'waitpid' system call */
+				 Continue with 'waitpid' system call
 				pstatus = kernel->regs->ecx;
 				kernel->regs->eax = child->pid;
 				if (pstatus)
@@ -425,27 +425,27 @@ void FPGAEmuProcessEvents(FPGAEmu *self) {
 				continue;
 			}
 
-			/* No event available. Since this context won't wake up on its own, no
-			 * 'FPGAEmuHostThreadSuspend' is needed. */
+			 No event available. Since this context won't wake up on its own, no
+			 * 'FPGAEmuHostThreadSuspend' is needed.
 			continue;
 		}
 
-		/* Kernel suspended in a system call using a custom wake up check call-back
+		 Kernel suspended in a system call using a custom wake up check call-back
 		 * function. NOTE: this is a new mechanism. It'd be nice if all other system
 		 * calls started using it. It is nicer, since it allows for a check of wake up
 		 * conditions together with the system call itself, without having distributed
-		 * code for the implementation of a system call (e.g. 'read'). */
+		 * code for the implementation of a system call (e.g. 'read').
 		if (FPGAKernelGetState(kernel, FPGAKernelCallback)) {
 			assert(kernel->can_wakeup_callback_func);
 			if (kernel->can_wakeup_callback_func(kernel, kernel->can_wakeup_callback_data)) {
-				/* Set context status to 'running' again. */
+				 Set context status to 'running' again.
 				FPGAKernelClearState(kernel, FPGAKernelSuspended | FPGAKernelCallback);
 
-				/* Call wake up function */
+				 Call wake up function
 				if (kernel->wakeup_callback_func)
 					kernel->wakeup_callback_func(kernel, kernel->wakeup_callback_data);
 
-				/* Reset call-back info */
+				 Reset call-back info
 				kernel->wakeup_callback_func = NULL;
 				kernel->wakeup_callback_data = NULL;
 				kernel->can_wakeup_callback_func = NULL;
@@ -455,41 +455,41 @@ void FPGAEmuProcessEvents(FPGAEmu *self) {
 		}
 	}
 
-	/*
+
 	 * LOOP 2
 	 * Check list of all contexts for expired timers.
-	 */
+
 	for (kernel = self->context_list_head; kernel; kernel = kernel->context_list_next) {
-		int sig[3] = { 14, 26, 27 }; /* SIGALRM, SIGVTALRM, SIGPROF */
+		int sig[3] = { 14, 26, 27 };  SIGALRM, SIGVTALRM, SIGPROF
 		int i;
 
-		/* If there is already a 'ke_host_thread_timer' running, do nothing. */
+		 If there is already a 'ke_host_thread_timer' running, do nothing.
 		if (kernel->host_thread_timer_active)
 			continue;
 
-		/* Check for any expired 'itimer': itimer_value < now
+		 Check for any expired 'itimer': itimer_value < now
 		 * In this case, send corresponding signal to process.
-		 * Then calculate next 'itimer' occurrence: itimer_value = now + itimer_interval */
+		 * Then calculate next 'itimer' occurrence: itimer_value = now + itimer_interval
 		for (i = 0; i < 3; i++) {
-			/* Timer inactive or not expired yet */
+			 Timer inactive or not expired yet
 			if (!kernel->itimer_value[i] || kernel->itimer_value[i] > now)
 				continue;
 
-			/* Timer expired - send a signal.
+			 Timer expired - send a signal.
 			 * The target process might be suspended, so the host thread is canceled, and a new
 			 * call to 'FPGAEmuProcessEvents' is scheduled. Since 'ke_process_events_mutex' is
-			 * already locked, the thread-unsafe version of 'fpga_ctx_host_thread_suspend_cancel' is used. */
+			 * already locked, the thread-unsafe version of 'fpga_ctx_host_thread_suspend_cancel' is used.
 			FPGAKernelHostThreadSuspendCancelUnsafe(kernel);
 			self->process_events_force = 1;
 			fpga_sigset_add(&kernel->signal_mask_table->pending, sig[i]);
 
-			/* Calculate next occurrence */
+			 Calculate next occurrence
 			kernel->itimer_value[i] = 0;
 			if (kernel->itimer_interval[i])
 				kernel->itimer_value[i] = now + kernel->itimer_interval[i];
 		}
 
-		/* Calculate the time when next wakeup occurs. */
+		 Calculate the time when next wakeup occurs.
 		kernel->host_thread_timer_wakeup = 0;
 		for (i = 0; i < 3; i++) {
 			if (!kernel->itimer_value[i])
@@ -500,7 +500,7 @@ void FPGAEmuProcessEvents(FPGAEmu *self) {
 				kernel->host_thread_timer_wakeup = kernel->itimer_value[i];
 		}
 
-		/* If a new timer was set, launch ke_host_thread_timer' again */
+		 If a new timer was set, launch ke_host_thread_timer' again
 		if (kernel->host_thread_timer_wakeup) {
 			kernel->host_thread_timer_active = 1;
 			if (pthread_create(&kernel->host_thread_timer, NULL, FPGAKernelHostThreadTimer, kernel))
@@ -508,17 +508,17 @@ void FPGAEmuProcessEvents(FPGAEmu *self) {
 		}
 	}
 
-	/*
+
 	 * LOOP 3
 	 * Process pending signals in running contexts to launch signal handlers
-	 */
+
 	for (kernel = self->running_list_head; kernel; kernel = kernel->running_list_next) {
 		FPGAKernelCheckSignalHandler(kernel);
 	}
 
-	/* Unlock */
+	 Unlock
 	pthread_mutex_unlock(&self->process_events_mutex);
-}
+}*/
 
 int FPGAEmuRun(Emu *self) {
 	FPGAEmu *emu = asFPGAEmu(self);
