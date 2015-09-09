@@ -25,6 +25,7 @@
 #include <arch/x86/asm/asm.h>
 #include <arch/x86/asm/inst.h>
 #include <lib/util/class.h>
+#include <arch/x86/timing/uop.h>
 
 
 /* Forward declarations */
@@ -61,6 +62,9 @@ typedef enum
 	X86ContextMapped       = 0x20000,  /* mapped to a core/thread */
 	X86ContextNone         = 0x00000
 } X86ContextState;
+
+
+
 
 
 CLASS_BEGIN(X86Context, Object)
@@ -104,6 +108,7 @@ CLASS_BEGIN(X86Context, Object)
 	int str_op_count;  /* Number of iterations in string operation */
 
 
+    struct list_t *kernel_list; 
 
 	/*
 	 * Context scheduling (timing simulation)
@@ -177,10 +182,12 @@ CLASS_BEGIN(X86Context, Object)
 	/* List of contexts mapped to a hardware core/thread. This list is
 	 * managed by the timing simulator for scheduling purposes. */
 	X86Context *mapped_list_next, *mapped_list_prev;
+     
 
 	/* Substructures */
 	struct x86_loader_t *loader;
 	struct mem_t *mem;  /* Virtual memory image */
+	struct mem_t *realmem;
 	struct spec_mem_t *spec_mem;  /* Speculative memory */
 	struct x86_regs_t *regs;  /* Logical register file */
 	struct x86_regs_t *backup_regs;  /* Backup when entering in speculative mode */
@@ -214,6 +221,10 @@ void X86ContextHostThreadSuspendCancelUnsafe(X86Context *self);
 void X86ContextHostThreadSuspendCancel(X86Context *self);
 void X86ContextHostThreadTimerCancelUnsafe(X86Context *self);
 void X86ContextHostThreadTimerCancel(X86Context *self);
+
+int FPGARegCheck(X86Context *self, struct x86_uop_t *uop, unsigned int address);
+
+int FPGARegMemCheck(struct mem_t *mem, unsigned int address);
 
 void X86ContextSuspend(X86Context *self,
 	X86ContextCanWakeupFunc can_wakeup_callback_func,

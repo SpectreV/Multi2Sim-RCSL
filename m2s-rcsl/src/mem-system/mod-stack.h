@@ -20,7 +20,9 @@
 #ifndef MEM_SYSTEM_MOD_STACK_H
 #define MEM_SYSTEM_MOD_STACK_H
 
+#include <arch/x86/emu/context.h>
 #include "module.h"
+#include "memory.h" 
 
 
 /* Current identifier for stack */
@@ -61,6 +63,11 @@ struct mod_stack_t
 	struct linked_list_t *event_queue;
 	void *event_queue_item;
 	struct mod_client_info_t *client_info;
+	void *buf;
+	struct interconnect_t *interconnect;
+	X86Context *ctx;
+
+    struct x86_uop_t *uop;
 
 	struct mod_t *mod;
 	struct mod_t *target_mod;
@@ -75,6 +82,11 @@ struct mod_stack_t
 	int way;
 	int state;
 	int latency_add;
+	int size;
+	int burst_count;
+	int offset;
+	int transfer_count;
+	int modcount;
 
 	int src_set;
 	int src_way;

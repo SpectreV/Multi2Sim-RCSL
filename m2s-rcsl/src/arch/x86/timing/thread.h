@@ -92,6 +92,7 @@ CLASS_BEGIN(X86Thread, Object)
      
     int data_latency;
     int inst_latency;
+    int standalone;
 	/* Cycle in which last micro-instruction committed */
 	long long last_commit_cycle;
 

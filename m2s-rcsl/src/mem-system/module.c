@@ -32,6 +32,7 @@
 #include "mem-system.h"
 #include "mod-stack.h"
 #include "nmoesi-protocol.h"
+#include "memory.h" 
 
 
 /* String map for access type */
@@ -102,13 +103,87 @@ void mod_dump(struct mod_t *mod, FILE *f)
 }
 
 
-/* Access a memory module.
- * Variable 'witness', if specified, will be increased when the access completes.
- * The function returns a unique access ID.
- */
-long long mod_access(struct mod_t *mod, enum mod_access_kind_t access_kind, 
+
+
+
+long long fpga_mod_access(struct mod_t *mod, enum mod_access_kind_t access_kind, 
+	unsigned int addr, struct linked_list_t *event_queue, void *event_queue_item,
+	struct mod_client_info_t *client_info, struct interconnect_t *interconnect,
+	void * buf, int size, X86Context *ctx,  int latency_add)
+
+{    
+	struct mod_stack_t *stack;
+	int event;
+
+	/* Create module stack with new ID */
+	mod_stack_id++;
+	stack = mod_stack_create(mod_stack_id,
+		mod, addr, ESIM_EV_NONE, NULL, latency_add);
+
+	/* Initialize */
+	stack->buf = buf;
+	stack->event_queue = event_queue;
+	stack->event_queue_item = event_queue_item;
+	stack->client_info = client_info;
+	stack->interconnect = interconnect;
+	stack->size = size;
+	stack->ctx = ctx; 
+
+
+
+	/* Select initial CPU/GPU event */
+	if (interconnect->axi)
+
+    {if (access_kind == mod_access_load)
+		{
+			event = EV_FPGA_MEM_LOAD;
+		}
+	else if (access_kind == mod_access_store)
+		{
+			event = EV_FPGA_MEM_STORE;
+		}
+	
+	else 
+		{
+			panic("%s: invalid access kind", __FUNCTION__);
+		}
+	}
+
+	else if (!interconnect->axi)
+
+	{if (access_kind == mod_access_load)
+		{
+			event = EV_FPGA_MEM_LARGE_LOAD;
+		}
+	else if (access_kind == mod_access_store)
+		{
+			event = EV_FPGA_MEM_LARGE_STORE;
+		}
+	
+	else 
+		{
+			panic("%s: invalid access kind", __FUNCTION__);
+		}
+	} 
+
+    
+    else 
+    	{
+			panic("%s: invalid access kind", __FUNCTION__);
+		}  
+	/* Schedule */
+	esim_execute_event(event, stack);
+
+	/* Return access ID */
+	return stack->id;
+}
+
+
+
+
+long long fpga_reg_access(struct mod_t *mod, enum mod_access_kind_t access_kind, 
 	unsigned int addr, int *witness_ptr, struct linked_list_t *event_queue,
-	void *event_queue_item, struct mod_client_info_t *client_info, int latency_add)
+	void *event_queue_item, struct mod_client_info_t *client_info, int latency_add, int size)
 {
 	struct mod_stack_t *stack;
 	int event;
@@ -123,9 +198,61 @@ long long mod_access(struct mod_t *mod, enum mod_access_kind_t access_kind,
 	stack->event_queue = event_queue;
 	stack->event_queue_item = event_queue_item;
 	stack->client_info = client_info;
+	stack->size = size;
+	stack->uop = event_queue_item;	
+
+
+    if(access_kind == mod_access_load)
+        {
+          event = EV_FPGA_REG_LOAD;
+        }     
+    else if (access_kind == mod_access_store)
+        {
+          event = EV_FPGA_REG_STORE;
+        }	
+    else
+        {
+          panic("%s: invalid access kind", __FUNCTION__);
+        }	
+      
+
+	/* Schedule */
+	esim_execute_event(event, stack);
+
+	/* Return access ID */
+	return stack->id;
+}
+
+
+
+/* Access a memory module.
+ * Variable 'witness', if specified, will be increased when the access completes.
+ * The function returns a unique access ID.
+ */
+long long mod_access(struct mod_t *mod, enum mod_access_kind_t access_kind, 
+	unsigned int addr, int *witness_ptr, struct linked_list_t *event_queue,
+	void *event_queue_item, struct mod_client_info_t *client_info, int latency_add, int size)
+{
+	struct mod_stack_t *stack;
+	int event;
+
+
+	/* Create module stack with new ID */
+	mod_stack_id++;
+	stack = mod_stack_create(mod_stack_id,
+		mod, addr, ESIM_EV_NONE, NULL, latency_add);
+
+	/* Initialize */
+	stack->witness_ptr = witness_ptr;
+	stack->event_queue = event_queue;
+	stack->event_queue_item = event_queue_item;
+	stack->client_info = client_info;
+	stack->size = size;
+	stack->uop = event_queue_item;
+
 
 	/* Select initial CPU/GPU event */
-	if (mod->kind == mod_kind_cache || mod->kind == mod_kind_main_memory)
+    if (mod->kind == mod_kind_cache || mod->kind == mod_kind_main_memory)
 	{
 		if (access_kind == mod_access_load)
 		{
@@ -174,6 +301,9 @@ long long mod_access(struct mod_t *mod, enum mod_access_kind_t access_kind,
 	/* Return access ID */
 	return stack->id;
 }
+
+
+
 
 
 /* Return true if module can be accessed. */

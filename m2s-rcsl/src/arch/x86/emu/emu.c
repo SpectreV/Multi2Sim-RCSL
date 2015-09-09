@@ -31,6 +31,7 @@
 #include <lib/util/config.h>
 #include <lib/util/debug.h>
 #include <lib/util/linked-list.h>
+#include <lib/util/list.h> 
 #include <lib/util/misc.h>
 #include <lib/util/string.h>
 #include <mem-system/memory.h>
@@ -56,8 +57,25 @@ int x86_emu_last_inst_size = 0;
 int x86_emu_process_prefetch_hints = 0;
 
 X86Emu *x86_emu;
+FPGAEmu *fpga_emu;
 
 
+CLASS_IMPLEMENTATION(FPGAEmu);
+
+
+void FPGAEmuCreate(FPGAEmu *self)
+{
+	/* Parent */
+	EmuCreate(asEmu(self), "fpga");
+
+	asEmu(self)->Run = FPGAEmuRun;
+}
+
+
+void FPGAEmuDestroy(FPGAEmu *self)
+{
+	
+}
 
 
 /*
@@ -94,6 +112,8 @@ void X86EmuDestroy(X86Emu *self)
 	/* Free contexts */
 	while (self->context_list_head)
 		delete(self->context_list_head);
+
+	//list_free(self->kernel_list); 
 	
 }
 
@@ -606,18 +626,24 @@ void X86EmuLoadContextsFromConfig(X86Emu *self, struct config_t *config, char *s
 {
 	X86Context *ctx;
 	struct x86_loader_t *loader;
+	struct kernel_t *kernel;
 
 	char buf[MAX_STRING_SIZE];
-
+    char *token;
+	char *delim;
 	char *exe;
 	char *cwd;
 	char *args;
 	char *env;
-
+    char *kernelstr; 
 	char *in;
 	char *out;
 
 	char *config_file_name;
+	int id;
+	int i;
+	int err;
+
 
 	/* Get configuration file name for errors */
 	config_file_name = config_get_file_name(config);
@@ -625,7 +651,7 @@ void X86EmuLoadContextsFromConfig(X86Emu *self, struct config_t *config, char *s
 	/* Create new context */
 	ctx = new(X86Context, self);
 	loader = ctx->loader;
-
+    
 	/* Executable */
 	exe = config_read_string(config, section, "Exe", "");
 	exe = str_set(NULL, exe);
@@ -665,8 +691,52 @@ void X86EmuLoadContextsFromConfig(X86Emu *self, struct config_t *config, char *s
 	out = config_read_string(config, section, "Stdout", "");
 	loader->stdout_file = str_set(NULL, out);
 
+	//ctx->kernel_list= list_create();
+
+    kernelstr = config_read_string(config, section, "Kernel", ""); 
+    kernelstr = xstrdup(kernelstr);
+	delim = " ";
+	token = strtok(kernelstr, delim);
+	if(token)
+	{ 
+	 while(1)	
+     { 
+        id = str_to_int(token, &err);
+      		if (err)
+			fatal("%s: %s: invalid value '%s' in 'Kernel'",
+				config_file_name, exe, token);
+          
+        for (i = 0; i < list_count(self->kernel_list); i++)
+	     {
+		
+		   kernel = list_get(self->kernel_list, i);
+		   
+
+		   if (kernel->id != id)
+			    continue;
+
+           list_add( ctx->kernel_list, kernel);
+
+         }
+
+         if(!(token = strtok(NULL, delim)))
+      	{   
+      		break;
+      	}
+
+      	}
+
+
+	}	
+
+
 	/* Load executable */
 	X86ContextLoadExe(ctx, exe);
+
+
+
+	mem_clone(ctx->realmem, ctx->mem);
+
 }
 
 
@@ -695,8 +765,12 @@ void X86EmuLoadContextFromCommandLine(X86Emu *self, int argc, char **argv)
 	loader->stdin_file = str_set(NULL, "");
 	loader->stdout_file = str_set(NULL, "");
 
+	ctx->kernel_list= list_create();
+
 	/* Load executable */
 	X86ContextLoadExe(ctx, argv[0]);
+
+	mem_clone(ctx->realmem, ctx->mem);
 }
 
 
@@ -712,6 +786,8 @@ void x86_emu_init(void)
 	/* Classes */
 	CLASS_REGISTER(X86Emu);
 	CLASS_REGISTER(X86Context);
+	CLASS_REGISTER(FPGAEmu);
+	
 
 	/* Endian check */
 	union
@@ -730,6 +806,7 @@ void x86_emu_init(void)
 
 	/* Create x86 emulator */
 	x86_emu = new(X86Emu);
+	fpga_emu = new(FPGAEmu);
 
 	/* Initialize */
 	x86_asm_init();
@@ -769,8 +846,10 @@ void x86_emu_done(void)
 	/* Print system call summary */
 	if (debug_status(x86_sys_debug_category))
 		x86_sys_dump_stats(debug_file(x86_sys_debug_category));
+     
 
 	/* Free emulator */
 	delete(x86_emu);
+	delete(fpga_emu);
 }
 

@@ -108,6 +108,59 @@ void X86CpuMemConfigDefault(Timing *self, struct config_t *config)
 }
 
 
+
+void FPGAMemConfigParseEntry(Timing *self, struct config_t *config, char *section)
+{
+    FPGA *fpga = asFPGA(self);
+
+	char *file_name;
+
+	int translation_latency;
+	int axi; 
+
+	char *module_name;
+
+	/* Get configuration file name */
+	file_name = config_get_file_name(config);
+
+	/* Allow these sections in case we quit before reading them. */
+	config_var_allow(config, section, "Module");
+
+
+
+
+	module_name = config_read_string(config, section, "Module", NULL);
+	assert(module_name);
+
+	translation_latency = config_read_int(config, section, "TransLatency", 0);
+	axi = config_read_int(config, section, "Axi", 0)
+    
+
+	/* Assign data module */
+	fpga->mod = mem_system_get_mod(module_name);
+
+	if (!fpga->mod)
+		fatal("%s: section [%s]: '%s' is not a valid module name.\n"
+			"\tThe given module name must match a module declared in a section\n"
+			"\t[Module <name>] in the memory configuration file.\n",
+			file_name, section, module_name);
+
+
+	
+	fpga->translatency = translation_latency;
+	fpga-> axi = axi;
+
+
+}
+
+
+
+
+
+
+
+
+
 void X86CpuMemConfigParseEntry(Timing *self, struct config_t *config, char *section)
 {
 	X86Cpu *cpu = asX86Cpu(self);
@@ -124,6 +177,7 @@ void X86CpuMemConfigParseEntry(Timing *self, struct config_t *config, char *sect
 
 	int data_latency;
 	int inst_latency;
+	int standalone; 
 
 	char *data_module_name;
 	char *inst_module_name;
@@ -201,6 +255,9 @@ void X86CpuMemConfigParseEntry(Timing *self, struct config_t *config, char *sect
 		data_latency = inst_latency = config_read_int(config, section, "Latency", 0);
 	}
 
+        standalone =  config_read_bool(config, section, "Standalone", 0);  
+
+
 	/* Assign data module */
 	thread->data_mod = mem_system_get_mod(data_module_name);
 	if (!thread->data_mod)
@@ -229,6 +286,7 @@ void X86CpuMemConfigParseEntry(Timing *self, struct config_t *config, char *sect
 	
 	thread->data_latency = data_latency;
 	thread->inst_latency = inst_latency;
+	thread->standalone = standalone; 
 	/* Add modules to entry list */
 	linked_list_add(arch_x86->mem_entry_mod_list, thread->data_mod);
 	if (thread->data_mod != thread->inst_mod)

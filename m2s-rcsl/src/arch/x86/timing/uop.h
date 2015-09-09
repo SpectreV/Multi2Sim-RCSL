@@ -21,6 +21,7 @@
 #define X86_ARCH_TIMING_UOP_H
 
 #include <arch/x86/emu/uinst.h>
+#include <arch/x86/emu/emu.h> 
 #include <lib/util/class.h>
 
 
@@ -65,6 +66,15 @@ struct x86_uop_t
 	int idep_count;
 	int odep_count;
 
+	int kernelrange;
+	int kernelstart;
+	int kernelfinish;
+
+	char *kernelname;
+	struct kernel_t *kernel;
+
+	unsigned int data;
+
 	/* Physical mappings */
 	int ph_int_idep_count, ph_fp_idep_count, ph_xmm_idep_count;
 	int ph_int_odep_count, ph_fp_odep_count, ph_xmm_odep_count;
@@ -90,7 +100,7 @@ struct x86_uop_t
 
 	/* For memory uops */
 	unsigned int phy_addr;  /* ... corresponding to 'uop->uinst->address' */
-
+    unsigned int addr;
 	/* Cycles */
 	long long when;  /* cycle when ready */
 	long long issue_try_when;  /* first cycle when f.u. is tried to be reserved */

@@ -34,6 +34,9 @@ struct x86_uop_t *x86_uop_create(void)
 	/* Initialize */
 	uop = xcalloc(1, sizeof(struct x86_uop_t));
 	uop->magic = UOP_MAGIC;
+	uop->kernelrange = 0;
+	uop->kernelstart = 0;
+	uop->kernelfinish = 0;
 
 	/* Return */
 	return uop;

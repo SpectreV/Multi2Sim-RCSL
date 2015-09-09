@@ -23,6 +23,7 @@
 #include <arch/common/timing.h>
 #include <arch/x86/emu/uinst.h>
 #include <lib/util/class.h>
+#include <mem-system/module.h>
 
 
 /* Forward declarations */
@@ -75,6 +76,31 @@ CLASS_BEGIN(X86Cpu, Timing)
 	long long last_dump;
 
 CLASS_END(X86Cpu)
+
+
+
+CLASS_BEGIN(FPGA, Timing)
+
+	/* Associated emulator */
+	FPGAEmu *emu;
+    struct mod_t mod;
+    int translatency;
+    int axi;
+
+
+	double time;
+
+
+CLASS_END(FPGA)
+
+
+
+
+
+
+
+void FPGACreate(FPGA *self, FPGAEmu *emu);
+void FPGADestroy(FPGA *self);
 
 
 void X86CpuCreate(X86Cpu *self, X86Emu *emu);

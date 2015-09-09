@@ -25,6 +25,7 @@ struct config_t;
 void X86CpuMemConfigDefault(Timing *self, struct config_t *config);
 void X86CpuMemConfigParseEntry(Timing *self, struct config_t *config, char *section);
 void X86CpuMemConfigCheck(Timing *self, struct config_t *config);
+void FPGAMemConfigParseEntry(Timing *self, struct config_t *config, char *section)
 
 
 #endif

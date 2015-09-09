@@ -60,12 +60,12 @@ void x86_isa_bound_r32_rm64_impl(X86Context *ctx)
 
 void x86_isa_bsf_r32_rm32_impl(X86Context *ctx)
 {
-	struct x86_regs_t *regs = ctx->regs;
-
+	struct x86_regs_t *regs = ctx->regs;   
 	unsigned int r32 = X86ContextLoadR32(ctx);
 	unsigned int rm32 = X86ContextLoadRm32(ctx);
 	unsigned long flags = regs->eflags;
-
+    
+    
 	__X86_ISA_ASM_START__
 	asm volatile (
 		"push %4\n\t"
@@ -113,13 +113,13 @@ void x86_isa_bsr_r32_rm32_impl(X86Context *ctx)
 
 	X86ContextStoreR32(ctx, r32);
 	regs->eflags = flags;
-
+     
 	x86_uinst_new(ctx, x86_uinst_shift, x86_dep_rm32, 0, 0, x86_dep_r32, x86_dep_zps, 0, 0);
 }
 
 
 void x86_isa_bswap_ir32_impl(X86Context *ctx)
-{
+{   
 	unsigned int ir32 = X86ContextLoadIR32(ctx);
 
 	__X86_ISA_ASM_START__
@@ -140,7 +140,7 @@ void x86_isa_bswap_ir32_impl(X86Context *ctx)
 
 
 void x86_isa_bt_rm32_r32_impl(X86Context *ctx)
-{
+{  
 	struct x86_regs_t *regs = ctx->regs;
 
 	unsigned int rm32 = X86ContextLoadRm32(ctx);
@@ -169,7 +169,7 @@ void x86_isa_bt_rm32_r32_impl(X86Context *ctx)
 
 
 void x86_isa_bt_rm32_imm8_impl(X86Context *ctx)
-{
+{   
 	struct x86_regs_t *regs = ctx->regs;
 
 	unsigned int rm32 = X86ContextLoadRm32(ctx);
@@ -229,7 +229,7 @@ void x86_isa_bts_rm32_imm8_impl(X86Context *ctx)
 
 
 void x86_isa_call_rel32_impl(X86Context *ctx)
-{
+{  
 	struct x86_regs_t *regs = ctx->regs;
 
 	regs->esp -= 4;
@@ -245,7 +245,7 @@ void x86_isa_call_rel32_impl(X86Context *ctx)
 
 
 void x86_isa_call_rm32_impl(X86Context *ctx)
-{
+{ 
 	struct x86_regs_t *regs = ctx->regs;
 
 	ctx->target_eip = X86ContextLoadRm32(ctx);
@@ -258,6 +258,7 @@ void x86_isa_call_rm32_impl(X86Context *ctx)
 	x86_uinst_new_mem(ctx, x86_uinst_store, regs->esp, 4, x86_dep_aux, 0, 0, 0, 0, 0, 0);
 	x86_uinst_new(ctx, x86_uinst_call, x86_dep_rm32, 0, 0, 0, 0, 0, 0);
 }
+
 
 
 void x86_isa_cbw_impl(X86Context *ctx)

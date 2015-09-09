@@ -63,6 +63,8 @@ struct mem_t
 	/* Heap break for CPU contexts */
 	unsigned int heap_break;
 
+	struct list_t *kernel_list; 
+
 	/* Last accessed address */
 	unsigned int last_address;
 };
@@ -93,6 +95,8 @@ void mem_copy(struct mem_t *mem, unsigned int dest, unsigned int src, int size);
 void mem_access(struct mem_t *mem, unsigned int addr, int size, void *buf, enum mem_access_t access);
 void mem_read(struct mem_t *mem, unsigned int addr, int size, void *buf);
 void mem_write(struct mem_t *mem, unsigned int addr, int size, void *buf);
+void mem_read_copy(struct mem_t *mem, unsigned int addr, int size, void *buf);
+void mem_write_copy(struct mem_t *mem, unsigned int addr, int size, void *buf);
 
 void mem_zero(struct mem_t *mem, unsigned int addr, int size);
 int mem_read_string(struct mem_t *mem, unsigned int addr, int size, char *str);

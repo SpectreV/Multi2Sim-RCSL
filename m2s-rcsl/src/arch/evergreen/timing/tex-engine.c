@@ -204,7 +204,7 @@ static void evg_tex_engine_read(struct evg_compute_unit_t *compute_unit)
 			work_item_uop = &uop->work_item_uop[work_item->id_in_wavefront];
 			mod_access(compute_unit->global_memory, mod_access_load, 
 				work_item_uop->global_mem_access_addr,
-				&uop->global_mem_witness, NULL, NULL, NULL,0);
+				&uop->global_mem_witness, NULL, NULL, NULL,0, 32);
 			uop->global_mem_witness--;
 		}
 		uop->num_global_mem_read = uop->global_mem_witness;

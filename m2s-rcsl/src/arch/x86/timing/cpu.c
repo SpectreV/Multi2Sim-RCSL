@@ -419,6 +419,7 @@ void X86CpuInit(void)
 	CLASS_REGISTER(X86Cpu);
 	CLASS_REGISTER(X86Core);
 	CLASS_REGISTER(X86Thread);
+	CLASS_REGISTER(FPGA);
 
 	/* Trace */
 	x86_trace_category = trace_new_category();
@@ -428,6 +429,37 @@ void X86CpuInit(void)
 /* Finalization */
 void X86CpuDone(void)
 {
+}
+
+
+
+CLASS_IMPLEMENTATION(FPGA);
+
+void FPGACreate (FPGA *self, FPGAEmu *emu)
+{
+
+	/* Parent */
+	TimingCreate(asTiming(self));
+	
+	/* Frequency */
+	asTiming(self)->frequency = x86_cpu_frequency;
+	asTiming(self)->frequency_domain = esim_new_domain(x86_cpu_frequency);
+
+	/* Initialize */
+	self->emu = emu;
+
+	/* Virtual functions */
+	asTiming(self)->Run = FPGARun;
+	asTiming(self)->MemConfigParseEntry = FPGAMemConfigParseEntry;
+ 
+
+}
+
+
+void FPGADestroy(FPGA *self)
+{
+
+
 }
 
 
@@ -1013,6 +1045,10 @@ int X86CpuRun(Timing *self)
 	 * that were freed in the previous simulation cycle. */
 	X86CpuEmptyTraceList(cpu);
 
+
+    FPGAExecute(emu);
+
+
 	/* Processor stages */
 	X86CpuRunStages(cpu);
 
@@ -1022,6 +1058,54 @@ int X86CpuRun(Timing *self)
 	/* Still simulating */
 	return TRUE;
 }
+
+
+
+int FPGARun(Timing *self)
+{    
+	 
+     struct list_t *kernel_list;
+     struct kernel_t *kernel;
+     struct list_t *tasklist;
+     struct task_t *task;
+     kernel_list = self->kernel_list;
+     for (i = 0; i < list_count(kernel_list); i++)
+     { 
+     	kernel = list_get(kernel_list, i);
+        tasklist = kernel->tasklist;
+        if(!list_count(tasklist) || kernel->executing)
+        	continue;
+        task = KernelSchedule(kernel); 
+        
+         
+
+
+
+
+
+     } 
+
+
+
+
+
+
+
+
+
+
+
+}
+
+
+
+
+
+
+
+
+
+
 
 
 void X86CpuRunStages(X86Cpu *self)
@@ -1036,6 +1120,7 @@ void X86CpuRunStages(X86Cpu *self)
 	X86CpuDispatch(self);
 	X86CpuDecode(self);
 	X86CpuFetch(self);
+
 
 	/* Update stats for structures occupancy */
 	if (x86_cpu_occupancy_stats)

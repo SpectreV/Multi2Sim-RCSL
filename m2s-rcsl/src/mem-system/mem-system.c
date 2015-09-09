@@ -52,6 +52,10 @@ char *mem_report_file_name = "";
 
 
 
+
+
+
+
 /*
  * Memory System Object
  */
@@ -310,6 +314,71 @@ void mem_system_init(void)
 			mem_domain_index, "mod_local_mem_find_and_lock_action");
 	EV_MOD_LOCAL_MEM_FIND_AND_LOCK_FINISH = esim_register_event_with_name(mod_handler_local_mem_find_and_lock,
 			mem_domain_index, "mod_local_mem_find_and_lock_finish");
+
+	EV_FPGA_REG_STORE = esim_register_event_with_name(fpga_reg_handler, 
+		    mem_domain_index, "FPGA_reg_store");
+	EV_FPGA_REG_STORE_FINISH = esim_register_event_with_name(fpga_reg_handler, 
+		    mem_domain_index, "FPGA_reg_store_finish");
+	EV_FPGA_REG_LOAD = esim_register_event_with_name(fpga_reg_handler, 
+		    mem_domain_index, "FPGA_reg_load");
+	EV_FPGA_REG_LOAD_FINISH = esim_register_event_with_name(fpga_reg_handler, 
+		    mem_domain_index, "FPGA_reg_load_finish");
+
+
+    EV_FPGA_MEM_LOAD = esim_register_event_with_name(fpga_mem_load_handler, 
+		    mem_domain_index, "FPGA_mem_load");
+    EV_FPGA_MEM_LOAD_START = esim_register_event_with_name(fpga_mem_load_handler, 
+		    mem_domain_index, "FPGA_mem_load_start");
+    EV_FPGA_MEM_LOAD_TRANSFER_START = esim_register_event_with_name(fpga_mem_load_handler, 
+		    mem_domain_index, "FPGA_mem_load_transfer_start");
+    EV_FPGA_MEM_LOAD_TRANSFER_ACTION = esim_register_event_with_name(fpga_mem_load_handler, 
+		    mem_domain_index, "FPGA_mem_load_transfer_action");
+    EV_FPGA_MEM_LOAD_TRANSFER_ACTION_FINISH = esim_register_event_with_name(fpga_mem_load_handler, 
+		    mem_domain_index, "FPGA_mem_load_transfer_action_finish");    
+    EV_FPGA_MEM_LOAD_TRANSFER_FINISH = esim_register_event_with_name(fpga_mem_load_handler, 
+		    mem_domain_index, "FPGA_mem_load_transfer_finish");
+    EV_FPGA_MEM_LOAD_FINISH = esim_register_event_with_name(fpga_mem_load_handler, 
+		    mem_domain_index, "FPGA_mem_load_finish");
+
+    EV_FPGA_MEM_STORE = esim_register_event_with_name(fpga_mem_store_handler, 
+		    mem_domain_index, "FPGA_mem_store");
+    EV_FPGA_MEM_STORE_START = esim_register_event_with_name(fpga_mem_store_handler, 
+		    mem_domain_index, "FPGA_mem_store_start");
+    EV_FPGA_MEM_STORE_TRANSFER_START = esim_register_event_with_name(fpga_mem_store_handler, 
+		    mem_domain_index, "FPGA_mem_store_transfer_start");
+    EV_FPGA_MEM_STORE_TRANSFER_ACTION = esim_register_event_with_name(fpga_mem_store_handler, 
+		    mem_domain_index, "FPGA_mem_store_transfer_action");
+    EV_FPGA_MEM_STORE_TRANSFER_ACTION_FINISH = esim_register_event_with_name(fpga_mem_store_handler, 
+		    mem_domain_index, "FPGA_mem_store_transfer_action_finish");    
+    EV_FPGA_MEM_STORE_TRANSFER_FINISH = esim_register_event_with_name(fpga_mem_store_handler, 
+		    mem_domain_index, "FPGA_mem_store_transfer_finish");
+    EV_FPGA_MEM_STORE_FINISH = esim_register_event_with_name(fpga_mem_store_handler, 
+		    mem_domain_index, "FPGA_mem_store_finish");
+
+
+    EV_FPGA_MEM_LARGE_LOAD = esim_register_event_with_name(fpga_mem_large_load_handler, 
+		    mem_domain_index, "FPGA_mem_large_load");
+    EV_FPGA_MEM_LARGE_LOAD_START = esim_register_event_with_name(fpga_mem_large_load_handler, 
+		    mem_domain_index, "FPGA_mem_large_load_start");
+    EV_FPGA_MEM_LARGE_LOAD_ACTION = esim_register_event_with_name(fpga_mem_large_load_handler, 
+		    mem_domain_index, "FPGA_mem_large_load_action");
+    EV_FPGA_MEM_LARGE_LOAD_ACTION_FINISH = esim_register_event_with_name(fpga_mem_large_load_handler, 
+		    mem_domain_index, "FPGA_mem_large_load_action_finish");    
+    EV_FPGA_MEM_LARGE_LOAD_FINISH = esim_register_event_with_name(fpga_mem_large_load_handler, 
+		    mem_domain_index, "FPGA_mem_large_load_finish");
+
+    EV_FPGA_MEM_LARGE_STORE = esim_register_event_with_name(fpga_mem_large_store_handler, 
+		    mem_domain_index, "FPGA_mem_large_store");
+    EV_FPGA_MEM_LARGE_STORE_START = esim_register_event_with_name(fpga_mem_large_store_handler, 
+		    mem_domain_index, "FPGA_mem_large_store_start");
+    EV_FPGA_MEM_LARGE_STORE_ACTION = esim_register_event_with_name(fpga_mem_large_store_handler, 
+		    mem_domain_index, "FPGA_mem_large_store_action");
+    EV_FPGA_MEM_LARGE_STORE_ACTION_FINISH = esim_register_event_with_name(fpga_mem_large_store_handler, 
+		    mem_domain_index, "FPGA_mem_large_store_action_finish");
+    EV_FPGA_MEM_LARGE_STORE_FINISH = esim_register_event_with_name(fpga_mem_large_store_handler, 
+		    mem_domain_index, "FPGA_mem_large_store_finish");
+
+
 }
 
 

@@ -103,6 +103,41 @@ extern int EV_MOD_NMOESI_MESSAGE_ACTION;
 extern int EV_MOD_NMOESI_MESSAGE_REPLY;
 extern int EV_MOD_NMOESI_MESSAGE_FINISH;
 
+extern int EV_FPGA_REG_LOAD;
+extern int EV_FPGA_REG_LOAD_FINISH;
+extern int EV_FPGA_REG_STORE;
+extern int EV_FPGA_REG_STORE_FINISH;
+
+
+extern int EV_FPGA_MEM_LOAD;
+extern int EV_FPGA_MEM_LOAD_START;
+extern int EV_FPGA_MEM_LOAD_TRANSFER_START;
+extern int EV_FPGA_MEM_LOAD_TRANSFER_ACTION;
+extern int EV_FPGA_MEM_LOAD_TRANSFER_ACTION_FINISH;
+extern int EV_FPGA_MEM_LOAD_TRANSFER_FINISH;
+extern int EV_FPGA_MEM_LOAD_FINISH;
+
+extern int EV_FPGA_MEM_STORE;
+extern int EV_FPGA_MEM_STORE_START;
+extern int EV_FPGA_MEM_STORE_TRANSFER_START;
+extern int EV_FPGA_MEM_STORE_TRANSFER_ACTION;
+extern int EV_FPGA_MEM_STORE_TRANSFER_ACTION_FINISH;
+extern int EV_FPGA_MEM_STORE_TRANSFER_FINISH;
+extern int EV_FPGA_MEM_STORE_FINISH;
+
+extern int EV_FPGA_MEM_LARGE_LOAD;
+extern int EV_FPGA_MEM_LARGE_LOAD_START;
+extern int EV_FPGA_MEM_LARGE_LOAD_ACTION;
+extern int EV_FPGA_MEM_LARGE_LOAD_ACTION_FINISH;
+extern int EV_FPGA_MEM_LARGE_LOAD_FINISH;
+
+extern int EV_FPGA_MEM_LARGE_STORE;
+extern int EV_FPGA_MEM_LARGE_STORE_START;
+extern int EV_FPGA_MEM_LARGE_STORE_ACTION;
+extern int EV_FPGA_MEM_LARGE_STORE_ACTION_FINISH;
+extern int EV_FPGA_MEM_LARGE_STORE_FINISH;
+
+
 
 void mod_handler_nmoesi_find_and_lock(int event, void *data);
 void mod_handler_nmoesi_load(int event, void *data);
@@ -115,7 +150,11 @@ void mod_handler_nmoesi_read_request(int event, void *data);
 void mod_handler_nmoesi_invalidate(int event, void *data);
 void mod_handler_nmoesi_peer(int event, void *data);
 void mod_handler_nmoesi_message(int event, void *data);
-
+void fpga_reg_handler(int event, void *data);
+void fpga_mem_load_handler (int event, void *data);
+void fpga_mem_store_handler (int event, void *data);
+void fpga_mem_large_load_handler (int event, void *data);
+void fpga_mem_large_store_handler (int event, void *data);
 
 #endif
 

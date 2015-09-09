@@ -21,6 +21,8 @@
 #define MEM_SYSTEM_MODULE_H
 
 #include <stdio.h>
+#include "memory.h" 
+#include <arch/x86/emu/context.h> 
 
 
 /* Port */
@@ -80,6 +82,24 @@ enum mod_range_kind_t
 
 #define MOD_ACCESS_HASH_TABLE_SIZE  17
 
+
+struct interconnect_t
+{
+    int length;
+    int width;
+	int wextra;
+	int rextra;
+	int axi;
+	int busy;
+	int latency;
+	int inter;
+	int port;
+	int portuse;
+	unsigned int gran;
+};
+
+
+
 /* Memory module */
 struct mod_t
 {
@@ -92,6 +112,9 @@ struct mod_t
 	int latency_add;
 	int dir_latency;
 	int mshr_size;
+
+
+	struct interconnect_t *interconnect;
 
 	/* Module level starting from entry points */
 	int level;
@@ -243,7 +266,19 @@ struct mod_t *mod_stack_set_peer(struct mod_t *peer, int state);
 
 long long mod_access(struct mod_t *mod, enum mod_access_kind_t access_kind, 
 	unsigned int addr, int *witness_ptr, struct linked_list_t *event_queue,
-	void *event_queue_item, struct mod_client_info_t *client_info, int latency_add);
+	void *event_queue_item, struct mod_client_info_t *client_info, int latency_add, 
+	int size);
+
+long long fpga_reg_access(struct mod_t *mod, enum mod_access_kind_t access_kind, 
+	unsigned int addr, int *witness_ptr, struct linked_list_t *event_queue,
+	void *event_queue_item, struct mod_client_info_t *client_info, int latency_add, 
+	int size);
+
+long long fpga_mod_access(struct mod_t *mod, enum mod_access_kind_t access_kind, 
+	unsigned int addr, struct linked_list_t *event_queue, void *event_queue_item,
+	struct mod_client_info_t *client_info, struct interconnect_t *interconnect,
+	void * buf, int size, X86Context *ctx,  int latency_add);
+
 int mod_can_access(struct mod_t *mod, unsigned int addr);
 
 int mod_find_block(struct mod_t *mod, unsigned int addr, int *set_ptr, int *way_ptr, 

@@ -28,6 +28,8 @@
 #include <lib/util/misc.h>
 #include <lib/util/string.h>
 #include <lib/util/timer.h>
+#include <lib/util/linked-list.h>
+#include <lib/util/list.h> 
 #include <mem-system/memory.h>
 #include <mem-system/mmu.h>
 #include <mem-system/spec-mem.h>
@@ -87,11 +89,18 @@ void X86ContextCreate(X86Context *self, X86Emu *emu)
 
 	/* Loader */
 	self->loader = x86_loader_create();
-
+	self->kernel_list = list_create();
+	    
 	/* Memory */
 	self->address_space_index = mmu_address_space_new();
 	self->mem = mem_create();
 	self->spec_mem = spec_mem_create(self->mem);
+
+	self->mem->kernel_list = self->kernel_list;
+
+    self->realmem = mem_create();
+
+    self->realmem->kernel_list = self->kernel_list;    
 
 	/* Signal handlers and file descriptor table */
 	self->signal_handler_table = x86_signal_handler_table_create();
@@ -114,8 +123,12 @@ void X86ContextCreateAndClone(X86Context *self, X86Context *cloned)
 	self->address_space_index = cloned->address_space_index;
 	self->mem = mem_link(cloned->mem);
 	self->spec_mem = spec_mem_create(self->mem);
+	self->kernel_list = cloned->kernel_list;
+	self->mem->kernel_list = self->kernel_list;
 
+    self->realmem = mem_link(cloned->realmem);
 	/* Loader */
+	self->realmem->kernel_list = self->kernel_list;
 	self->loader = x86_loader_link(cloned->loader);
 
 	/* Signal handlers and file descriptor table */
@@ -128,6 +141,9 @@ void X86ContextCreateAndClone(X86Context *self, X86Context *cloned)
 
 	/* Update other fields. */
 	self->parent = cloned;
+
+    
+
 }
 
 
@@ -144,6 +160,14 @@ void X86ContextCreateAndFork(X86Context *self, X86Context *forked)
 	self->mem = mem_create();
 	self->spec_mem = spec_mem_create(self->mem);
 	mem_clone(self->mem, forked->mem);
+
+	self->kernel_list = forked->kernel_list;
+
+    self->realmem = mem_create();
+    mem_clone(self->realmem, forked->realmem);
+
+    self->mem->kernel_list = self->kernel_list;
+    self->realmem->kernel_list = self->kernel_list;
 
 	/* Loader */
 	self->loader = x86_loader_link(forked->loader);
@@ -184,18 +208,112 @@ void X86ContextDestroy(X86Context *self)
 	x86_signal_mask_table_free(self->signal_mask_table);
 	spec_mem_free(self->spec_mem);
 	bit_map_free(self->affinity);
+	//list_free(self->kernel_list);
 
 	/* Unlink shared structures */
 	x86_loader_unlink(self->loader);
 	x86_signal_handler_table_unlink(self->signal_handler_table);
 	x86_file_desc_table_unlink(self->file_desc_table);
 	mem_unlink(self->mem);
+	mem_unlink(self->realmem);
 
 	/* Remove context from contexts list and free */
 	DOUBLE_LINKED_LIST_REMOVE(emu, context, self);
 	X86ContextDebug("inst %lld: context %d freed\n",
 			asEmu(emu)->instructions, self->pid);
 }
+
+
+int FPGARegCheck(X86Context *self, struct x86_uop_t *uop, unsigned int address)
+{
+    struct kernel_t *kernel;  
+    int i; 
+
+     if(!list_count(self->kernel_list))
+     	return 0;
+
+      for (i = 0; i < list_count(self->kernel_list); i++)
+	     {
+		
+		   kernel = list_get(self->kernel_list, i);
+
+		   if (address==kernel->start)
+             {
+             	uop->kernelname = kernel->name;
+             	uop->kernelstart = 1;
+             	uop->phy_addr = address;
+             	uop->addr = address;
+             	uop->kernel = kernel;
+             	mem_read_copy(uop->ctx->mem,uop->addr,4,&(uop->data));
+             }  
+           else if (address==kernel->finish)
+             {
+             	uop->kernelname = kernel->name;
+             	uop->kernelfinish = 1;
+             	uop->phy_addr = address;
+             	uop->addr = address;
+             	uop->kernel = kernel;
+             	mem_read_copy(uop->ctx->mem,uop->addr,4,&(uop->data));
+
+             }   
+
+		   else if (address> kernel->HW_bounds.low && address < kernel->HW_bounds.high)
+		   	 {
+		   	    uop->kernelname = kernel->name;
+		   	    uop->kernelrange = 1;
+		   	    uop->phy_addr = address;
+		   	    uop->addr = address;
+		   	    uop->kernel = kernel;
+		   	    mem_read_copy(uop->ctx->mem,uop->addr,4,&(uop->data));
+             }
+           
+         }
+
+
+      if(uop->kernelrange == 1 || uop->kernelstart ==1 || uop->kernelfinish == 1)
+      	  return 1;
+      else 
+          return 0;	
+         
+
+}
+
+
+int FPGARegMemCheck(struct mem_t *mem, unsigned int address)
+{
+    struct kernel_t *kernel;  
+    int i; 
+
+     if(!list_count(mem->kernel_list))
+     	return 0;
+
+      for (i = 0; i < list_count(mem->kernel_list); i++)
+	     {
+		
+		   kernel = list_get(mem->kernel_list, i);
+
+		   
+           if (address==kernel->start)
+             {
+             	return 1;
+             }  
+           else if (address==kernel->finish)
+             {
+             	return 1;
+             }   
+           else if (address> kernel->HW_bounds.low && address < kernel->HW_bounds.high)
+		   	 {
+                return 1;
+             }  
+
+         }
+
+    
+     return 0;	
+         
+
+}
+
 
 
 void X86ContextDump(Object *self, FILE *f)

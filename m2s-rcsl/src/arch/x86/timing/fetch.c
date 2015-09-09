@@ -26,6 +26,7 @@
 #include <lib/util/string.h>
 #include <mem-system/mmu.h>
 #include <mem-system/module.h>
+#include <mem-system/memory.h>
 
 #include "bpred.h"
 #include "core.h"
@@ -68,10 +69,26 @@ static int X86ThreadCanFetch(X86Thread *self)
 	/* If the next fetch address belongs to a new block, cache system
 	 * must be accessible to read it. */
 	block = self->fetch_neip & ~(self->inst_mod->block_size - 1);
+
+
 	if (block != self->fetch_block)
 	{
+		
+
+	    if ( FPGARegMemCheck(ctx->mem, self->fetch_neip) )
+		{
+			fatal("instruction address at 0x%x: overlap with fpga registers", self->fetch_neip);
+		} 
+		else if(self->standalone)
+		{
+			phy_addr = self->fetch_neip;
+		}	
+
+		else
+		{	
 		phy_addr = mmu_translate(self->ctx->address_space_index,
 			self->fetch_neip);
+	    }
 		if (!mod_can_access(self->inst_mod, phy_addr))
 			return 0;
 	}
@@ -79,6 +96,9 @@ static int X86ThreadCanFetch(X86Thread *self)
 	/* We can fetch */
 	return 1;
 }
+
+
+
 
 
 /* Run the emulation of one x86 macro-instruction and create its uops.
@@ -153,8 +173,25 @@ static struct x86_uop_t *X86ThreadFetchInst(X86Thread *self, int fetch_trace_cac
 
 		/* Calculate physical address of a memory access */
 		if (uop->flags & X86_UINST_MEM)
-			uop->phy_addr = mmu_translate(self->ctx->address_space_index,
-				uinst->address);
+		{  
+            
+	        if(!FPGARegCheck(ctx, uop, uinst->address))	
+	        {	
+		        if(self->standalone)
+			        { uop->phy_addr = uinst->address;
+			          uop->addr = uinst->address; 
+			          mem_read_copy(ctx->mem,uop->addr,4,&(uop->data));
+                    }
+			    else	
+			        { uop->phy_addr = mmu_translate(self->ctx->address_space_index,
+		 		        uinst->address);
+			          uop->addr = uinst->address;
+			          mem_read_copy(ctx->mem,uop->addr,4,&(uop->data));
+			        } 
+			}     
+        }
+
+
 
 		/* Trace */
 		if (x86_tracing())
@@ -300,12 +337,21 @@ static void X86ThreadFetch(X86Thread *self)
 	 * block, access the instruction cache. */
 	block = self->fetch_neip & ~(self->inst_mod->block_size - 1);
 	if (block != self->fetch_block)
-	{
-		phy_addr = mmu_translate(self->ctx->address_space_index, self->fetch_neip);
+	{   
+        if (FPGARegMemCheck(ctx->mem, self->fetch_neip))
+		    fatal("instruction address at 0x%x: overlap with fpga registers", self->fetch_neip);
+
+
+		else if (self->standalone)
+		    phy_addr = self->fetch_neip;
+
+		else 	
+		    phy_addr = mmu_translate(self->ctx->address_space_index, self->fetch_neip);
+
 		self->fetch_block = block;
 		self->fetch_address = phy_addr;
 		self->fetch_access = mod_access(self->inst_mod,
-			mod_access_load, phy_addr, NULL, NULL, NULL, NULL, self->inst_latency);
+			mod_access_load, phy_addr, NULL, NULL, NULL, NULL, self->inst_latency, 4);
 		self->btb_reads++;
 
 		/* MMU statistics */

@@ -121,6 +121,7 @@ extern struct arch_t *arch_fermi;
 extern struct arch_t *arch_mips;
 extern struct arch_t *arch_southern_islands;
 extern struct arch_t *arch_x86;
+extern struct arch_t *arch_fpga;
 
 
 

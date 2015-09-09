@@ -273,6 +273,7 @@ struct x86_uinst_t
 	/* Memory access */
 	unsigned int address;
 	int size;
+
 };
 
 

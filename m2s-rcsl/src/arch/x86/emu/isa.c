@@ -53,6 +53,8 @@ static X86ContextInstFunc x86_context_inst_func[x86_inst_opcode_count] =
 #undef DEFINST
 };
 
+
+
 /* Debug categories */
 int x86_context_call_debug_category;
 int x86_context_isa_debug_category;
@@ -847,11 +849,14 @@ void X86ContextExecuteInst(X86Context *self)
 		x86_inst_dump(&self->inst, debug_file(x86_context_isa_debug_category));
 		X86ContextDebugISA("  (%d bytes)", self->inst.size);
 	}
+    
 
 	/* Call instruction emulation function */
 	regs->eip = regs->eip + self->inst.size;
 	if (self->inst.opcode)
 		x86_context_inst_func[self->inst.opcode](self);
+
+	
 	
 	/* Statistics */
 	x86_inst_freq[self->inst.opcode]++;

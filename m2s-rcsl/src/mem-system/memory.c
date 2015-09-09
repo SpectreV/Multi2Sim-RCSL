@@ -22,6 +22,7 @@
 #include <lib/mhandle/mhandle.h>
 #include <lib/util/misc.h>
 #include <lib/util/debug.h>
+#include <arch/x86/emu/context.h> 
 
 #include "memory.h"
 
@@ -240,7 +241,7 @@ void *mem_get_buffer(struct mem_t *mem, unsigned int addr, int size,
 
 /* Access memory without exceeding page boundaries. */
 static void mem_access_page_boundary(struct mem_t *mem, unsigned int addr,
-	int size, void *buf, enum mem_access_t access)
+	int size, void *buf, enum mem_access_t access, int mode)
 {
 	struct mem_page_t *page;
 	unsigned int offset;
@@ -254,7 +255,7 @@ static void mem_access_page_boundary(struct mem_t *mem, unsigned int addr,
 	 * or create page with full privileges for writes in unsafe mode. */
 	if (!page)
 	{
-		if (mem->safe)
+		if (mem->safe && mode)
 			fatal("illegal access at 0x%x: page not allocated", addr);
 		if (access == mem_access_read || access == mem_access_exec)
 		{
@@ -276,7 +277,7 @@ static void mem_access_page_boundary(struct mem_t *mem, unsigned int addr,
 		page->perm |= mem_access_modif;
 
 	/* Check permissions in safe mode */
-	if (mem->safe && (page->perm & access) != access)
+	if (mem->safe && (page->perm & access) != access && mode)
 		fatal("mem_access: permission denied at 0x%x", addr);
 
 	/* Read/execute access */
@@ -316,7 +317,27 @@ void mem_access(struct mem_t *mem, unsigned int addr, int size, void *buf,
 	{
 		offset = addr & (MEM_PAGE_SIZE - 1);
 		chunksize = MIN(size, MEM_PAGE_SIZE - offset);
-		mem_access_page_boundary(mem, addr, chunksize, buf, access);
+		mem_access_page_boundary(mem, addr, chunksize, buf, access,1);
+
+		size -= chunksize;
+		buf += chunksize;
+		addr += chunksize;
+	}
+}
+
+
+void mem_access_copy(struct mem_t *mem, unsigned int addr, int size, void *buf,
+	enum mem_access_t access)
+{
+	unsigned int offset;
+	int chunksize;
+
+	mem->last_address = addr;
+	while (size)
+	{
+		offset = addr & (MEM_PAGE_SIZE - 1);
+		chunksize = MIN(size, MEM_PAGE_SIZE - offset);
+		mem_access_page_boundary(mem, addr, chunksize, buf, access,0);
 
 		size -= chunksize;
 		buf += chunksize;
@@ -326,15 +347,40 @@ void mem_access(struct mem_t *mem, unsigned int addr, int size, void *buf,
 
 
 void mem_read(struct mem_t *mem, unsigned int addr, int size, void *buf)
-{
+{   
+    if(FPGARegMemCheck(mem, addr))
+      {
+      	mem_access_copy(mem, addr, size, buf, mem_access_read);
+      }		
+    else
 	mem_access(mem, addr, size, buf, mem_access_read);
 }
 
 
 void mem_write(struct mem_t *mem, unsigned int addr, int size, void *buf)
-{
-	mem_access(mem, addr, size, buf, mem_access_write);
+{   
+     unsigned int data;
+
+    if(FPGARegMemCheck(mem, addr))  
+    	{   
+	     mem_access_copy(mem, addr, size, buf, mem_access_write);
+	    } 
+	else
+	 mem_access(mem, addr, size, buf, mem_access_write);
+
 }
+
+void mem_read_copy(struct mem_t *mem, unsigned int addr, int size, void *buf)
+{
+	mem_access_copy(mem, addr, size, buf, mem_access_read);
+}
+
+
+void mem_write_copy(struct mem_t *mem, unsigned int addr, int size, void *buf)
+{
+	mem_access_copy(mem, addr, size, buf, mem_access_write);
+}
+
 
 
 /* Creation and destruction */
