@@ -45,7 +45,6 @@ Makefile
 .deps/
 Debug/
 bin/
-config.*
 .settings/
 libtool
 autom4te.cache/
