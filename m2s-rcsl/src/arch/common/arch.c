@@ -177,6 +177,7 @@ struct arch_t *arch_fermi;
 struct arch_t *arch_mips;
 struct arch_t *arch_southern_islands;
 struct arch_t *arch_x86;
+struct arch_t *arch_fpga;
 
 
 

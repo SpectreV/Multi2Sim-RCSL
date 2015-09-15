@@ -148,6 +148,7 @@ static char m2s_sim_id[10];  /* Pseudo-unique simulation ID (5 alpha-numeric dig
 static volatile int m2s_signal_received;  /* Signal received by handler (0 = none */
 
 static X86Cpu *x86_cpu;
+static FPGA *fpga;
 
 
 static char *m2s_help =
@@ -1629,6 +1630,7 @@ static void m2s_load_programs(int argc, char **argv)
 	unsigned int finish;
 	unsigned int HWlowbound;
 	unsigned int HWhighbound;
+	int sharedmem;
 	int delay;
 
 	Elf32_Ehdr ehdr;
@@ -1679,14 +1681,11 @@ static void m2s_load_programs(int argc, char **argv)
       kernel_name = config_read_string(config, section, "KernelName","");
       HWlowbound = config_read_int(config, section, "HWLowBound", 0);
       HWhighbound = config_read_int(config, section, "HWHighBound", 0);
-      srclowbound = config_read_int(config, section, "SrcLowBound", 0);
-      srchighbound = config_read_int(config, section, "SrcHighBound", 0);
-      dstlowbound = config_read_int(config, section, "DstLowBound", 0);
-      dsthighbound = config_read_int(config, section, "DstHighBound", 0);
       srcbase = config_read_int(config, section, "SrcBase", 0);
       srcsize = config_read_int(config, section, "SrcSize", 0);
       dstbase = config_read_int(config, section, "DstBase", 0);
       dstsize = config_read_int(config, section, "DstSize", 0);
+      sharedmem = config_read_int(config, section, "SharedMem", 1);
       start = config_read_int(config, section, "StartReg", 0);
       finish = config_read_int(config, section, "FinishReg", 0);
       delay = config_read_int(config,section, "Delay", 0);
@@ -1696,10 +1695,6 @@ static void m2s_load_programs(int argc, char **argv)
 	  kernel->id = id;
 	  kernel->HW_bounds.low = HWlowbound;
 	  kernel->HW_bounds.high = HWhighbound;
-	  kernel->srclowbound = srclowbound-1;
-	  kernel->srchighbound = srchighbound+1;
-	  kernel->dstlowbound = dstlowbound-1;
-	  kernel->dsthighbound = dsthighbound+1;
 	  kernel->srcbase = srcbase;
 	  kernel->srcsize = srcsize;
 	  kernel->dstbase = dstbase;
@@ -1708,6 +1703,7 @@ static void m2s_load_programs(int argc, char **argv)
 	  kernel->finish = finish;
 	  kernel->delay = delay;
 	  kernel->executing = 0;
+	  kernel->sharedmem = sharedmem;
 	  kernel->tasklist = list_create();
 
 	  list_add(x86_emu-> kernel_list, kernel);
@@ -2099,7 +2095,7 @@ int main(int argc, char **argv)
 			X86CpuReadConfig,
 			NULL, NULL);
 	arch_fpga = arch_register("FPGA", "fpga", fpga_sim_kind,
-		    fpga_emu_init, fpga_emu_done,
+		    NULL, NULL,
 		    NULL,
 		    NULL, NULL);
 

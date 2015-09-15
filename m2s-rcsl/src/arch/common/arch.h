@@ -115,13 +115,14 @@ void arch_dump_summary(struct arch_t *arch, FILE *f);
  * Global Variables
  */
 
+extern struct arch_t *arch_fpga;
 extern struct arch_t *arch_arm;
 extern struct arch_t *arch_evergreen;
 extern struct arch_t *arch_fermi;
 extern struct arch_t *arch_mips;
 extern struct arch_t *arch_southern_islands;
 extern struct arch_t *arch_x86;
-extern struct arch_t *arch_fpga;
+
 
 
 

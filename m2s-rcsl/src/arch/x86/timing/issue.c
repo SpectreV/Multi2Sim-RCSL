@@ -73,7 +73,7 @@ static int X86ThreadIssueSQ(X86Thread *self, int quantum)
 		client_info->prefetcher_eip = store->eip;
 
 		/* Issue store */
-		if(store->kernelrange || store->kernelstart || store->kernelfinish)
+		if(store->kernelrange || store->kernelstart)
             fpga_reg_access(self->data_mod, mod_access_store,
 		        store->phy_addr, NULL, core->event_queue, store, client_info, self->data_latency, 4);
         else 
@@ -149,7 +149,7 @@ static int X86ThreadIssueLQ(X86Thread *self, int quant)
 		client_info->prefetcher_eip = load->eip;
 
 		/* Access memory system */
-		if (load->kernelrange || load->kernelstart || load->kernelfinish)
+		if (load->kernelrange || load->kernelstart)
             fpga_reg_access(self->data_mod, mod_access_load,
 			   load->phy_addr, NULL, core->event_queue, load, client_info, self->data_latency, 4);
 		else	

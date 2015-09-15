@@ -75,6 +75,10 @@ CLASS_DECLARE(X86Thread);
 CLASS_DECLARE(X86Core);
 
 
+CLASS_DECLARE(FPGA);
+CLASS_DECLARE(FPGAEmu);
+
+
 /*
  * Multi2C Classes
  */

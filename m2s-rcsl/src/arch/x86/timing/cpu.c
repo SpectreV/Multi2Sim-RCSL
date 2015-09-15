@@ -18,6 +18,7 @@
  */
 
 
+
 #include <arch/x86/emu/context.h>
 #include <arch/x86/emu/emu.h>
 #include <lib/esim/esim.h>
@@ -27,10 +28,12 @@
 #include <lib/util/debug.h>
 #include <lib/util/file.h>
 #include <lib/util/linked-list.h>
+#include <lib/util/list.h> 
 #include <lib/util/misc.h>
 #include <lib/util/string.h>
 #include <lib/util/timer.h>
 #include <mem-system/memory.h>
+#include <arch/x86/timing/function/softfloat.c> 
 
 #include "bpred.h"
 #include "commit.h"
@@ -319,6 +322,16 @@ static char *x86_cpu_err_fast_forward =
 #define X86_TRACE_VERSION_MAJOR		1
 #define X86_TRACE_VERSION_MINOR		671
 
+void kernelfunction( void *src, int srcsize, void *dst, int dstsize)
+{    
+     float64 x1,x2;
+     float64 result;
+     x1= *(float64 *)src;
+     x2= *(float64 *)(src+8); 
+     result = x1;
+     *(float64 *)dst = result;
+    
+}
 
 void X86CpuReadConfig(void)
 {
@@ -450,6 +463,8 @@ void FPGACreate (FPGA *self, FPGAEmu *emu)
 
 	/* Virtual functions */
 	asTiming(self)->Run = FPGARun;
+    asTiming(self)->MemConfigDefault = FPGAMemConfigDefault;
+    asTiming(self)->MemConfigCheck = FPGAMemConfigCheck;
 	asTiming(self)->MemConfigParseEntry = FPGAMemConfigParseEntry;
  
 
@@ -1046,9 +1061,6 @@ int X86CpuRun(Timing *self)
 	X86CpuEmptyTraceList(cpu);
 
 
-    FPGAExecute(emu);
-
-
 	/* Processor stages */
 	X86CpuRunStages(cpu);
 
@@ -1063,45 +1075,137 @@ int X86CpuRun(Timing *self)
 
 int FPGARun(Timing *self)
 {    
-	 
+	FPGA *fpga = asFPGA(self);
+	FPGAEmu *emu = fpga->emu;
+	unsigned int addr;
+	int run = FALSE;
+	int i;
+     
+
+
+	self->cycle++;
+
      struct list_t *kernel_list;
      struct kernel_t *kernel;
      struct list_t *tasklist;
      struct task_t *task;
-     kernel_list = self->kernel_list;
+     kernel_list = fpga->emu->kernel_list;
+     
+     if(!list_count(kernel_list))
+     	return FALSE;
+
      for (i = 0; i < list_count(kernel_list); i++)
      { 
      	kernel = list_get(kernel_list, i);
         tasklist = kernel->tasklist;
-        if(!list_count(tasklist) || kernel->executing)
+        if(list_count(tasklist))
+        	run = TRUE;
+             
+
+        if(!list_count(tasklist))
+
         	continue;
-        task = KernelSchedule(kernel); 
         
-         
+        else if (kernel->executing)        	
+        {
+
+           task = kernel->runningtask;
+           if(task->state == taskreadfinish)
+           {               
+              task->startwhen = asTiming(fpga)->cycle;
+              task->finishwhen = asTiming(fpga)->cycle + kernel->delay;
+              task->state = taskrun;
+
+           }
+
+           else if(task->state == taskrun)
+           {  
+              if(task->finishwhen > asTiming(fpga)->cycle)
+              	continue;
+              kernelfunction(task->src, task->srcsize, task->dst, task->dstsize);
+               
+              task->state = taskwrite;  
+
+              if(kernel->sharedmem)  
+              	{
+              	  mem_read_copy(task->ctx->realmem, kernel->dstbase, 4, &addr);
+                  fpga_mod_access( fpga->mod, mod_access_store, addr, NULL, NULL, NULL, 
+                  task, task->dst, task->dstsize, task->ctx, 0);
+                } 
+              else 
+              	{                               
+              	  addr = kernel->dstbase;
+              	  mem_write_copy(task->ctx->mem, addr, task->dstsize, task->dst);
+                  mem_write_copy(task->ctx->realmem, addr, task->dstsize, task->dst);  
+                  task->state = taskwritefinish; 
+              
+                }
+	  
+           }
+
+           else if (task->state == taskwritefinish)
+           	{   
+              kernel->executing = 0;
+              kernel->runningtask = NULL;
+              list_remove(tasklist, task); 
+              if(kernel->finish >= kernel->HW_bounds.low && kernel->finish <= kernel->HW_bounds.high)
+              {   
+                 unsigned int data=1;
+                 mem_write_copy(task->ctx->mem, kernel->finish, 4, &data);
+                 mem_write_copy(task->ctx->realmem, kernel->finish, 4, &data);   
+              }
+              else
+              {
+              	 unsigned int data=1;
+                 fpga_mod_access( fpga->mod, mod_access_store, kernel->finish, NULL, NULL, NULL, 
+                 NULL, &data, 4, task->ctx, 0);	
+              }	
 
 
+           	} 
 
+           else 
+            {
+              continue; 
+            }
+        }
 
+        else 
+        { 
+            task = KernelSchedule(kernel);
+            kernel->runningtask = task;
+            
+            task->state = taskread;  
+             if(kernel->sharedmem)
+              	{
+              		mem_read_copy(task->ctx->realmem, kernel->srcbase, 4, &addr);
+              		fpga_mod_access( fpga->mod, mod_access_load, addr, NULL, NULL, NULL, 
+                    task, task->src, task->srcsize, task->ctx, 0);
+              	}	
+              else 
+              	{
+              		addr = kernel->srcbase;
+              		mem_read_copy(task->ctx->realmem, addr, task->srcsize, task->src);  
+                    task->state = taskreadfinish;
+                }
+            
+             	 
+
+            kernel->executing = 1;
+        } 
 
      } 
-
-
-
-
-
-
-
-
-
-
+   
+     return run;
 
 }
 
 
 
-
-
-
+struct task_t *KernelSchedule( struct kernel_t *kernel)
+{
+      return list_head(kernel->tasklist);      
+}
 
 
 

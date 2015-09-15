@@ -29,10 +29,14 @@
 /* Forward declarations */
 struct config_t;
 
-#define taskready 0;
-#define taskrun 1;
-#define taskfinish 2;
-#define taskunready 3;  
+#define taskready       0
+#define taskread        1
+#define taskreadfinish  2
+#define taskrun         3
+#define taskrunfinish   4
+#define taskwrite       5
+#define taskwritefinish 6
+#define taskunready     7  
 
 /*
  * Class 'X86Emu'
@@ -123,10 +127,7 @@ struct kernel_t
 	        unsigned int high;	 
 	} HW_bounds;
 
-    unsigned int srclowbound;
-	unsigned int srchighbound;
-	unsigned int dstlowbound;
-	unsigned int dsthighbound;
+
 	unsigned int srcbase;
 	unsigned int dstbase;
 	unsigned int srcsize;
@@ -135,8 +136,10 @@ struct kernel_t
     unsigned int start; 
     unsigned int finish;
     int delay;
+    int sharedmem;
 
     struct list_t *tasklist;
+    struct task_t *runningtask;
     char *name;
     int executing;
     int id;
@@ -153,6 +156,8 @@ struct task_t
     unsigned int *dst;
     int dstsize; 
     X86Context *ctx;
+    long long startwhen;
+    long long finishwhen; 
 };
 
 
@@ -163,6 +168,7 @@ void X86EmuCreate(X86Emu *self);
 void X86EmuDestroy(X86Emu *self);
 
 int X86EmuRun(Emu *self);
+int FPGAEmuRun(Emu *self);
 
 void X86EmuDump(Object *self, FILE *f);
 void X86EmuDumpSummary(Emu *self, FILE *f);

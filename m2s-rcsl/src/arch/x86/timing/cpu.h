@@ -83,7 +83,7 @@ CLASS_BEGIN(FPGA, Timing)
 
 	/* Associated emulator */
 	FPGAEmu *emu;
-    struct mod_t mod;
+    struct mod_t *mod;
     int translatency;
     int axi;
 
@@ -115,6 +115,10 @@ void X86CpuDumpUopReport(X86Cpu *self, FILE *f, long long *uop_stats,
 int X86CpuRun(Timing *self);
 void X86CpuRunStages(X86Cpu *self);
 void X86CpuFastForward(X86Cpu *self);
+
+
+int FPGARun(Timing *self);
+struct task_t *KernelSchedule( struct kernel_t *kernel);
 
 void X86CpuAddToTraceList(X86Cpu *self, struct x86_uop_t *uop);
 void X86CpuEmptyTraceList(X86Cpu *self);

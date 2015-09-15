@@ -96,6 +96,7 @@ struct interconnect_t
 	int port;
 	int portuse;
 	unsigned int gran;
+	struct list_t *memoplist;
 };
 
 
@@ -276,7 +277,7 @@ long long fpga_reg_access(struct mod_t *mod, enum mod_access_kind_t access_kind,
 
 long long fpga_mod_access(struct mod_t *mod, enum mod_access_kind_t access_kind, 
 	unsigned int addr, struct linked_list_t *event_queue, void *event_queue_item,
-	struct mod_client_info_t *client_info, struct interconnect_t *interconnect,
+	struct mod_client_info_t *client_info, struct task_t *task,
 	void * buf, int size, X86Context *ctx,  int latency_add);
 
 int mod_can_access(struct mod_t *mod, unsigned int addr);

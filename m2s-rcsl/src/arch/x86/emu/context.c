@@ -246,7 +246,7 @@ int FPGARegCheck(X86Context *self, struct x86_uop_t *uop, unsigned int address)
              	uop->kernel = kernel;
              	mem_read_copy(uop->ctx->mem,uop->addr,4,&(uop->data));
              }  
-           else if (address==kernel->finish)
+           if (address==kernel->finish)
              {
              	uop->kernelname = kernel->name;
              	uop->kernelfinish = 1;
@@ -257,7 +257,7 @@ int FPGARegCheck(X86Context *self, struct x86_uop_t *uop, unsigned int address)
 
              }   
 
-		   else if (address> kernel->HW_bounds.low && address < kernel->HW_bounds.high)
+		   if (address >= kernel->HW_bounds.low && address <= kernel->HW_bounds.high)
 		   	 {
 		   	    uop->kernelname = kernel->name;
 		   	    uop->kernelrange = 1;
@@ -270,7 +270,7 @@ int FPGARegCheck(X86Context *self, struct x86_uop_t *uop, unsigned int address)
          }
 
 
-      if(uop->kernelrange == 1 || uop->kernelstart ==1 || uop->kernelfinish == 1)
+      if(uop->kernelrange == 1 || uop->kernelstart ==1)
       	  return 1;
       else 
           return 0;	
@@ -297,11 +297,8 @@ int FPGARegMemCheck(struct mem_t *mem, unsigned int address)
              {
              	return 1;
              }  
-           else if (address==kernel->finish)
-             {
-             	return 1;
-             }   
-           else if (address> kernel->HW_bounds.low && address < kernel->HW_bounds.high)
+
+           if (address >= kernel->HW_bounds.low && address <= kernel->HW_bounds.high)
 		   	 {
                 return 1;
              }  

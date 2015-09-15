@@ -20,6 +20,9 @@
 #ifndef MEM_SYSTEM_NMOESI_PROTOCOL_H
 #define MEM_SYSTEM_NMOESI_PROTOCOL_H
 
+#include <arch/x86/emu/context.h>
+#include <arch/x86/emu/emu.h> 
+
 
 /* NMOESI Event-Driven Simulation */
 
@@ -155,6 +158,7 @@ void fpga_mem_load_handler (int event, void *data);
 void fpga_mem_store_handler (int event, void *data);
 void fpga_mem_large_load_handler (int event, void *data);
 void fpga_mem_large_store_handler (int event, void *data);
+void tasktokernel(struct kernel_t *kernel, struct task_t *task, X86Context *ctx);
 
 #endif
 

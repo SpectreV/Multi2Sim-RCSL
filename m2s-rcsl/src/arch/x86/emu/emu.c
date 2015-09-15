@@ -610,6 +610,13 @@ int X86EmuRun(Emu *self)
 }
 
 
+int FPGAEmuRun(Emu *self)
+{
+
+    return FALSE;
+
+}
+
 /* Search a context based on its PID */
 X86Context *X86EmuGetContext(X86Emu *self, int pid)
 {
@@ -716,7 +723,7 @@ void X86EmuLoadContextsFromConfig(X86Emu *self, struct config_t *config, char *s
 			    continue;
 
            list_add( ctx->kernel_list, kernel);
-
+         
          }
 
          if(!(token = strtok(NULL, delim)))

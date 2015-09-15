@@ -108,8 +108,8 @@ void mod_dump(struct mod_t *mod, FILE *f)
 
 long long fpga_mod_access(struct mod_t *mod, enum mod_access_kind_t access_kind, 
 	unsigned int addr, struct linked_list_t *event_queue, void *event_queue_item,
-	struct mod_client_info_t *client_info, struct interconnect_t *interconnect,
-	void * buf, int size, X86Context *ctx,  int latency_add)
+	struct mod_client_info_t *client_info, struct task_t *task,void * buf, int size,
+	X86Context *ctx, int latency_add)
 
 {    
 	struct mod_stack_t *stack;
@@ -125,22 +125,25 @@ long long fpga_mod_access(struct mod_t *mod, enum mod_access_kind_t access_kind,
 	stack->event_queue = event_queue;
 	stack->event_queue_item = event_queue_item;
 	stack->client_info = client_info;
-	stack->interconnect = interconnect;
+	stack->interconnect = mod->interconnect;
 	stack->size = size;
 	stack->ctx = ctx; 
+	stack->task = task;
 
 
 
 	/* Select initial CPU/GPU event */
-	if (interconnect->axi)
+	if (mod->interconnect->axi)
 
     {if (access_kind == mod_access_load)
-		{
+		{      
 			event = EV_FPGA_MEM_LOAD;
+			stack->load = 1;
 		}
 	else if (access_kind == mod_access_store)
-		{
+		{             
 			event = EV_FPGA_MEM_STORE;
+			stack->load = 0;
 		}
 	
 	else 
@@ -149,15 +152,17 @@ long long fpga_mod_access(struct mod_t *mod, enum mod_access_kind_t access_kind,
 		}
 	}
 
-	else if (!interconnect->axi)
+	else if (!mod->interconnect->axi)
 
 	{if (access_kind == mod_access_load)
 		{
 			event = EV_FPGA_MEM_LARGE_LOAD;
+			stack->load = 1;
 		}
 	else if (access_kind == mod_access_store)
 		{
 			event = EV_FPGA_MEM_LARGE_STORE;
+			stack->load = 0;
 		}
 	
 	else 
@@ -201,14 +206,16 @@ long long fpga_reg_access(struct mod_t *mod, enum mod_access_kind_t access_kind,
 	stack->size = size;
 	stack->uop = event_queue_item;	
 
-
+    
     if(access_kind == mod_access_load)
         {
           event = EV_FPGA_REG_LOAD;
+          stack->load = 1;
         }     
     else if (access_kind == mod_access_store)
         {
           event = EV_FPGA_REG_STORE;
+          stack->load = 0;
         }	
     else
         {
