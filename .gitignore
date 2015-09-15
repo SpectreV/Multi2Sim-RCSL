@@ -42,7 +42,6 @@ configure
 
 # Temp Files
 Makefile
-Makefile.*
 .deps/
 Debug/
 bin/
