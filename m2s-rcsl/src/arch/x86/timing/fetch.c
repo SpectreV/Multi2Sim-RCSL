@@ -17,7 +17,6 @@
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
-
 #include <arch/x86/emu/context.h>
 #include <arch/x86/emu/regs.h>
 #include <lib/esim/trace.h>
@@ -38,15 +37,11 @@
 #include "trace-cache.h"
 #include "uop.h"
 
-
-
 /*
  * Class 'X86Thread'
  */
 
-
-static int X86ThreadCanFetch(X86Thread *self)
-{
+static int X86ThreadCanFetch(X86Thread *self) {
 	X86Cpu *cpu = self->cpu;
 	X86Context *ctx = self->ctx;
 
@@ -56,56 +51,34 @@ static int X86ThreadCanFetch(X86Thread *self)
 	/* Context must be running */
 	if (!ctx || !X86ContextGetState(ctx, X86ContextRunning))
 		return 0;
-	
+
 	/* Fetch stalled or context evict signal activated */
 	if (self->fetch_stall_until >= asTiming(cpu)->cycle || ctx->evict_signal)
 		return 0;
-	
+
 	/* Fetch queue must have not exceeded the limit of stored bytes
 	 * to be able to store new macro-instructions. */
 	if (self->fetchq_occ >= x86_fetch_queue_size)
 		return 0;
-	
+
 	/* If the next fetch address belongs to a new block, cache system
 	 * must be accessible to read it. */
 	block = self->fetch_neip & ~(self->inst_mod->block_size - 1);
 
-
-	if (block != self->fetch_block)
-	{
-		
-
-	    if ( FPGARegMemCheck(ctx->mem, self->fetch_neip) )
-		{
-			fatal("instruction address at 0x%x: overlap with fpga registers", self->fetch_neip);
-		} 
-		else if(self->standalone)
-		{
-			phy_addr = self->fetch_neip;
-		}	
-
-		else
-		{	
-		phy_addr = mmu_translate(self->ctx->address_space_index,
-			self->fetch_neip);
-	    }
+	if (block != self->fetch_block) {
+		phy_addr = mmu_translate(self->ctx->address_space_index, self->fetch_neip);
 		if (!mod_can_access(self->inst_mod, phy_addr))
 			return 0;
 	}
-	
+
 	/* We can fetch */
 	return 1;
 }
 
-
-
-
-
 /* Run the emulation of one x86 macro-instruction and create its uops.
  * If any of the uops is a control uop, this uop will be the return value of
  * the function. Otherwise, the first decoded uop is returned. */
-static struct x86_uop_t *X86ThreadFetchInst(X86Thread *self, int fetch_trace_cache)
-{
+static struct x86_uop_t *X86ThreadFetchInst(X86Thread *self, int fetch_trace_cache) {
 	X86Cpu *cpu = self->cpu;
 	X86Core *core = self->core;
 	X86Context *ctx = self->ctx;
@@ -136,8 +109,7 @@ static struct x86_uop_t *X86ThreadFetchInst(X86Thread *self, int fetch_trace_cac
 	uinst_count = list_count(x86_uinst_list);
 	uinst_index = 0;
 	ret_uop = NULL;
-	while (list_count(x86_uinst_list))
-	{
+	while (list_count(x86_uinst_list)) {
 		/* Get uinst from head of list */
 		uinst = list_remove_at(x86_uinst_list, 0);
 
@@ -172,30 +144,23 @@ static struct x86_uop_t *X86ThreadFetchInst(X86Thread *self, int fetch_trace_cac
 		x86_uop_count_deps(uop);
 
 		/* Calculate physical address of a memory access */
-		if (uop->flags & X86_UINST_MEM)
-		{  
-            
-	        if(!FPGARegCheck(ctx, uop, uinst->address))	
-	        {	
-		        if(self->standalone)
-			        { uop->phy_addr = uinst->address;
-			          uop->addr = uinst->address; 
-			          mem_read_copy(ctx->mem,uop->addr,4,&(uop->data));
-                    }
-			    else	
-			        { uop->phy_addr = mmu_translate(self->ctx->address_space_index,
-		 		        uinst->address);
-			          uop->addr = uinst->address;
-			          mem_read_copy(ctx->mem,uop->addr,4,&(uop->data));
-			        } 
-			}     
-        }
+		if (uop->flags & X86_UINST_MEM) {
 
-
+			if (!FPGARegCheck(ctx, uop, uinst->address)) {
+				if (self->standalone) {
+					uop->phy_addr = uinst->address;
+					uop->addr = uinst->address;
+					mem_read_copy(ctx->mem, uop->addr, 4, &(uop->data));
+				} else {
+					uop->phy_addr = mmu_translate(self->ctx->address_space_index, uinst->address);
+					uop->addr = uinst->address;
+					mem_read_copy(ctx->mem, uop->addr, 4, &(uop->data));
+				}
+			}
+		}
 
 		/* Trace */
-		if (x86_tracing())
-		{
+		if (x86_tracing()) {
 			char str[MAX_STRING_SIZE];
 			char inst_name[MAX_STRING_SIZE];
 			char uinst_name[MAX_STRING_SIZE];
@@ -208,16 +173,15 @@ static struct x86_uop_t *X86ThreadFetchInst(X86Thread *self, int fetch_trace_cac
 			str_size = sizeof str;
 
 			/* Command */
-			str_printf(&str_ptr, &str_size, "x86.new_inst id=%lld core=%d",
-				uop->id_in_core, core->id);
+			str_printf(&str_ptr, &str_size, "x86.new_inst id=%lld core=%d", uop->id_in_core,
+					core->id);
 
 			/* Speculative mode */
 			if (uop->specmode)
 				str_printf(&str_ptr, &str_size, " spec=\"t\"");
 
 			/* Macro-instruction name */
-			if (!uinst_index)
-			{
+			if (!uinst_index) {
 				x86_inst_dump_buf(&ctx->inst, inst_name, sizeof inst_name);
 				str_printf(&str_ptr, &str_size, " asm=\"%s\"", inst_name);
 			}
@@ -256,11 +220,9 @@ static struct x86_uop_t *X86ThreadFetchInst(X86Thread *self, int fetch_trace_cac
 	return ret_uop;
 }
 
-
 /* Try to fetch instruction from trace cache.
  * Return true if there was a hit and fetching succeeded. */
-static int X86ThreadFetchTraceCache(X86Thread *self)
-{
+static int X86ThreadFetchTraceCache(X86Thread *self) {
 	struct x86_uop_t *uop;
 
 	int mpred;
@@ -268,7 +230,7 @@ static int X86ThreadFetchTraceCache(X86Thread *self)
 	int mop_count;
 	int i;
 
-	unsigned int eip_branch;  /* next branch address */
+	unsigned int eip_branch; /* next branch address */
 	unsigned int *mop_array;
 	unsigned int neip;
 
@@ -276,39 +238,34 @@ static int X86ThreadFetchTraceCache(X86Thread *self)
 	assert(x86_trace_cache_present);
 	if (self->trace_cache_queue_occ >= x86_trace_cache_queue_size)
 		return 0;
-	
+
 	/* Access BTB, branch predictor, and trace cache */
-	eip_branch = X86ThreadGetNextBranch(self,
-			self->fetch_neip, self->inst_mod->block_size);
-	mpred = eip_branch ? X86ThreadLookupBranchPredMultiple(self,
-			eip_branch, x86_trace_cache_branch_max) : 0;
-	hit = X86ThreadLookupTraceCache(self, self->fetch_neip, mpred,
-			&mop_count, &mop_array, &neip);
+	eip_branch = X86ThreadGetNextBranch(self, self->fetch_neip, self->inst_mod->block_size);
+	mpred = eip_branch ?
+			X86ThreadLookupBranchPredMultiple(self, eip_branch, x86_trace_cache_branch_max) : 0;
+	hit = X86ThreadLookupTraceCache(self, self->fetch_neip, mpred, &mop_count, &mop_array, &neip);
 	if (!hit)
 		return 0;
-	
+
 	/* Fetch instruction in trace cache line. */
-	for (i = 0; i < mop_count; i++)
-	{
+	for (i = 0; i < mop_count; i++) {
 		/* If instruction caused context to suspend or finish */
 		if (!X86ContextGetState(self->ctx, X86ContextRunning))
 			break;
-		
+
 		/* Insert decoded uops into the trace cache queue. In the simulation,
 		 * the uop is inserted into the fetch queue, but its occupancy is not
 		 * increased. */
 		self->fetch_neip = mop_array[i];
 		uop = X86ThreadFetchInst(self, 1);
-		if (!uop)  /* no uop was produced by this macroinst */
+		if (!uop) /* no uop was produced by this macroinst */
 			continue;
 
 		/* If instruction is a branch, access branch predictor just in order
 		 * to have the necessary information to update it at commit. */
-		if (uop->flags & X86_UINST_CTRL)
-		{
+		if (uop->flags & X86_UINST_CTRL) {
 			X86ThreadLookupBranchPred(self, uop);
-			uop->pred_neip = i == mop_count - 1 ? neip :
-				mop_array[i + 1];
+			uop->pred_neip = i == mop_count - 1 ? neip : mop_array[i + 1];
 		}
 	}
 
@@ -317,9 +274,7 @@ static int X86ThreadFetchTraceCache(X86Thread *self)
 	return 1;
 }
 
-
-static void X86ThreadFetch(X86Thread *self)
-{
+static void X86ThreadFetch(X86Thread *self) {
 	X86Context *ctx = self->ctx;
 	struct x86_uop_t *uop;
 
@@ -332,26 +287,24 @@ static void X86ThreadFetch(X86Thread *self)
 	/* Try to fetch from trace cache first */
 	if (x86_trace_cache_present && X86ThreadFetchTraceCache(self))
 		return;
-	
+
 	/* If new block to fetch is not the same as the previously fetched (and stored)
 	 * block, access the instruction cache. */
 	block = self->fetch_neip & ~(self->inst_mod->block_size - 1);
-	if (block != self->fetch_block)
-	{   
-        if (FPGARegMemCheck(ctx->mem, self->fetch_neip))
-		    fatal("instruction address at 0x%x: overlap with fpga registers", self->fetch_neip);
+	if (block != self->fetch_block) {
+		/*if (FPGARegMemCheck(ctx->mem, self->fetch_neip))
+		 fatal("instruction address at 0x%x: overlap with fpga registers", self->fetch_neip);
 
+		 else if (self->standalone)
+		 phy_addr = self->fetch_neip;
 
-		else if (self->standalone)
-		    phy_addr = self->fetch_neip;
-
-		else 	
-		    phy_addr = mmu_translate(self->ctx->address_space_index, self->fetch_neip);
+		 else*/
+		phy_addr = mmu_translate(self->ctx->address_space_index, self->fetch_neip);
 
 		self->fetch_block = block;
 		self->fetch_address = phy_addr;
-		self->fetch_access = mod_access(self->inst_mod,
-			mod_access_load, phy_addr, NULL, NULL, NULL, NULL, self->inst_latency, 4);
+		self->fetch_access = mod_access(self->inst_mod, mod_access_load, phy_addr, NULL, NULL, NULL,
+		NULL, self->inst_latency, 4);
 		self->btb_reads++;
 
 		/* MMU statistics */
@@ -360,35 +313,32 @@ static void X86ThreadFetch(X86Thread *self)
 	}
 
 	/* Fetch all instructions within the block up to the first predict-taken branch. */
-	while ((self->fetch_neip & ~(self->inst_mod->block_size - 1)) == block)
-	{
+	while ((self->fetch_neip & ~(self->inst_mod->block_size - 1)) == block) {
 		/* If instruction caused context to suspend or finish */
 		if (!X86ContextGetState(ctx, X86ContextRunning))
 			break;
-	
+
 		/* If fetch queue full, stop fetching */
 		if (self->fetchq_occ >= x86_fetch_queue_size)
 			break;
-		
+
 		/* Insert macro-instruction into the fetch queue. Since the macro-instruction
 		 * information is only available at this point, we use it to decode
 		 * instruction now and insert uops into the fetch queue. However, the
 		 * fetch queue occupancy is increased with the macro-instruction size. */
 		uop = X86ThreadFetchInst(self, 0);
-		if (!ctx->inst.size)  /* x86_isa_inst invalid - no forward progress in loop */
+		if (!ctx->inst.size) /* x86_isa_inst invalid - no forward progress in loop */
 			break;
-		if (!uop)  /* no uop was produced by this macro-instruction */
+		if (!uop) /* no uop was produced by this macro-instruction */
 			continue;
 
 		/* Instruction detected as branches by the BTB are checked for branch
 		 * direction in the branch predictor. If they are predicted taken,
 		 * stop fetching from this block and set new fetch address. */
-		if (uop->flags & X86_UINST_CTRL)
-		{
+		if (uop->flags & X86_UINST_CTRL) {
 			target = X86ThreadLookupBTB(self, uop);
 			taken = target && X86ThreadLookupBranchPred(self, uop);
-			if (taken)
-			{
+			if (taken) {
 				self->fetch_neip = target;
 				uop->pred_neip = target;
 				break;
@@ -397,25 +347,19 @@ static void X86ThreadFetch(X86Thread *self)
 	}
 }
 
-
-
-
 /*
  * Class 'X86Core'
  */
 
-static void X86CoreFetch(X86Core *self)
-{
+static void X86CoreFetch(X86Core *self) {
 	X86Cpu *cpu = self->cpu;
 	X86Thread *thread;
 
 	int i;
 
-	switch (x86_cpu_fetch_kind)
-	{
+	switch (x86_cpu_fetch_kind) {
 
-	case x86_cpu_fetch_kind_shared:
-	{
+	case x86_cpu_fetch_kind_shared: {
 		/* Fetch from all threads */
 		for (i = 0; i < x86_cpu_num_threads; i++)
 			if (X86ThreadCanFetch(self->threads[i]))
@@ -423,24 +367,20 @@ static void X86CoreFetch(X86Core *self)
 		break;
 	}
 
-	case x86_cpu_fetch_kind_timeslice:
-	{
+	case x86_cpu_fetch_kind_timeslice: {
 		/* Round-robin fetch */
-		for (i = 0; i < x86_cpu_num_threads; i++)
-		{
+		for (i = 0; i < x86_cpu_num_threads; i++) {
 			self->fetch_current = (self->fetch_current + 1) % x86_cpu_num_threads;
 			thread = self->threads[self->fetch_current];
-			if (X86ThreadCanFetch(thread))
-			{
+			if (X86ThreadCanFetch(thread)) {
 				X86ThreadFetch(thread);
 				break;
 			}
 		}
 		break;
 	}
-	
-	case x86_cpu_fetch_kind_switchonevent:
-	{
+
+	case x86_cpu_fetch_kind_switchonevent: {
 		int must_switch;
 		int new_index;
 
@@ -456,44 +396,42 @@ static void X86CoreFetch(X86Core *self)
 		 * - Quantum expired for current thread.
 		 * - Long latency instruction is in progress. */
 		must_switch = !X86ThreadCanFetch(thread);
-		must_switch = must_switch || asTiming(cpu)->cycle - self->fetch_switch_when >
-			x86_cpu_thread_quantum + x86_cpu_thread_switch_penalty;
+		must_switch = must_switch
+				|| asTiming(cpu)->cycle - self->fetch_switch_when
+						> x86_cpu_thread_quantum + x86_cpu_thread_switch_penalty;
 		must_switch = must_switch || X86ThreadLongLatencyInEventQueue(thread);
 
 		/* Switch thread */
-		if (must_switch)
-		{
+		if (must_switch) {
 			/* Find a new thread to switch to */
 			for (new_index = (thread->id_in_core + 1) % x86_cpu_num_threads;
 					new_index != thread->id_in_core;
-					new_index = (new_index + 1) % x86_cpu_num_threads)
-			{
+					new_index = (new_index + 1) % x86_cpu_num_threads) {
 				/* Do not choose it if it is not eligible for fetching */
 				new_thread = self->threads[new_index];
 				if (!X86ThreadCanFetch(new_thread))
 					continue;
-					
+
 				/* Choose it if we need to switch */
 				if (must_switch)
 					break;
 
 				/* Do not choose it if it is unfair */
-				if (new_thread->num_committed_uinst_array >
-						thread->num_committed_uinst_array + 100000)
+				if (new_thread->num_committed_uinst_array
+						> thread->num_committed_uinst_array + 100000)
 					continue;
 
 				/* Choose it if it is not stalled */
 				if (!X86ThreadLongLatencyInEventQueue(new_thread))
 					break;
 			}
-				
+
 			/* Thread switch successful? */
-			if (new_index != thread->id_in_core)
-			{
+			if (new_index != thread->id_in_core) {
 				self->fetch_current = new_index;
 				self->fetch_switch_when = asTiming(cpu)->cycle;
-				new_thread->fetch_stall_until = asTiming(cpu)->cycle +
-						x86_cpu_thread_switch_penalty - 1;
+				new_thread->fetch_stall_until = asTiming(cpu)->cycle + x86_cpu_thread_switch_penalty
+						- 1;
 			}
 		}
 
@@ -505,20 +443,16 @@ static void X86CoreFetch(X86Core *self)
 	}
 
 	default:
-		
+
 		panic("%s: wrong fetch policy", __FUNCTION__);
 	}
 }
-
-
-
 
 /*
  * Class 'X86Cpu'
  */
 
-void X86CpuFetch(X86Cpu *self)
-{
+void X86CpuFetch(X86Cpu *self) {
 	int i;
 
 	self->stage = "fetch";

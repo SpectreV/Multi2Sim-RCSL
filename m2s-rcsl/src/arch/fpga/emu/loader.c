@@ -147,16 +147,16 @@ void FPGAKernelLoadBlif(FPGAKernel *self, char *blif) {
 	FPGAKernelGetFullPath(self, blif, blif_full_path, MAX_STRING_SIZE);
 	loader->blif = str_set(NULL, blif_full_path);
 
-	int num_clks;
+	/*int num_clks;
 	blif_clock_info(loader->blif, &num_clks, clk_name);
 	if (num_clks > 1) {
 		printf("Multiple clocks detected in blif file.  This is not supported.\n");
 		exit(0);
 	} else if (num_clks == 1) {
 		printf("Clock Detected: %s\n", clk_name);
-	}
+	}*/
 
-	self->ntk = Io_Read(loader->blif, IO_FILE_BLIF, 1);
+	/*self->ntk = Io_Read(loader->blif, IO_FILE_BLIF, 1);
 
 	printf("Objects in network: %d\n", Abc_NtkObjNum(self->ntk));
 	printf("PIs in network: %d\n", Abc_NtkPiNum(self->ntk));
@@ -169,7 +169,7 @@ void FPGAKernelLoadBlif(FPGAKernel *self, char *blif) {
 
 	if (!Abc_NtkIsAcyclic(self->ntk)) {
 		printf("Circuit has combinational loops\n");
-		exit(0);
+		exit(0);*/
 	}
 
 }

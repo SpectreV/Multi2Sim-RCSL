@@ -59,7 +59,7 @@ static void FPGATaskDoCreate(FPGATask *self, FPGAEmu *emu, FPGAKernel *kernel) {
 	/* Update state so that the context is inserted in the
 	 * corresponding lists. The fpga_ctx_running parameter has no
 	 * effect, since it will be updated later. */
-	FPGATaskSetState(self, FPGATaskWaiting);
+	FPGATaskSetState(self, FPGATaskReady);
 	DOUBLE_LINKED_LIST_INSERT_TAIL(kernel, task, self);
 
 	/* Virtual functions */
@@ -67,7 +67,7 @@ static void FPGATaskDoCreate(FPGATask *self, FPGAEmu *emu, FPGAKernel *kernel) {
 }
 
 void FPGATaskCreate(FPGATask *self, FPGAEmu *emu, FPGAKernel *kernel, int input_size,
-		int output_size, bool *input, bool *output, int task_ready_idx, int task_done_idx) {
+		int output_size, void *input, void *output, int task_ready_idx, int task_done_idx) {
 	/* Baseline initialization */
 	FPGATaskDoCreate(self, emu, kernel);
 

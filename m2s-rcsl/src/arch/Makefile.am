@@ -7,3 +7,4 @@ SUBDIRS = \
 	mips \
 	southern-islands \
 	x86
+

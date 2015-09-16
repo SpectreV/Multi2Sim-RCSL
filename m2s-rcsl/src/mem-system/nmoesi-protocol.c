@@ -3013,14 +3013,14 @@ void mod_handler_nmoesi_message(int event, void *data)
 }
 
 
-void tasktokernel(struct kernel_t *kernel, struct task_t *task, X86Context *ctx)
+void tasktokernel(FPGAKernel *kernel, FPGATask *task, X86Context *ctx)
 {
       int srcsize;
       int dstsize;
       task->kernel= kernel;
       task->ctx = ctx;
-      task->state = taskready;
-      list_add(kernel->tasklist, task);
+      task->state = FPGATaskReady;
+      DOUBLE_LINKED_LIST_INSERT_TAIL(kernel, task, task);
       if(kernel->sharedmem)
       {  
          mem_read_copy(task->ctx->realmem, kernel->srcsize, 4, &srcsize); 
@@ -3032,10 +3032,8 @@ void tasktokernel(struct kernel_t *kernel, struct task_t *task, X86Context *ctx)
       }
       else
       {  
-         task->src = xcalloc(1,kernel->srcsize);
-         task->srcsize = kernel->srcsize;
-         task->dst = xcalloc(1,kernel->dstsize);
-         task->dstsize = kernel->dstsize;
+    	  FPGATaskCreate(task, kernel->emu, kernel, srcsize,
+    	  		dstsize, NULL, NULL, 0, 0);
       }
 
 }

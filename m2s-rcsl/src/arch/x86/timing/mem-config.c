@@ -108,6 +108,7 @@ void X86CpuMemConfigDefault(Timing *self, struct config_t *config)
 }
 
 
+/*
 void FPGAMemConfigDefault(Timing *self, struct config_t *config)
 {
 	char section[MAX_STRING_SIZE];
@@ -118,7 +119,7 @@ void FPGAMemConfigDefault(Timing *self, struct config_t *config)
 
 
 
-		/* L1 cache */
+		 L1 cache
 		snprintf(section, sizeof section, "Module fpga-l1-%d", i);
 		config_write_string(config, section, "Type", "Cache");
 		config_write_string(config, section, "Geometry", "x86-geo-l1");
@@ -147,10 +148,10 @@ void FPGAMemConfigParseEntry(Timing *self, struct config_t *config, char *sectio
 
 	char *module_name;
 
-	/* Get configuration file name */
+	 Get configuration file name
 	file_name = config_get_file_name(config);
 
-	/* Allow these sections in case we quit before reading them. */
+	 Allow these sections in case we quit before reading them.
 	config_var_allow(config, section, "Module");
 
 
@@ -163,7 +164,7 @@ void FPGAMemConfigParseEntry(Timing *self, struct config_t *config, char *sectio
 	axi = config_read_int(config, section, "Axi", 0);
     
 
-	/* Assign data module */
+	 Assign data module
 	fpga->mod = mem_system_get_mod(module_name);
 
 	if (!fpga->mod)
@@ -179,6 +180,7 @@ void FPGAMemConfigParseEntry(Timing *self, struct config_t *config, char *sectio
 
 
 }
+*/
 
 
 
@@ -349,13 +351,13 @@ void X86CpuMemConfigCheck(Timing *self, struct config_t *config)
 	}
 }
 
-void FPGAMemConfigCheck(Timing *self, struct config_t *config)
+/*void FPGAMemConfigCheck(Timing *self, struct config_t *config)
 {
 	FPGA *fpga = asFPGA(self);
 
 	char *file_name;
 
-	/* Check that all cores/threads have an entry to the memory hierarchy. */
+	 Check that all cores/threads have an entry to the memory hierarchy.
 	file_name = config_get_file_name(config);
 	
 	if (!fpga->mod)
@@ -364,4 +366,4 @@ void FPGAMemConfigCheck(Timing *self, struct config_t *config)
 						"\tfile to associate this hardware thread with a memory module.\n",
 						file_name);
 		
-}
+}*/

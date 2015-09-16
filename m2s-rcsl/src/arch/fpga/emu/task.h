@@ -22,15 +22,10 @@
 
 #include <pthread.h>
 
-#include <arch/fpga/asm/asm.h>
-#include <arch/fpga/asm/inst.h>
 #include <lib/util/class.h>
-
 
 /* Forward declarations */
 struct bit_map_t;
-
-
 
 /*
  * Class 'FPGATask'
@@ -39,23 +34,22 @@ struct bit_map_t;
 typedef int (*FPGATaskCanWakeupFunc)(FPGATask *self, void *data);
 typedef void (*FPGATaskWakeupFunc)(FPGATask *self, void *data);
 
-typedef enum
-{
-	FPGATaskRunning      = 0x00001,  /* it is running */
-	FPGATaskWaiting     = 0x00002,  /* waiting in a kernel queue */
-	FPGATaskFinished     = 0x00008,  /* no more inst to execute */
-	FPGATaskNone         = 0x00000
+typedef enum {
+	FPGATaskRunning = 0x00001, /* it is running */
+	FPGATaskReady = 0x00002, /* waiting in a kernel queue */
+	FPGATaskRejected = 0x00004,
+	FPGATaskFinished = 0x00008, /* no more inst to execute */
+	FPGATaskNone = 0x00000
 } FPGATaskState;
 
-
 CLASS_BEGIN(FPGATask, Object)
-	
-	/* Emulator it belongs to */
+
+/* Emulator it belongs to */
 	FPGAEmu *emu;
 
 	/* Task properties */
 	int state;
-	int pid;  /* Task ID */
+	int pid; /* Task ID */
 
 	/* Host kernel */
 	FPGAKernel *kernel;
@@ -70,14 +64,16 @@ CLASS_BEGIN(FPGATask, Object)
 
 	int task_ready_idx, task_done_idx;
 	int input_size, output_size;
-	bool *input, *output;
+	void *input, *output;
+
+	X86Context *ctx;
+
+	long long start_cycle;
 
 CLASS_END(FPGATask)
 
-
-void FPGATaskCreate(FPGATask *self, FPGAEmu *emu);
-void FPGATaskCreateAndClone(FPGATask *self, FPGATask *cloned);
-void FPGATaskCreateAndFork(FPGATask *self, FPGATask *forked);
+void FPGATaskCreate(FPGATask *self, FPGAEmu *emu, FPGAKernel *kernel, int input_size,
+		int output_size, void *input, void *output, int task_ready_idx, int task_done_idx);
 
 void FPGATaskDestroy(FPGATask *self);
 
@@ -89,10 +85,9 @@ void FPGATaskHostThreadSuspendCancel(FPGATask *self);
 void FPGATaskHostThreadTimerCancelUnsafe(FPGATask *self);
 void FPGATaskHostThreadTimerCancel(FPGATask *self);
 
-void FPGATaskSuspend(FPGATask *self,
-	FPGATaskCanWakeupFunc can_wakeup_callback_func,
-	void *can_wakeup_callback_data, FPGATaskWakeupFunc wakeup_callback_func,
-	void *wakeup_callback_data);
+void FPGATaskSuspend(FPGATask *self, FPGATaskCanWakeupFunc can_wakeup_callback_func,
+		void *can_wakeup_callback_data, FPGATaskWakeupFunc wakeup_callback_func,
+		void *wakeup_callback_data);
 
 void FPGATaskFinish(FPGATask *self, int state);
 void FPGATaskFinishGroup(FPGATask *self, int state);
@@ -107,8 +102,7 @@ int FPGATaskGetState(FPGATask *self, FPGATaskState state);
 void FPGATaskSetState(FPGATask *self, FPGATaskState state);
 void FPGATaskClearState(FPGATask *self, FPGATaskState state);
 
-int FPGATaskFutexWake(FPGATask *self, unsigned int futex,
-	unsigned int count, unsigned int bitset);
+int FPGATaskFutexWake(FPGATask *self, unsigned int futex, unsigned int count, unsigned int bitset);
 void FPGATaskExitRobustList(FPGATask *self);
 
 void FPGATaskProcSelfMaps(FPGATask *self, char *path, int size);
@@ -123,9 +117,6 @@ void *FPGAEmuHostThreadSuspend(void *self);
 /* Function that suspends the host thread waiting for a timer to expire,
  * and then schedules a call to 'FPGAEmuProcessEvents'. */
 void *FPGATaskHostThreadTimer(void *self);
-
-
-
 
 /*
  * Non-Class

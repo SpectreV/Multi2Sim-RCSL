@@ -24,6 +24,8 @@
 #include <arch/x86/emu/emu.h> 
 #include <lib/util/class.h>
 
+#include <arch/fpga/emu/kernel.h>
+
 
 
 /*
@@ -70,8 +72,7 @@ struct x86_uop_t
 	int kernelstart;
 	int kernelfinish;
 
-	char *kernelname;
-	struct kernel_t *kernel;
+	FPGAKernel *kernel;
 
 	unsigned int data;
 
@@ -100,6 +101,7 @@ struct x86_uop_t
 
 	/* For memory uops */
 	unsigned int phy_addr;  /* ... corresponding to 'uop->uinst->address' */
+	/* Virtual address to access realmem*/
     unsigned int addr;
 	/* Cycles */
 	long long when;  /* cycle when ready */

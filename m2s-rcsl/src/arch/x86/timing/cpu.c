@@ -17,8 +17,6 @@
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
-
-
 #include <arch/x86/emu/context.h>
 #include <arch/x86/emu/emu.h>
 #include <lib/esim/esim.h>
@@ -33,7 +31,6 @@
 #include <lib/util/string.h>
 #include <lib/util/timer.h>
 #include <mem-system/memory.h>
-#include <arch/x86/timing/function/softfloat.c> 
 
 #include "bpred.h"
 #include "commit.h"
@@ -56,207 +53,202 @@
 #include "uop-queue.h"
 #include "writeback.h"
 
-
 /*
  * Global variables
  */
 
-
 /* Help message */
 
-char *x86_config_help =
-	"The x86 CPU configuration file is a plain text INI file, defining\n"
-	"the parameters of the CPU model used for a detailed (architectural) simulation.\n"
-	"This configuration file is passed to Multi2Sim with option '--x86-config <file>,\n"
-	"which must be accompanied by option '--x86-sim detailed'.\n"
-	"\n"
-	"The following is a list of the sections allowed in the CPU configuration file,\n"
-	"along with the list of variables for each section.\n"
-	"\n"
-	"Section '[ General ]':\n"
-	"\n"
-	"  Frequency = <freq> (Default = 1000 MHz)\n"
-	"      Frequency in MHz for the x86 CPU. Value between 1 and 10K.\n"
-	"  Cores = <num_cores> (Default = 1)\n"
-	"      Number of cores.\n"
-	"  Threads = <num_threads> (Default = 1)\n"
-	"      Number of hardware threads per core. The total number of computing nodes\n"
-	"      in the CPU model is equals to Cores * Threads.\n"
-	"  FastForward = <num_inst> (Default = 0)\n"
-	"      Number of x86 instructions to run with a fast functional simulation before\n"
-	"      the architectural simulation starts.\n"
-	"  ContextQuantum = <cycles> (Default = 100k)\n"
-	"      If ContextSwitch is true, maximum number of cycles that a context can occupy\n"
-	"      a CPU hardware thread before it is replaced by other pending context.\n"
-	"  ThreadQuantum = <cycles> (Default = 1k)\n"
-	"      For multithreaded processors (Threads > 1) configured as coarse-grain multi-\n"
-	"      threading (FetchKind = SwitchOnEvent), number of cycles in which instructions\n"
-	"      are fetched from the same thread before switching.\n"
-	"  ThreadSwitchPenalty = <cycles> (Default = 0)\n"
-	"      For coarse-grain multithreaded processors (FetchKind = SwitchOnEvent), number\n"
-	"      of cycles that the fetch stage stalls after a thread switch.\n"
-	"  RecoverKind = {Writeback|Commit} (Default = Writeback)\n"
-	"      On branch misprediction, stage in the execution of the mispredicted branch\n"
-	"      when processor recovery is triggered.\n"
-	"  RecoverPenalty = <cycles> (Default = 0)\n"
-	"      Number of cycles that the fetch stage gets stalled after a branch\n"
-	"      misprediction.\n"
-	"  PageSize = <size> (Default = 4kB)\n"
-	"      Memory page size in bytes.\n"
-	"  DataCachePerfect = {t|f} (Default = False)\n"
-	"  ProcessPrefetchHints = {t|f} (Default = True)\n"
-	"      If specified as false, the cpu will ignore any prefetch hints/instructions.\n"
-	"  PrefetchHistorySize = <size> (Default = 10)\n"
-	"      Number of past prefetches to keep track of, so as to avoid redundant prefetches\n"
-	"      from being issued from the cpu to the cache module.\n"
-	"  InstructionCachePerfect = {t|f} (Default = False)\n"
-	"      Set these options to true to simulate a perfect data/instruction caches,\n"
-	"      respectively, where every access results in a hit. If set to false, the\n"
-	"      parameters of the caches are given in the memory configuration file\n"
-	"\n"
-	"Section '[ Pipeline ]':\n"
-	"\n"
-	"  FetchKind = {Shared|TimeSlice|SwitchOnEvent} (Default = TimeSlice)\n"
-	"      Policy for fetching instruction from different threads. A shared fetch stage\n"
-	"      fetches instructions from different threads in the same cycle; a time-slice\n"
-	"      fetch switches between threads in a round-robin fashion; option SwitchOnEvent\n"
-	"      switches thread fetch on long-latency operations or thread quantum expiration.\n"
-	"  DecodeWidth = <num_inst> (Default = 4)\n"
-	"      Number of x86 instructions decoded per cycle.\n"
-	"  DispatchKind = {Shared|TimeSlice} (Default = TimeSlice)\n"
-	"      Policy for dispatching instructions from different threads. If shared,\n"
-	"      instructions from different threads are dispatched in the same cycle. Otherwise,\n"
-	"      instruction dispatching is done in a round-robin fashion at a cycle granularity.\n"
-	"  DispatchWidth = <num_inst> (Default = 4)\n"
-	"      Number of microinstructions dispatched per cycle.\n"
-	"  IssueKind = {Shared|TimeSlice} (Default = TimeSlice)\n"
-	"      Policy for issuing instructions from different threads. If shared, instructions\n"
-	"      from different threads are issued in the same cycle; otherwise, instruction issue\n"
-	"      is done round-robin at a cycle granularity.\n"
-	"  IssueWidth = <num_inst> (Default = 4)\n"
-	"      Number of microinstructions issued per cycle.\n"
-	"  CommitKind = {Shared|TimeSlice} (Default = Shared)\n"
-	"      Policy for committing instructions from different threads. If shared,\n"
-	"      instructions from different threads are committed in the same cycle; otherwise,\n"
-	"      they commit in a round-robin fashion.\n"
-	"  CommitWidth = <num_inst> (Default = 4)\n"
-	"      Number of microinstructions committed per cycle.\n"
-	"  OccupancyStats = {t|f} (Default = False)\n"
-	"      Calculate structures occupancy statistics. Since this computation requires\n"
-	"      additional overhead, the option needs to be enabled explicitly. These statistics\n"
-	"      will be attached to the CPU report.\n"
-	"\n"
-	"Section '[ Queues ]':\n"
-	"\n"
-	"  FetchQueueSize = <bytes> (Default = 64)\n"
-	"      Size of the fetch queue given in bytes.\n"
-	"  UopQueueSize = <num_uops> (Default = 32)\n"
-	"      Size of the uop queue size, given in number of uops.\n"
-	"  RobKind = {Private|Shared} (Default = Private)\n"
-	"      Reorder buffer sharing among hardware threads.\n"
-	"  RobSize = <num_uops> (Default = 64)\n"
-	"      Reorder buffer size in number of microinstructions (if private, per-thread size).\n"
-	"  IqKind = {Private|Shared} (Default = Private)\n"
-	"      Instruction queue sharing among threads.\n"
-	"  IqSize = <num_uops> (Default = 40)\n"
-	"      Instruction queue size in number of uops (if private, per-thread IQ size).\n"
-	"  LsqKind = {Private|Shared} (Default = 20)\n"
-	"      Load-store queue sharing among threads.\n"
-	"  LsqSize = <num_uops> (Default = 20)\n"
-	"      Load-store queue size in number of uops (if private, per-thread LSQ size).\n"
-	"  RfKind = {Private|Shared} (Default = Private)\n"
-	"      Register file sharing among threads.\n"
-	"  RfIntSize = <entries> (Default = 80)\n"
-	"      Number of integer physical register (if private, per-thread).\n"
-	"  RfFpSize = <entries> (Default = 40)\n"
-	"      Number of floating-point physical registers (if private, per-thread).\n"
-	"  RfXmmSize = <entries> (Default = 40)\n"
-	"      Number of XMM physical registers (if private, per-thread).\n"
-	"\n"
-	"Section '[ TraceCache ]':\n"
-	"\n"
-	"  Present = {t|f} (Default = False)\n"
-	"      If true, a trace cache is included in the model. If false, the rest of the\n"
-	"      options in this section are ignored.\n"
-	"  Sets = <num_sets> (Default = 64)\n"
-	"      Number of sets in the trace cache.\n"
-	"  Assoc = <num_ways> (Default = 4)\n"
-	"      Associativity of the trace cache. The product Sets * Assoc is the total\n"
-	"      number of traces that can be stored in the trace cache.\n"
-	"  TraceSize = <num_uops> (Default = 16)\n"
-	"      Maximum size of a trace of uops.\n"
-	"  BranchMax = <num_branches> (Default = 3)\n"
-	"      Maximum number of branches contained in a trace.\n"
-	"  QueueSize = <num_uops> (Default = 32)\n"
-	"      Size of the trace queue size in uops.\n"
-	"\n"
-	"Section '[ FunctionalUnits ]':\n"
-	"\n"
-	"  The possible variables in this section follow the format\n"
-	"      <func_unit>.<field> = <value>\n"
-	"  where <func_unit> refers to a functional unit type, and <field> refers to a\n"
-	"  property of it. Possible values for <func_unit> are:\n"
-	"\n"
-	"      IntAdd      Integer adder\n"
-	"      IntMult     Integer multiplier\n"
-	"      IntDiv      Integer divider\n"
-	"\n"
-	"      EffAddr     Operator for effective address computations\n"
-	"      Logic       Operator for logic operations\n"
-	"\n"
-	"      FloatSimple    Simple floating-point operations\n"
-	"      FloatAdd       Floating-point adder\n"
-	"      FloatComp      Floating-point comparator\n"
-	"      FloatMult      Floating-point multiplier\n"
-	"      FloatDiv       Floating-point divider\n"
-	"      FloatComplex   Operator for complex floating-point computations\n"
-	"\n"
-	"      XMMIntAdd      XMM integer adder\n"
-	"      XMMIntMult     XMM integer multiplier\n"
-	"      XMMIntDiv      XMM integer Divider\n"
-	"\n"
-	"      XMMLogic       XMM logic operations\n"
-	"\n"
-	"      XMMFloatAdd       XMM floating-point adder\n"
-	"      XMMFloatComp      XMM floating-point comparator\n"
-	"      XMMFloatMult      XMM floating-point multiplier\n"
-	"      XMMFloatDiv       XMM floating-point divider\n"
-	"      XMMFloatConv      XMM floating-point converter\n"
-	"      XMMFloatComplex   Complex XMM floating-point operations\n"
-	"\n"
-	"  Possible values for <field> are:\n"
-	"      Count       Number of functional units of a given kind.\n"
-	"      OpLat       Latency of the operator.\n"
-	"      IssueLat    Latency since an instruction was issued until the functional\n"
-	"                  unit is available for the next use. For pipelined operators,\n"
-	"                  IssueLat is smaller than OpLat.\n"
-	"\n"
-	"Section '[ BranchPredictor ]':\n"
-	"\n"
-	"  Kind = {Perfect|Taken|NotTaken|Bimodal|TwoLevel|Combined} (Default = TwoLevel)\n"
-	"      Branch predictor type.\n"
-	"  BTB.Sets = <num_sets> (Default = 256)\n"
-	"      Number of sets in the BTB.\n"
-	"  BTB.Assoc = <num_ways) (Default = 4)\n"
-	"      BTB associativity.\n"
-	"  Bimod.Size = <entries> (Default = 1024)\n"
-	"      Number of entries of the bimodal branch predictor.\n"
-	"  Choice.Size = <entries> (Default = 1024)\n"
-	"      Number of entries for the choice predictor.\n"
-	"  RAS.Size = <entries> (Default = 32)\n"
-	"      Number of entries of the return address stack (RAS).\n"
-	"  TwoLevel.L1Size = <entries> (Default = 1)\n"
-	"      For the two-level adaptive predictor, level 1 size.\n"
-	"  TwoLevel.L2Size = <entries> (Default = 1024)\n"
-	"      For the two-level adaptive predictor, level 2 size.\n"
-	"  TwoLevel.HistorySize = <size> (Default = 8)\n"
-	"      For the two-level adaptive predictor, level 2 history size.\n"
-	"\n";
-
+char *x86_config_help = "The x86 CPU configuration file is a plain text INI file, defining\n"
+		"the parameters of the CPU model used for a detailed (architectural) simulation.\n"
+		"This configuration file is passed to Multi2Sim with option '--x86-config <file>,\n"
+		"which must be accompanied by option '--x86-sim detailed'.\n"
+		"\n"
+		"The following is a list of the sections allowed in the CPU configuration file,\n"
+		"along with the list of variables for each section.\n"
+		"\n"
+		"Section '[ General ]':\n"
+		"\n"
+		"  Frequency = <freq> (Default = 1000 MHz)\n"
+		"      Frequency in MHz for the x86 CPU. Value between 1 and 10K.\n"
+		"  Cores = <num_cores> (Default = 1)\n"
+		"      Number of cores.\n"
+		"  Threads = <num_threads> (Default = 1)\n"
+		"      Number of hardware threads per core. The total number of computing nodes\n"
+		"      in the CPU model is equals to Cores * Threads.\n"
+		"  FastForward = <num_inst> (Default = 0)\n"
+		"      Number of x86 instructions to run with a fast functional simulation before\n"
+		"      the architectural simulation starts.\n"
+		"  ContextQuantum = <cycles> (Default = 100k)\n"
+		"      If ContextSwitch is true, maximum number of cycles that a context can occupy\n"
+		"      a CPU hardware thread before it is replaced by other pending context.\n"
+		"  ThreadQuantum = <cycles> (Default = 1k)\n"
+		"      For multithreaded processors (Threads > 1) configured as coarse-grain multi-\n"
+		"      threading (FetchKind = SwitchOnEvent), number of cycles in which instructions\n"
+		"      are fetched from the same thread before switching.\n"
+		"  ThreadSwitchPenalty = <cycles> (Default = 0)\n"
+		"      For coarse-grain multithreaded processors (FetchKind = SwitchOnEvent), number\n"
+		"      of cycles that the fetch stage stalls after a thread switch.\n"
+		"  RecoverKind = {Writeback|Commit} (Default = Writeback)\n"
+		"      On branch misprediction, stage in the execution of the mispredicted branch\n"
+		"      when processor recovery is triggered.\n"
+		"  RecoverPenalty = <cycles> (Default = 0)\n"
+		"      Number of cycles that the fetch stage gets stalled after a branch\n"
+		"      misprediction.\n"
+		"  PageSize = <size> (Default = 4kB)\n"
+		"      Memory page size in bytes.\n"
+		"  DataCachePerfect = {t|f} (Default = False)\n"
+		"  ProcessPrefetchHints = {t|f} (Default = True)\n"
+		"      If specified as false, the cpu will ignore any prefetch hints/instructions.\n"
+		"  PrefetchHistorySize = <size> (Default = 10)\n"
+		"      Number of past prefetches to keep track of, so as to avoid redundant prefetches\n"
+		"      from being issued from the cpu to the cache module.\n"
+		"  InstructionCachePerfect = {t|f} (Default = False)\n"
+		"      Set these options to true to simulate a perfect data/instruction caches,\n"
+		"      respectively, where every access results in a hit. If set to false, the\n"
+		"      parameters of the caches are given in the memory configuration file\n"
+		"\n"
+		"Section '[ Pipeline ]':\n"
+		"\n"
+		"  FetchKind = {Shared|TimeSlice|SwitchOnEvent} (Default = TimeSlice)\n"
+		"      Policy for fetching instruction from different threads. A shared fetch stage\n"
+		"      fetches instructions from different threads in the same cycle; a time-slice\n"
+		"      fetch switches between threads in a round-robin fashion; option SwitchOnEvent\n"
+		"      switches thread fetch on long-latency operations or thread quantum expiration.\n"
+		"  DecodeWidth = <num_inst> (Default = 4)\n"
+		"      Number of x86 instructions decoded per cycle.\n"
+		"  DispatchKind = {Shared|TimeSlice} (Default = TimeSlice)\n"
+		"      Policy for dispatching instructions from different threads. If shared,\n"
+		"      instructions from different threads are dispatched in the same cycle. Otherwise,\n"
+		"      instruction dispatching is done in a round-robin fashion at a cycle granularity.\n"
+		"  DispatchWidth = <num_inst> (Default = 4)\n"
+		"      Number of microinstructions dispatched per cycle.\n"
+		"  IssueKind = {Shared|TimeSlice} (Default = TimeSlice)\n"
+		"      Policy for issuing instructions from different threads. If shared, instructions\n"
+		"      from different threads are issued in the same cycle; otherwise, instruction issue\n"
+		"      is done round-robin at a cycle granularity.\n"
+		"  IssueWidth = <num_inst> (Default = 4)\n"
+		"      Number of microinstructions issued per cycle.\n"
+		"  CommitKind = {Shared|TimeSlice} (Default = Shared)\n"
+		"      Policy for committing instructions from different threads. If shared,\n"
+		"      instructions from different threads are committed in the same cycle; otherwise,\n"
+		"      they commit in a round-robin fashion.\n"
+		"  CommitWidth = <num_inst> (Default = 4)\n"
+		"      Number of microinstructions committed per cycle.\n"
+		"  OccupancyStats = {t|f} (Default = False)\n"
+		"      Calculate structures occupancy statistics. Since this computation requires\n"
+		"      additional overhead, the option needs to be enabled explicitly. These statistics\n"
+		"      will be attached to the CPU report.\n"
+		"\n"
+		"Section '[ Queues ]':\n"
+		"\n"
+		"  FetchQueueSize = <bytes> (Default = 64)\n"
+		"      Size of the fetch queue given in bytes.\n"
+		"  UopQueueSize = <num_uops> (Default = 32)\n"
+		"      Size of the uop queue size, given in number of uops.\n"
+		"  RobKind = {Private|Shared} (Default = Private)\n"
+		"      Reorder buffer sharing among hardware threads.\n"
+		"  RobSize = <num_uops> (Default = 64)\n"
+		"      Reorder buffer size in number of microinstructions (if private, per-thread size).\n"
+		"  IqKind = {Private|Shared} (Default = Private)\n"
+		"      Instruction queue sharing among threads.\n"
+		"  IqSize = <num_uops> (Default = 40)\n"
+		"      Instruction queue size in number of uops (if private, per-thread IQ size).\n"
+		"  LsqKind = {Private|Shared} (Default = 20)\n"
+		"      Load-store queue sharing among threads.\n"
+		"  LsqSize = <num_uops> (Default = 20)\n"
+		"      Load-store queue size in number of uops (if private, per-thread LSQ size).\n"
+		"  RfKind = {Private|Shared} (Default = Private)\n"
+		"      Register file sharing among threads.\n"
+		"  RfIntSize = <entries> (Default = 80)\n"
+		"      Number of integer physical register (if private, per-thread).\n"
+		"  RfFpSize = <entries> (Default = 40)\n"
+		"      Number of floating-point physical registers (if private, per-thread).\n"
+		"  RfXmmSize = <entries> (Default = 40)\n"
+		"      Number of XMM physical registers (if private, per-thread).\n"
+		"\n"
+		"Section '[ TraceCache ]':\n"
+		"\n"
+		"  Present = {t|f} (Default = False)\n"
+		"      If true, a trace cache is included in the model. If false, the rest of the\n"
+		"      options in this section are ignored.\n"
+		"  Sets = <num_sets> (Default = 64)\n"
+		"      Number of sets in the trace cache.\n"
+		"  Assoc = <num_ways> (Default = 4)\n"
+		"      Associativity of the trace cache. The product Sets * Assoc is the total\n"
+		"      number of traces that can be stored in the trace cache.\n"
+		"  TraceSize = <num_uops> (Default = 16)\n"
+		"      Maximum size of a trace of uops.\n"
+		"  BranchMax = <num_branches> (Default = 3)\n"
+		"      Maximum number of branches contained in a trace.\n"
+		"  QueueSize = <num_uops> (Default = 32)\n"
+		"      Size of the trace queue size in uops.\n"
+		"\n"
+		"Section '[ FunctionalUnits ]':\n"
+		"\n"
+		"  The possible variables in this section follow the format\n"
+		"      <func_unit>.<field> = <value>\n"
+		"  where <func_unit> refers to a functional unit type, and <field> refers to a\n"
+		"  property of it. Possible values for <func_unit> are:\n"
+		"\n"
+		"      IntAdd      Integer adder\n"
+		"      IntMult     Integer multiplier\n"
+		"      IntDiv      Integer divider\n"
+		"\n"
+		"      EffAddr     Operator for effective address computations\n"
+		"      Logic       Operator for logic operations\n"
+		"\n"
+		"      FloatSimple    Simple floating-point operations\n"
+		"      FloatAdd       Floating-point adder\n"
+		"      FloatComp      Floating-point comparator\n"
+		"      FloatMult      Floating-point multiplier\n"
+		"      FloatDiv       Floating-point divider\n"
+		"      FloatComplex   Operator for complex floating-point computations\n"
+		"\n"
+		"      XMMIntAdd      XMM integer adder\n"
+		"      XMMIntMult     XMM integer multiplier\n"
+		"      XMMIntDiv      XMM integer Divider\n"
+		"\n"
+		"      XMMLogic       XMM logic operations\n"
+		"\n"
+		"      XMMFloatAdd       XMM floating-point adder\n"
+		"      XMMFloatComp      XMM floating-point comparator\n"
+		"      XMMFloatMult      XMM floating-point multiplier\n"
+		"      XMMFloatDiv       XMM floating-point divider\n"
+		"      XMMFloatConv      XMM floating-point converter\n"
+		"      XMMFloatComplex   Complex XMM floating-point operations\n"
+		"\n"
+		"  Possible values for <field> are:\n"
+		"      Count       Number of functional units of a given kind.\n"
+		"      OpLat       Latency of the operator.\n"
+		"      IssueLat    Latency since an instruction was issued until the functional\n"
+		"                  unit is available for the next use. For pipelined operators,\n"
+		"                  IssueLat is smaller than OpLat.\n"
+		"\n"
+		"Section '[ BranchPredictor ]':\n"
+		"\n"
+		"  Kind = {Perfect|Taken|NotTaken|Bimodal|TwoLevel|Combined} (Default = TwoLevel)\n"
+		"      Branch predictor type.\n"
+		"  BTB.Sets = <num_sets> (Default = 256)\n"
+		"      Number of sets in the BTB.\n"
+		"  BTB.Assoc = <num_ways) (Default = 4)\n"
+		"      BTB associativity.\n"
+		"  Bimod.Size = <entries> (Default = 1024)\n"
+		"      Number of entries of the bimodal branch predictor.\n"
+		"  Choice.Size = <entries> (Default = 1024)\n"
+		"      Number of entries for the choice predictor.\n"
+		"  RAS.Size = <entries> (Default = 32)\n"
+		"      Number of entries of the return address stack (RAS).\n"
+		"  TwoLevel.L1Size = <entries> (Default = 1)\n"
+		"      For the two-level adaptive predictor, level 1 size.\n"
+		"  TwoLevel.L2Size = <entries> (Default = 1024)\n"
+		"      For the two-level adaptive predictor, level 2 size.\n"
+		"  TwoLevel.HistorySize = <size> (Default = 8)\n"
+		"      For the two-level adaptive predictor, level 2 history size.\n"
+		"\n";
 
 /* Trace */
 int x86_trace_category;
-
 
 /* Configuration file and parameters */
 
@@ -296,21 +288,15 @@ int x86_cpu_commit_width;
 
 int x86_cpu_occupancy_stats;
 
-
-
-
 /*
  * Private Functions
  */
 
 static char *x86_cpu_err_fast_forward =
-	"\tThe number of instructions specified in the x86 CPU configuration file\n"
-	"\tfor fast-forward (functional) execution has caused all contexts to end\n"
-	"\tbefore the timing simulation could start. Please decrease the number\n"
-	"\tof fast-forward instructions and retry.\n";
-
-
-
+		"\tThe number of instructions specified in the x86 CPU configuration file\n"
+				"\tfor fast-forward (functional) execution has caused all contexts to end\n"
+				"\tbefore the timing simulation could start. Please decrease the number\n"
+				"\tof fast-forward instructions and retry.\n";
 
 /*
  * Public Functions
@@ -322,20 +308,7 @@ static char *x86_cpu_err_fast_forward =
 #define X86_TRACE_VERSION_MAJOR		1
 #define X86_TRACE_VERSION_MINOR		671
 
-void kernelfunction( void *src, int srcsize, void *dst, int dstsize)
-{    
-     float64 x1,x2;
-     float64 result;
-     x1= *(float64 *)src;
-     x2= *(float64 *)(src+8); 
-     //fprintf(stderr, "function %016llx,%016llx\n", x1, x2); 
-     result = x1;
-     *(float64 *)dst = result;
-    
-}
-
-void X86CpuReadConfig(void)
-{
+void X86CpuReadConfig(void) {
 	struct config_t *config;
 	char *section;
 
@@ -343,7 +316,6 @@ void X86CpuReadConfig(void)
 	config = config_create(x86_config_file_name);
 	if (*x86_config_file_name)
 		config_load(config);
-
 
 	/* General configuration */
 
@@ -362,32 +334,35 @@ void X86CpuReadConfig(void)
 	x86_cpu_thread_quantum = config_read_int(config, section, "ThreadQuantum", 1000);
 	x86_cpu_thread_switch_penalty = config_read_int(config, section, "ThreadSwitchPenalty", 0);
 
-	x86_cpu_recover_kind = config_read_enum(config, section, "RecoverKind", x86_cpu_recover_kind_writeback, x86_cpu_recover_kind_map, 2);
+	x86_cpu_recover_kind = config_read_enum(config, section, "RecoverKind",
+			x86_cpu_recover_kind_writeback, x86_cpu_recover_kind_map, 2);
 	x86_cpu_recover_penalty = config_read_int(config, section, "RecoverPenalty", 0);
 
 	x86_emu_process_prefetch_hints = config_read_bool(config, section, "ProcessPrefetchHints", 1);
 	prefetch_history_size = config_read_int(config, section, "PrefetchHistorySize", 10);
 
-
 	/* Section '[ Pipeline ]' */
 
 	section = "Pipeline";
 
-	x86_cpu_fetch_kind = config_read_enum(config, section, "FetchKind", x86_cpu_fetch_kind_timeslice, x86_cpu_fetch_kind_map, 3);
+	x86_cpu_fetch_kind = config_read_enum(config, section, "FetchKind",
+			x86_cpu_fetch_kind_timeslice, x86_cpu_fetch_kind_map, 3);
 
 	x86_cpu_decode_width = config_read_int(config, section, "DecodeWidth", 4);
 
-	x86_cpu_dispatch_kind = config_read_enum(config, section, "DispatchKind", x86_cpu_dispatch_kind_timeslice, x86_cpu_dispatch_kind_map, 2);
+	x86_cpu_dispatch_kind = config_read_enum(config, section, "DispatchKind",
+			x86_cpu_dispatch_kind_timeslice, x86_cpu_dispatch_kind_map, 2);
 	x86_cpu_dispatch_width = config_read_int(config, section, "DispatchWidth", 4);
 
-	x86_cpu_issue_kind = config_read_enum(config, section, "IssueKind", x86_cpu_issue_kind_timeslice, x86_cpu_issue_kind_map, 2);
+	x86_cpu_issue_kind = config_read_enum(config, section, "IssueKind",
+			x86_cpu_issue_kind_timeslice, x86_cpu_issue_kind_map, 2);
 	x86_cpu_issue_width = config_read_int(config, section, "IssueWidth", 4);
 
-	x86_cpu_commit_kind = config_read_enum(config, section, "CommitKind", x86_cpu_commit_kind_shared, x86_cpu_commit_kind_map, 2);
+	x86_cpu_commit_kind = config_read_enum(config, section, "CommitKind",
+			x86_cpu_commit_kind_shared, x86_cpu_commit_kind_map, 2);
 	x86_cpu_commit_width = config_read_int(config, section, "CommitWidth", 4);
 
 	x86_cpu_occupancy_stats = config_read_bool(config, section, "OccupancyStats", 0);
-
 
 	/* Section '[ Queues ]' */
 
@@ -397,16 +372,16 @@ void X86CpuReadConfig(void)
 
 	x86_uop_queue_size = config_read_int(config, section, "UopQueueSize", 32);
 
-	x86_rob_kind = config_read_enum(config, section, "RobKind",
-			x86_rob_kind_private, x86_rob_kind_map, 2);
+	x86_rob_kind = config_read_enum(config, section, "RobKind", x86_rob_kind_private,
+			x86_rob_kind_map, 2);
 	x86_rob_size = config_read_int(config, section, "RobSize", 64);
 
-	x86_iq_kind = config_read_enum(config, section, "IqKind",
-			x86_iq_kind_private, x86_iq_kind_map, 2);
+	x86_iq_kind = config_read_enum(config, section, "IqKind", x86_iq_kind_private, x86_iq_kind_map,
+			2);
 	x86_iq_size = config_read_int(config, section, "IqSize", 40);
 
-	x86_lsq_kind = config_read_enum(config, section, "LsqKind",
-			x86_lsq_kind_private, x86_lsq_kind_map, 2);
+	x86_lsq_kind = config_read_enum(config, section, "LsqKind", x86_lsq_kind_private,
+			x86_lsq_kind_map, 2);
 	x86_lsq_size = config_read_int(config, section, "LsqSize", 20);
 
 	/* Register file */
@@ -426,62 +401,19 @@ void X86CpuReadConfig(void)
 	config_free(config);
 }
 
-
-void X86CpuInit(void)
-{
+void X86CpuInit(void) {
 	/* Classes */
 	CLASS_REGISTER(X86Cpu);
 	CLASS_REGISTER(X86Core);
 	CLASS_REGISTER(X86Thread);
-	CLASS_REGISTER(FPGA);
 
 	/* Trace */
 	x86_trace_category = trace_new_category();
 }
 
-
 /* Finalization */
-void X86CpuDone(void)
-{
+void X86CpuDone(void) {
 }
-
-
-
-CLASS_IMPLEMENTATION(FPGA);
-
-void FPGACreate (FPGA *self, FPGAEmu *emu)
-{
-
-	/* Parent */
-	TimingCreate(asTiming(self));
-	
-	/* Frequency */
-	asTiming(self)->frequency = x86_cpu_frequency;
-	asTiming(self)->frequency_domain = esim_new_domain(x86_cpu_frequency);
-
-	/* Initialize */
-	self->emu = emu;
-
-	/* Virtual functions */
-	//asTiming(self)->DumpSummary = FPGADumpSummary;
-	asTiming(self)->Run = FPGARun;
-    asTiming(self)->MemConfigDefault = FPGAMemConfigDefault;
-    asTiming(self)->MemConfigCheck = FPGAMemConfigCheck;
-	asTiming(self)->MemConfigParseEntry = FPGAMemConfigParseEntry;
- 
-
-}
-
-
-void FPGADestroy(FPGA *self)
-{
-
-
-}
-
-
-
-
 
 /*
  * Class 'X86Cpu'
@@ -489,9 +421,7 @@ void FPGADestroy(FPGA *self)
 
 CLASS_IMPLEMENTATION(X86Cpu);
 
-
-void X86CpuCreate(X86Cpu *self, X86Emu *emu)
-{
+void X86CpuCreate(X86Cpu *self, X86Emu *emu) {
 	X86Core *core;
 	X86Thread *thread;
 
@@ -502,7 +432,7 @@ void X86CpuCreate(X86Cpu *self, X86Emu *emu)
 
 	/* Parent */
 	TimingCreate(asTiming(self));
-	
+
 	/* Frequency */
 	asTiming(self)->frequency = x86_cpu_frequency;
 	asTiming(self)->frequency_domain = esim_new_domain(x86_cpu_frequency);
@@ -517,14 +447,12 @@ void X86CpuCreate(X86Cpu *self, X86Emu *emu)
 		self->cores[i] = new(X86Core, self);
 
 	/* Assign names and IDs to cores and threads */
-	for (i = 0; i < x86_cpu_num_cores; i++)
-	{
+	for (i = 0; i < x86_cpu_num_cores; i++) {
 		core = self->cores[i];
 		snprintf(name, sizeof name, "c%d", i);
 		X86CoreSetName(core, name);
 		core->id = i;
-		for (j = 0; j < x86_cpu_num_threads; j++)
-		{
+		for (j = 0; j < x86_cpu_num_threads; j++) {
 			thread = core->threads[j];
 			snprintf(name, sizeof name, "c%dt%d", i, j);
 			X86ThreadSetName(thread, name);
@@ -543,20 +471,17 @@ void X86CpuCreate(X86Cpu *self, X86Emu *emu)
 
 	/* Trace */
 	x86_trace_header("x86.init version=\"%d.%d\" num_cores=%d num_threads=%d\n",
-		X86_TRACE_VERSION_MAJOR, X86_TRACE_VERSION_MINOR,
-		x86_cpu_num_cores, x86_cpu_num_threads);
+			X86_TRACE_VERSION_MAJOR, X86_TRACE_VERSION_MINOR, x86_cpu_num_cores,
+			x86_cpu_num_threads);
 }
 
-
-void X86CpuDestroy(X86Cpu *self)
-{
+void X86CpuDestroy(X86Cpu *self) {
 	int i;
 	FILE *f;
 
 	/* Dump report */
 	f = file_open_for_write(x86_cpu_report_file_name);
-	if (f)
-	{
+	if (f) {
 		X86CpuDumpReport(self, f);
 		fclose(f);
 	}
@@ -571,47 +496,44 @@ void X86CpuDestroy(X86Cpu *self)
 	free(self->cores);
 }
 
-
-void X86CpuDump(Object *self, FILE *f)
-{
+void X86CpuDump(Object *self, FILE *f) {
 	X86Cpu *cpu = asX86Cpu(self);
 	X86Core *core;
 	X86Thread *thread;
 
 	int i;
 	int j;
-	
+
 	/* General information */
 	fprintf(f, "\n");
 	fprintf(f, "LastDump = %lld   ; Cycle of last dump\n", cpu->last_dump);
 	fprintf(f, "IPCLastDump = %.4g   ; IPC since last dump\n",
 			asTiming(cpu)->cycle - cpu->last_dump > 0 ?
-			(double) (cpu->num_committed_uinst - cpu->last_committed)
-			/ (asTiming(cpu)->cycle - cpu->last_dump) : 0);
+					(double) (cpu->num_committed_uinst - cpu->last_committed)
+							/ (asTiming(cpu)->cycle - cpu->last_dump) :
+					0);
 	fprintf(f, "\n");
 
 	/* Cores */
-	for (i = 0; i < x86_cpu_num_cores; i++)
-	{
+	for (i = 0; i < x86_cpu_num_cores; i++) {
 		core = cpu->cores[i];
 		fprintf(f, "-------\n");
 		fprintf(f, "Core %d\n", core->id);
 		fprintf(f, "-------\n\n");
-		
+
 		fprintf(f, "Event Queue:\n");
 		x86_uop_linked_list_dump(core->event_queue, f);
 
 		fprintf(f, "Reorder Buffer:\n");
 		X86CoreDumpROB(core, f);
 
-		for (j = 0; j < x86_cpu_num_threads; j++)
-		{
+		for (j = 0; j < x86_cpu_num_threads; j++) {
 			thread = core->threads[j];
 
 			fprintf(f, "----------------------\n");
 			fprintf(f, "Thread %d (in core %d)\n", j, i);
 			fprintf(f, "----------------------\n\n");
-			
+
 			fprintf(f, "Fetch queue:\n");
 			x86_uop_list_dump(thread->fetch_queue, f);
 
@@ -630,7 +552,7 @@ void X86CpuDump(Object *self, FILE *f)
 			X86ThreadDumpRegFile(thread, f);
 			if (thread->ctx)
 				fprintf(f, "MappedContext = %d\n", thread->ctx->pid);
-			
+
 			fprintf(f, "\n");
 		}
 	}
@@ -643,9 +565,7 @@ void X86CpuDump(Object *self, FILE *f)
 	fprintf(f, "\n\n");
 }
 
-
-void X86CpuDumpSummary(Timing *self, FILE *f)
-{
+void X86CpuDumpSummary(Timing *self, FILE *f) {
 	X86Cpu *cpu = asX86Cpu(self);
 
 	double inst_per_cycle;
@@ -653,12 +573,15 @@ void X86CpuDumpSummary(Timing *self, FILE *f)
 	double branch_acc;
 
 	/* Calculate statistics */
-	inst_per_cycle = asTiming(cpu)->cycle ? (double) cpu->num_committed_inst
-			/ asTiming(cpu)->cycle : 0.0;
-	uinst_per_cycle = asTiming(cpu)->cycle ? (double) cpu->num_committed_uinst
-			/ asTiming(cpu)->cycle : 0.0;
-	branch_acc = cpu->num_branch_uinst ? (double) (cpu->num_branch_uinst -
-			cpu->num_mispred_branch_uinst) / cpu->num_branch_uinst : 0.0;
+	inst_per_cycle =
+			asTiming(cpu)->cycle ? (double) cpu->num_committed_inst / asTiming(cpu)->cycle : 0.0;
+	uinst_per_cycle =
+			asTiming(cpu)->cycle ? (double) cpu->num_committed_uinst / asTiming(cpu)->cycle : 0.0;
+	branch_acc =
+			cpu->num_branch_uinst ?
+					(double) (cpu->num_branch_uinst - cpu->num_mispred_branch_uinst)
+							/ cpu->num_branch_uinst :
+					0.0;
 
 	/* Print statistics */
 	fprintf(f, "FastForwardInstructions = %lld\n", cpu->num_fast_forward_inst);
@@ -671,10 +594,6 @@ void X86CpuDumpSummary(Timing *self, FILE *f)
 	/* Call parent */
 	TimingDumpSummary(self, f);
 }
-
-
-
-
 
 #define DUMP_DISPATCH_STAT(NAME) { \
 	fprintf(f, "Dispatch.Stall." #NAME " = %lld\n", \
@@ -701,10 +620,8 @@ void X86CpuDumpSummary(Timing *self, FILE *f)
 	fprintf(f, #NAME ".Writes = %lld\n", thread->ITEM##_writes); \
 }
 
-
 /* Dump the CPU configuration */
-static void X86DumpCpuConfig(FILE *f)
-{
+static void X86DumpCpuConfig(FILE *f) {
 	/* General configuration */
 	fprintf(f, "[ Config.General ]\n");
 	fprintf(f, "Frequency = %d\n", x86_cpu_frequency);
@@ -779,9 +696,7 @@ static void X86DumpCpuConfig(FILE *f)
 
 }
 
-
-void X86CpuDumpReport(X86Cpu *self, FILE *f)
-{
+void X86CpuDumpReport(X86Cpu *self, FILE *f) {
 	X86Emu *emu = self->emu;
 	X86Core *core;
 	X86Thread *thread;
@@ -804,26 +719,24 @@ void X86CpuDumpReport(X86Cpu *self, FILE *f)
 	fprintf(f, "[ Global ]\n\n");
 	fprintf(f, "Cycles = %lld\n", asTiming(self)->cycle);
 	fprintf(f, "Time = %.2f\n", (double) now / 1000000);
-	fprintf(f, "CyclesPerSecond = %.0f\n", now ?
-			(double) asTiming(self)->cycle / now * 1000000 : 0.0);
+	fprintf(f, "CyclesPerSecond = %.0f\n",
+			now ? (double) asTiming(self)->cycle / now * 1000000 : 0.0);
 	fprintf(f, "MemoryUsed = %lu\n", (long) mem_mapped_space);
 	fprintf(f, "MemoryUsedMax = %lu\n", (long) mem_max_mapped_space);
 	fprintf(f, "\n");
 
 	/* Dispatch stage */
 	fprintf(f, "; Dispatch stage\n");
-	X86CpuDumpUopReport(self, f, self->num_dispatched_uinst_array,
-			"Dispatch", x86_cpu_dispatch_width);
+	X86CpuDumpUopReport(self, f, self->num_dispatched_uinst_array, "Dispatch",
+			x86_cpu_dispatch_width);
 
 	/* Issue stage */
 	fprintf(f, "; Issue stage\n");
-	X86CpuDumpUopReport(self, f, self->num_issued_uinst_array,
-			"Issue", x86_cpu_issue_width);
+	X86CpuDumpUopReport(self, f, self->num_issued_uinst_array, "Issue", x86_cpu_issue_width);
 
 	/* Commit stage */
 	fprintf(f, "; Commit stage\n");
-	X86CpuDumpUopReport(self, f, self->num_committed_uinst_array,
-			"Commit", x86_cpu_commit_width);
+	X86CpuDumpUopReport(self, f, self->num_committed_uinst_array, "Commit", x86_cpu_commit_width);
 
 	/* Committed branches */
 	fprintf(f, "; Committed branches\n");
@@ -834,13 +747,15 @@ void X86CpuDumpReport(X86Cpu *self, FILE *f)
 	fprintf(f, "Commit.Branches = %lld\n", self->num_branch_uinst);
 	fprintf(f, "Commit.Squashed = %lld\n", self->num_squashed_uinst);
 	fprintf(f, "Commit.Mispred = %lld\n", self->num_mispred_branch_uinst);
-	fprintf(f, "Commit.PredAcc = %.4g\n", self->num_branch_uinst ?
-		(double) (self->num_branch_uinst - self->num_mispred_branch_uinst) / self->num_branch_uinst : 0.0);
+	fprintf(f, "Commit.PredAcc = %.4g\n",
+			self->num_branch_uinst ?
+					(double) (self->num_branch_uinst - self->num_mispred_branch_uinst)
+							/ self->num_branch_uinst :
+					0.0);
 	fprintf(f, "\n");
 
 	/* Report for each core */
-	for (i = 0; i < x86_cpu_num_cores; i++)
-	{
+	for (i = 0; i < x86_cpu_num_cores; i++) {
 		/* Core */
 		core = self->cores[i];
 		fprintf(f, "\n; Statistics for core %d\n", core->id);
@@ -850,8 +765,7 @@ void X86CpuDumpReport(X86Cpu *self, FILE *f)
 		X86CoreDumpFunctionalUnitsReport(core, f);
 
 		/* Dispatch slots */
-		if (x86_cpu_dispatch_kind == x86_cpu_dispatch_kind_timeslice)
-		{
+		if (x86_cpu_dispatch_kind == x86_cpu_dispatch_kind_timeslice) {
 			fprintf(f, "; Dispatch slots usage (sum = cycles * dispatch width)\n");
 			fprintf(f, ";    used - dispatch slot was used by a non-spec uop\n");
 			fprintf(f, ";    spec - used by a mispeculated uop\n");
@@ -870,28 +784,28 @@ void X86CpuDumpReport(X86Cpu *self, FILE *f)
 
 		/* Dispatch stage */
 		fprintf(f, "; Dispatch stage\n");
-		X86CpuDumpUopReport(self, f, core->num_dispatched_uinst_array,
-				"Dispatch", x86_cpu_dispatch_width);
+		X86CpuDumpUopReport(self, f, core->num_dispatched_uinst_array, "Dispatch",
+				x86_cpu_dispatch_width);
 
 		/* Issue stage */
 		fprintf(f, "; Issue stage\n");
-		X86CpuDumpUopReport(self, f, core->num_issued_uinst_array,
-				"Issue", x86_cpu_issue_width);
+		X86CpuDumpUopReport(self, f, core->num_issued_uinst_array, "Issue", x86_cpu_issue_width);
 
 		/* Commit stage */
 		fprintf(f, "; Commit stage\n");
-		X86CpuDumpUopReport(self, f, core->num_committed_uinst_array,
-				"Commit", x86_cpu_commit_width);
+		X86CpuDumpUopReport(self, f, core->num_committed_uinst_array, "Commit",
+				x86_cpu_commit_width);
 
 		/* Committed branches */
 		fprintf(f, "; Committed branches\n");
 		fprintf(f, "Commit.Branches = %lld\n", core->num_branch_uinst);
 		fprintf(f, "Commit.Squashed = %lld\n", core->num_squashed_uinst);
 		fprintf(f, "Commit.Mispred = %lld\n", core->num_mispred_branch_uinst);
-		fprintf(f, "Commit.PredAcc = %.4g\n", core->num_branch_uinst ?
-				(double) (core->num_branch_uinst -
-				core->num_mispred_branch_uinst)
-				/ core->num_branch_uinst : 0.0);
+		fprintf(f, "Commit.PredAcc = %.4g\n",
+				core->num_branch_uinst ?
+						(double) (core->num_branch_uinst - core->num_mispred_branch_uinst)
+								/ core->num_branch_uinst :
+						0.0);
 		fprintf(f, "\n");
 
 		/* Occupancy stats */
@@ -903,66 +817,64 @@ void X86CpuDumpReport(X86Cpu *self, FILE *f)
 		fprintf(f, ";    Reads, Writes - Accesses to the structure\n");
 		if (x86_rob_kind == x86_rob_kind_shared)
 			DUMP_CORE_STRUCT_STATS(ROB, rob);
-		if (x86_iq_kind == x86_iq_kind_shared)
-		{
+		if (x86_iq_kind == x86_iq_kind_shared) {
 			DUMP_CORE_STRUCT_STATS(IQ, iq);
 			fprintf(f, "IQ.WakeupAccesses = %lld\n", core->iq_wakeup_accesses);
 		}
 		if (x86_lsq_kind == x86_lsq_kind_shared)
 			DUMP_CORE_STRUCT_STATS(LSQ, lsq);
-		if (x86_reg_file_kind == x86_reg_file_kind_shared)
-		{
+		if (x86_reg_file_kind == x86_reg_file_kind_shared) {
 			DUMP_CORE_STRUCT_STATS(RF_Int, reg_file_int);
 			DUMP_CORE_STRUCT_STATS(RF_Fp, reg_file_fp);
 		}
 		fprintf(f, "\n");
 
 		/* Report for each thread */
-		for (j = 0; j < x86_cpu_num_threads; j++)
-		{
+		for (j = 0; j < x86_cpu_num_threads; j++) {
 			thread = core->threads[j];
-			fprintf(f, "\n; Statistics for core %d - thread %d\n",
-					core->id, thread->id_in_core);
+			fprintf(f, "\n; Statistics for core %d - thread %d\n", core->id, thread->id_in_core);
 			fprintf(f, "[ %s ]\n\n", thread->name);
 
 			/* Dispatch stage */
 			fprintf(f, "; Dispatch stage\n");
-			X86CpuDumpUopReport(self, f, thread->num_dispatched_uinst_array,
-					"Dispatch", x86_cpu_dispatch_width);
+			X86CpuDumpUopReport(self, f, thread->num_dispatched_uinst_array, "Dispatch",
+					x86_cpu_dispatch_width);
 
 			/* Issue stage */
 			fprintf(f, "; Issue stage\n");
-			X86CpuDumpUopReport(self, f, thread->num_issued_uinst_array,
-					"Issue", x86_cpu_issue_width);
+			X86CpuDumpUopReport(self, f, thread->num_issued_uinst_array, "Issue",
+					x86_cpu_issue_width);
 
 			/* Commit stage */
 			fprintf(f, "; Commit stage\n");
-			X86CpuDumpUopReport(self, f, thread->num_committed_uinst_array,
-					"Commit", x86_cpu_commit_width);
+			X86CpuDumpUopReport(self, f, thread->num_committed_uinst_array, "Commit",
+					x86_cpu_commit_width);
 
 			/* Committed branches */
 			fprintf(f, "; Committed branches\n");
 			fprintf(f, "Commit.Branches = %lld\n", thread->num_branch_uinst);
 			fprintf(f, "Commit.Squashed = %lld\n", thread->num_squashed_uinst);
 			fprintf(f, "Commit.Mispred = %lld\n", thread->num_mispred_branch_uinst);
-			fprintf(f, "Commit.PredAcc = %.4g\n", thread->num_branch_uinst ?
-				(double) (thread->num_branch_uinst - thread->num_mispred_branch_uinst) / thread->num_branch_uinst : 0.0);
+			fprintf(f, "Commit.PredAcc = %.4g\n",
+					thread->num_branch_uinst ?
+							(double) (thread->num_branch_uinst - thread->num_mispred_branch_uinst)
+									/ thread->num_branch_uinst :
+							0.0);
 			fprintf(f, "\n");
 
 			/* Occupancy stats */
-			fprintf(f, "; Structure statistics (reorder buffer, instruction queue, load-store queue,\n");
+			fprintf(f,
+					"; Structure statistics (reorder buffer, instruction queue, load-store queue,\n");
 			fprintf(f, "; integer/floating-point register file, and renaming table)\n");
 			if (x86_rob_kind == x86_rob_kind_private)
 				DUMP_THREAD_STRUCT_STATS(ROB, rob);
-			if (x86_iq_kind == x86_iq_kind_private)
-			{
+			if (x86_iq_kind == x86_iq_kind_private) {
 				DUMP_THREAD_STRUCT_STATS(IQ, iq);
 				fprintf(f, "IQ.WakeupAccesses = %lld\n", thread->iq_wakeup_accesses);
 			}
 			if (x86_lsq_kind == x86_lsq_kind_private)
 				DUMP_THREAD_STRUCT_STATS(LSQ, lsq);
-			if (x86_reg_file_kind == x86_reg_file_kind_private)
-			{
+			if (x86_reg_file_kind == x86_reg_file_kind_private) {
 				DUMP_THREAD_STRUCT_STATS(RF_Int, reg_file_int);
 				DUMP_THREAD_STRUCT_STATS(RF_Fp, reg_file_fp);
 			}
@@ -981,10 +893,7 @@ void X86CpuDumpReport(X86Cpu *self, FILE *f)
 	}
 }
 
-
-void X86CpuDumpUopReport(X86Cpu *self, FILE *f, long long *uop_stats,
-		char *prefix, int peak_ipc)
-{
+void X86CpuDumpUopReport(X86Cpu *self, FILE *f, long long *uop_stats, char *prefix, int peak_ipc) {
 	long long uinst_int_count = 0;
 	long long uinst_logic_count = 0;
 	long long uinst_fp_count = 0;
@@ -996,8 +905,7 @@ void X86CpuDumpUopReport(X86Cpu *self, FILE *f, long long *uop_stats,
 	enum x86_uinst_flag_t flags;
 	int i;
 
-	for (i = 0; i < x86_uinst_opcode_count; i++)
-	{
+	for (i = 0; i < x86_uinst_opcode_count; i++) {
 		name = x86_uinst_info[i].name;
 		flags = x86_uinst_info[i].flags;
 
@@ -1022,17 +930,15 @@ void X86CpuDumpUopReport(X86Cpu *self, FILE *f, long long *uop_stats,
 	fprintf(f, "%s.WndSwitch = %lld\n", prefix,
 			uop_stats[x86_uinst_call] + uop_stats[x86_uinst_ret]);
 	fprintf(f, "%s.Total = %lld\n", prefix, uinst_total);
-	fprintf(f, "%s.IPC = %.4g\n", prefix, asTiming(self)->cycle ?
-			(double) uinst_total / asTiming(self)->cycle : 0.0);
+	fprintf(f, "%s.IPC = %.4g\n", prefix,
+			asTiming(self)->cycle ? (double) uinst_total / asTiming(self)->cycle : 0.0);
 	fprintf(f, "%s.DutyCycle = %.4g\n", prefix,
 			asTiming(self)->cycle && peak_ipc ?
-			(double) uinst_total / asTiming(self)->cycle / peak_ipc : 0.0);
+					(double) uinst_total / asTiming(self)->cycle / peak_ipc : 0.0);
 	fprintf(f, "\n");
 }
 
-
-int X86CpuRun(Timing *self)
-{
+int X86CpuRun(Timing *self) {
 	X86Cpu *cpu = asX86Cpu(self);
 	X86Emu *emu = cpu->emu;
 
@@ -1041,13 +947,12 @@ int X86CpuRun(Timing *self)
 		return FALSE;
 
 	/* Fast-forward simulation */
-	if (x86_cpu_fast_forward_count && asEmu(emu)->instructions
-			< x86_cpu_fast_forward_count)
+	if (x86_cpu_fast_forward_count && asEmu(emu)->instructions < x86_cpu_fast_forward_count)
 		X86CpuFastForward(cpu);
 
 	/* Stop if maximum number of CPU instructions exceeded */
-	if (x86_emu_max_inst && cpu->num_committed_inst >=
-			x86_emu_max_inst - x86_cpu_fast_forward_count)
+	if (x86_emu_max_inst
+			&& cpu->num_committed_inst >= x86_emu_max_inst - x86_cpu_fast_forward_count)
 		esim_finish = esim_finish_x86_max_inst;
 
 	/* Stop if maximum number of cycles exceeded */
@@ -1065,7 +970,6 @@ int X86CpuRun(Timing *self)
 	 * that were freed in the previous simulation cycle. */
 	X86CpuEmptyTraceList(cpu);
 
-
 	/* Processor stages */
 	X86CpuRunStages(cpu);
 
@@ -1076,152 +980,7 @@ int X86CpuRun(Timing *self)
 	return TRUE;
 }
 
-
-
-int FPGARun(Timing *self)
-{    
-	FPGA *fpga = asFPGA(self);
-	FPGAEmu *emu = fpga->emu;
-	unsigned int addr;
-	int run = FALSE;
-	int i;
-     
-
-
-	self->cycle++;
-
-     struct list_t *kernel_list;
-     struct kernel_t *kernel;
-     struct list_t *tasklist;
-     struct task_t *task;
-     kernel_list = fpga->emu->kernel_list;
-     
-     if(!list_count(kernel_list))
-     	return FALSE;
-
-     for (i = 0; i < list_count(kernel_list); i++)
-     { 
-     	kernel = list_get(kernel_list, i);
-        tasklist = kernel->tasklist;
-        if(list_count(tasklist))
-        	run = TRUE;
-             
-
-        if(!list_count(tasklist))
-
-        	continue;
-        
-        else if (kernel->executing)        	
-        {
-
-           task = kernel->runningtask;
-           if(task->state == taskreadfinish)
-           {  
-              fprintf(stderr, "call\n");             
-              task->startwhen = asTiming(fpga)->cycle;
-              task->finishwhen = asTiming(fpga)->cycle + kernel->delay;
-              task->state = taskrun;
-
-           }
-
-           else if(task->state == taskrun)
-           {  
-              if(task->finishwhen > asTiming(fpga)->cycle)
-              	continue;
-              kernelfunction(task->src, task->srcsize, task->dst, task->dstsize);
-               
-              task->state = taskwrite;  
-
-              if(kernel->sharedmem)  
-              	{
-              	  mem_read_copy(task->ctx->realmem, kernel->dstbase, 4, &addr);
-                  fpga_mod_access( fpga->mod, mod_access_store, addr, NULL, NULL, NULL, 
-                  task, task->dst, task->dstsize, task->ctx, 0);
-                } 
-              else 
-              	{                               
-              	  addr = kernel->dstbase;
-              	  mem_write_copy(task->ctx->mem, addr, task->dstsize, task->dst);
-                  mem_write_copy(task->ctx->realmem, addr, task->dstsize, task->dst);  
-
-                  task->state = taskwritefinish; 
-              
-                }
-	  
-           }
-
-           else if (task->state == taskwritefinish)
-           	{   
-              kernel->executing = 0;
-              kernel->runningtask = NULL;
-              list_remove(tasklist, task); 
-
-              if(kernel->finish >= kernel->HW_bounds.low && kernel->finish <= kernel->HW_bounds.high)
-              {   
-                 unsigned int data=1;
-                 mem_write_copy(task->ctx->mem, kernel->finish, 4, &data);
-                 mem_write_copy(task->ctx->realmem, kernel->finish, 4, &data);   
-              }
-              else
-              {   
-              	 unsigned int data=1;
-                 fpga_mod_access( fpga->mod, mod_access_store, kernel->finish, NULL, NULL, NULL, 
-                 NULL, &data, 4, task->ctx, 0);	
-              }	
-
-           	} 
-
-           else 
-            {
-              continue; 
-            }
-        }
-
-        else 
-        { 
-            task = KernelSchedule(kernel);
-            kernel->runningtask = task;
-           	
-            task->state = taskread;  
-             if(kernel->sharedmem)
-              	{
-              		mem_read_copy(task->ctx->realmem, kernel->srcbase, 4, &addr);
-              		fpga_mod_access( fpga->mod, mod_access_load, addr, NULL, NULL, NULL, 
-                    task, task->src, task->srcsize, task->ctx, 0);
-
-              	}	
-              else 
-              	{
-              		addr = kernel->srcbase;
-              		mem_read_copy(task->ctx->realmem, addr, task->srcsize, task->src);  
-                    task->state = taskreadfinish;
-                }
-            
-             	 
-
-            kernel->executing = 1;
-        } 
-
-     } 
-   
-     return run;
-
-}
-
-
-
-struct task_t *KernelSchedule( struct kernel_t *kernel)
-{
-      return list_head(kernel->tasklist);      
-}
-
-
-
-
-
-
-void X86CpuRunStages(X86Cpu *self)
-{
+void X86CpuRunStages(X86Cpu *self) {
 	/* Context scheduler */
 	X86CpuSchedule(self);
 
@@ -1233,16 +992,13 @@ void X86CpuRunStages(X86Cpu *self)
 	X86CpuDecode(self);
 	X86CpuFetch(self);
 
-
 	/* Update stats for structures occupancy */
 	if (x86_cpu_occupancy_stats)
 		X86CpuUpdateOccupancyStats(self);
 }
 
-
 /* Run fast-forward simulation */
-void X86CpuFastForward(X86Cpu *self)
-{
+void X86CpuFastForward(X86Cpu *self) {
 	X86Emu *emu = self->emu;
 
 	/* Fast-forward simulation. Run 'x86_cpu_fast_forward' iterations of the x86
@@ -1255,13 +1011,10 @@ void X86CpuFastForward(X86Cpu *self)
 
 	/* Output warning if simulation finished during fast-forward execution. */
 	if (esim_finish)
-		warning("x86 fast-forwarding finished simulation.\n%s",
-				x86_cpu_err_fast_forward);
+		warning("x86 fast-forwarding finished simulation.\n%s", x86_cpu_err_fast_forward);
 }
 
-
-void X86CpuAddToTraceList(X86Cpu *self, struct x86_uop_t *uop)
-{
+void X86CpuAddToTraceList(X86Cpu *self, struct x86_uop_t *uop) {
 	assert(x86_tracing());
 	assert(!uop->in_uop_trace_list);
 
@@ -1269,17 +1022,14 @@ void X86CpuAddToTraceList(X86Cpu *self, struct x86_uop_t *uop)
 	linked_list_add(self->uop_trace_list, uop);
 }
 
-
-void X86CpuEmptyTraceList(X86Cpu *self)
-{
+void X86CpuEmptyTraceList(X86Cpu *self) {
 	X86Thread *thread;
 	X86Core *core;
 	struct linked_list_t *uop_trace_list;
 	struct x86_uop_t *uop;
 
 	uop_trace_list = self->uop_trace_list;
-	while (uop_trace_list->count)
-	{
+	while (uop_trace_list->count) {
 		/* Remove from list */
 		linked_list_head(uop_trace_list);
 		uop = linked_list_get(uop_trace_list);
@@ -1289,8 +1039,7 @@ void X86CpuEmptyTraceList(X86Cpu *self)
 		assert(uop->in_uop_trace_list);
 
 		/* Trace */
-		x86_trace("x86.end_inst id=%lld core=%d\n",
-			uop->id_in_core, core->id);
+		x86_trace("x86.end_inst id=%lld core=%d\n", uop->id_in_core, core->id);
 
 		/* Free uop */
 		uop->in_uop_trace_list = 0;
@@ -1298,13 +1047,11 @@ void X86CpuEmptyTraceList(X86Cpu *self)
 	}
 }
 
-
 #define UPDATE_THREAD_OCCUPANCY_STATS(ITEM) { \
 	thread->ITEM##_occupancy += thread->ITEM##_count; \
 	if (thread->ITEM##_count == x86_##ITEM##_size) \
 		thread->ITEM##_full++; \
 }
-
 
 #define UPDATE_CORE_OCCUPANCY_STATS(ITEM) { \
 	core->ITEM##_occupancy += core->ITEM##_count; \
@@ -1312,17 +1059,14 @@ void X86CpuEmptyTraceList(X86Cpu *self)
 		core->ITEM##_full++; \
 }
 
-
-void X86CpuUpdateOccupancyStats(X86Cpu *self)
-{
+void X86CpuUpdateOccupancyStats(X86Cpu *self) {
 	X86Core *core;
 	X86Thread *thread;
 
 	int i;
 	int j;
 
-	for (i = 0; i < x86_cpu_num_cores; i++)
-	{
+	for (i = 0; i < x86_cpu_num_cores; i++) {
 		core = self->cores[i];
 
 		/* Update occupancy stats for shared structures */
@@ -1332,15 +1076,13 @@ void X86CpuUpdateOccupancyStats(X86Cpu *self)
 			UPDATE_CORE_OCCUPANCY_STATS(iq);
 		if (x86_lsq_kind == x86_lsq_kind_shared)
 			UPDATE_CORE_OCCUPANCY_STATS(lsq);
-		if (x86_reg_file_kind == x86_reg_file_kind_shared)
-		{
+		if (x86_reg_file_kind == x86_reg_file_kind_shared) {
 			UPDATE_CORE_OCCUPANCY_STATS(reg_file_int);
 			UPDATE_CORE_OCCUPANCY_STATS(reg_file_fp);
 		}
 
 		/* Occupancy stats for private structures */
-		for (j = 0; j < x86_cpu_num_threads; j++)
-		{
+		for (j = 0; j < x86_cpu_num_threads; j++) {
 			thread = core->threads[j];
 			if (x86_rob_kind == x86_rob_kind_private)
 				UPDATE_THREAD_OCCUPANCY_STATS(rob);
@@ -1348,8 +1090,7 @@ void X86CpuUpdateOccupancyStats(X86Cpu *self)
 				UPDATE_THREAD_OCCUPANCY_STATS(iq);
 			if (x86_lsq_kind == x86_lsq_kind_private)
 				UPDATE_THREAD_OCCUPANCY_STATS(lsq);
-			if (x86_reg_file_kind == x86_reg_file_kind_private)
-			{
+			if (x86_reg_file_kind == x86_reg_file_kind_private) {
 				UPDATE_THREAD_OCCUPANCY_STATS(reg_file_int);
 				UPDATE_THREAD_OCCUPANCY_STATS(reg_file_fp);
 			}

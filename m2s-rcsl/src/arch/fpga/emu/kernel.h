@@ -35,12 +35,12 @@ typedef int (*FPGAKernelCanWakeupFunc)(FPGAKernel *self, void *data);
 typedef void (*FPGAKernelWakeupFunc)(FPGAKernel *self, void *data);
 
 typedef enum {
-	FPGAKernelOnchip  	= 0x00001, /* it is placed on chip */
-	FPGAKernelReady   	= 0x00002, /* it is ready to execute hardware tasks */
-	FPGAKernelBlocked 	= 0x00004, /* it is blocked by an overlapping kernel currently running */
-	FPGAKernelRunning 	= 0x00008, /* the kernel is currently running a hardware task */
-	FPGAKernelOffchip 	= 0x00010, /* the kernle is currently not placed on chip, needs to be reloaded */
-	FPGAKernelNone    	= 0x00000
+	FPGAKernelOnchip = 0x00001, /* it is placed on chip */
+	FPGAKernelReady = 0x00002, /* it is ready to execute hardware tasks */
+	FPGAKernelBlocked = 0x00004, /* it is blocked by an overlapping kernel currently running */
+	FPGAKernelRunning = 0x00008, /* the kernel is currently running a hardware task */
+	FPGAKernelOffchip = 0x00010, /* the kernle is currently not placed on chip, needs to be reloaded */
+	FPGAKernelNone = 0x00000
 } FPGAKernelState;
 
 CLASS_BEGIN(FPGAKernel, Object)
@@ -53,7 +53,7 @@ CLASS_BEGIN(FPGAKernel, Object)
 	int kid; /* Kernel ID */
 
 	char* kernel_name;
-	bool folding;
+	int folding;
 
 	/* Implementations */
 	int num_implements;
@@ -105,7 +105,20 @@ CLASS_BEGIN(FPGAKernel, Object)
 	/* Thread affinity mask */
 	struct bit_map_t *affinity;
 
-	Abc_Ntk_t * ntk;
+	struct bounds {
+		unsigned int low;
+		unsigned int high;
+	} HW_bounds;
+
+	unsigned int srcbase;
+	unsigned int dstbase;
+	unsigned int srcsize;
+	unsigned int dstsize;
+
+	unsigned int start;
+	unsigned int finish;
+	int delay;
+	int sharedmem;
 
 CLASS_END(FPGAKernel)
 

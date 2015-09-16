@@ -348,24 +348,24 @@ void mem_access_copy(struct mem_t *mem, unsigned int addr, int size, void *buf,
 
 void mem_read(struct mem_t *mem, unsigned int addr, int size, void *buf)
 {   
-    if(FPGARegMemCheck(mem, addr))
+    /*if(FPGARegMemCheck(mem, addr))
       {
       	mem_access_copy(mem, addr, size, buf, mem_access_read);
       }		
-    else
+    else*/
 	mem_access(mem, addr, size, buf, mem_access_read);
 }
 
 
 void mem_write(struct mem_t *mem, unsigned int addr, int size, void *buf)
 {   
-     unsigned int data;
+     /*unsigned int data;
 
     if(FPGARegMemCheck(mem, addr))  
     	{   
 	     mem_access_copy(mem, addr, size, buf, mem_access_write);
 	    } 
-	else
+	else*/
 	 mem_access(mem, addr, size, buf, mem_access_write);
 
 }

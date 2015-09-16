@@ -73,12 +73,6 @@ CLASS_BEGIN(FPGAEmu, Emu)
 	int suspended_list_count;
 	int suspended_list_max;
 
-	/* List of zombie kernels */
-	FPGAKernel *zombie_list_head;
-	FPGAKernel *zombie_list_tail;
-	int zombie_list_count;
-	int zombie_list_max;
-
 	/* Table of tasks associated with each kernel */
 	FPGATask **kernel_task_table;
 	int *task_count_of_kernel;
@@ -96,10 +90,10 @@ void FPGAEmuDumpSummary(Emu *self, FILE *f);
 void FPGAEmuProcessEvents(FPGAEmu *self);
 void FPGAEmuProcessEventsSchedule(FPGAEmu *self);
 
-FPGAContext *FPGAEmuGetContext(FPGAEmu *self, int pid);
+FPGAKernel* FPGAEmuGetKernelByID(FPGAEmu *self, int kid);
 
 void FPGAEmuLoadKernelsFromConfig(FPGAEmu *self, struct config_t *config,
-		char *section);
+		char *section, int id);
 /*
  * Non-Class
  */

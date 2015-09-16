@@ -20,7 +20,7 @@
 #include <poll.h>
 #include <unistd.h>
 
-#include <arch/fpga/ace2/ace.h>
+
 
 #include <arch/fpga/timing/fpga.h>
 #include <lib/esim/esim.h>
@@ -52,23 +52,11 @@ static void FPGAKernelDoCreate(FPGAKernel *self, FPGAEmu *emu) {
 	self->emu = emu;
 	self->kid = emu->current_pid++;
 
-	/* Update state so that the context is inserted in the
+	/* Update state so that the kernel is inserted in the
 	 * corresponding lists. The fpga_ctx_running parameter has no
 	 * effect, since it will be updated later. */
 	FPGAKernelSetState(self, FPGAKernelOnchip);
 	DOUBLE_LINKED_LIST_INSERT_HEAD(emu, kernel, self);
-
-	/* Structures
-	 self->regs = fpga_regs_create();
-	 self->backup_regs = fpga_regs_create();
-	 self->signal_mask_table = fpga_signal_mask_table_create();
-
-	 Thread affinity mask, used only for timing simulation. It is
-	 * initialized to all 1's.
-	 num_nodes = fpga_cpu_num_cores * fpga_cpu_num_threads;
-	 self->affinity = bit_map_create(num_nodes);
-	 for (i = 0; i < num_nodes; i++)
-	 bit_map_set(self->affinity, i, 1, 1);*/
 
 	/* Virtual functions */
 	asObject(self)->Dump = FPGAKernelDump;

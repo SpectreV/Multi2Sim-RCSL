@@ -29,32 +29,9 @@
 /* Forward declarations */
 struct config_t;
 
-#define taskready       0
-#define taskread        1
-#define taskreadfinish  2
-#define taskrun         3
-#define taskrunfinish   4
-#define taskwrite       5
-#define taskwritefinish 6
-#define taskunready     7  
-
 /*
  * Class 'X86Emu'
  */
-
-
-
-CLASS_BEGIN(FPGAEmu, Emu)
-
-	
-
-	struct list_t *kernel_list;
-
-
-
-CLASS_END(FPGAEmu)
-
-
 
 
 
@@ -88,8 +65,6 @@ CLASS_BEGIN(X86Emu, Emu)
 	int context_list_count;
 	int context_list_max;
 
-	struct list_t *kernel_list;
-
 	/* List of running contexts */
 	X86Context *running_list_head;
 	X86Context *running_list_tail;
@@ -114,61 +89,19 @@ CLASS_BEGIN(X86Emu, Emu)
 	int finished_list_count;
 	int finished_list_max;
 
+	/* Added by HaoL
+	 * A reference to fpga emulator for heterogeneous system simulation*/
+	FPGAEmu *fpga_emu;
+
 CLASS_END(X86Emu)
 
 
 
-struct kernel_t
-{
-
-    struct 
-	{ 
-	        unsigned int low;
-	        unsigned int high;	 
-	} HW_bounds;
-
-
-	unsigned int srcbase;
-	unsigned int dstbase;
-	unsigned int srcsize;
-	unsigned int dstsize;
-    
-    unsigned int start; 
-    unsigned int finish;
-    int delay;
-    int sharedmem;
-
-    struct list_t *tasklist;
-    struct task_t *runningtask;
-    char *name;
-    int executing;
-    int id;
-
-};
-
-
-struct task_t
-{
-    struct kernel_t *kernel;
-    int state;
-    unsigned int *src;
-    int srcsize; 
-    unsigned int *dst;
-    int dstsize; 
-    X86Context *ctx;
-    long long startwhen;
-    long long finishwhen; 
-};
-
-
-void FPGAEmuCreate(FPGAEmu *self);
-void FPGAEmuDestroy(FPGAEmu *self);
 
 void X86EmuCreate(X86Emu *self);
 void X86EmuDestroy(X86Emu *self);
 
 int X86EmuRun(Emu *self);
-int FPGAEmuRun(Emu *self);
 
 void X86EmuDump(Object *self, FILE *f);
 void X86EmuDumpSummary(Emu *self, FILE *f);
@@ -188,7 +121,6 @@ void X86EmuLoadContextFromCommandLine(X86Emu *self, int argc, char **argv);
  */
 
 extern X86Emu *x86_emu;
-extern FPGAEmu *fpga_emu;
 
 extern long long x86_emu_max_cycles;
 extern long long x86_emu_max_inst;
