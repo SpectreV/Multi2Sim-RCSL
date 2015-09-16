@@ -268,6 +268,8 @@ long long mod_access(struct mod_t *mod, enum mod_access_kind_t access_kind,
 		else if (access_kind == mod_access_store)
 		{
 			event = EV_MOD_NMOESI_STORE;
+		 //   if(stack->uop->addr >= 0xBFFEFF48 && stack->uop->addr<= 0xBFFEFF54)
+          //  	fprintf(stderr, "x86pr%x,%x\n", stack->uop->addr,stack->uop->data);
 		}
 		else if (access_kind == mod_access_nc_store)
 		{

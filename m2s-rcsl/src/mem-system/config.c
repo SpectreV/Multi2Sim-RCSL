@@ -308,7 +308,7 @@ static void mem_config_check(struct arch_t *arch, void *user_data)
 
 	/* Check configuration */
 	timing = arch->timing;
-	timing->MemConfigCheck(timing, config);
+    timing->MemConfigCheck(timing, config);
 }
 
 
@@ -509,6 +509,7 @@ static struct mod_t *mem_config_read_cache(struct config_t *config,
 {
 	char buf[MAX_STRING_SIZE];
 	char mod_name[MAX_STRING_SIZE];
+	char buf_HW[MAX_STRING_SIZE];
 
 	int num_sets;
 	int assoc;
@@ -516,6 +517,13 @@ static struct mod_t *mem_config_read_cache(struct config_t *config,
 	int latency;
 	int dir_latency;
 	int latency_add;
+	int burstextraread;
+	int burstextrawrite;
+	int burstlength;
+	int burstwidth;
+	int port;
+	int axi;
+	int inter;
 
 	char *policy_str;
 	enum cache_policy_t policy;
@@ -536,6 +544,11 @@ static struct mod_t *mem_config_read_cache(struct config_t *config,
 	struct mod_t *mod;
 	struct net_t *net;
 	struct net_node_t *net_node;
+	struct interconnect_t *interconnect;
+
+
+    //axi = config_var_exists(config, section, "Interconnect");
+
 
 	/* Cache parameters */
 	snprintf(buf, sizeof buf, "CacheGeometry %s",
@@ -546,6 +559,10 @@ static struct mod_t *mem_config_read_cache(struct config_t *config,
 	config_var_enforce(config, buf, "Sets");
 	config_var_enforce(config, buf, "Assoc");
 	config_var_enforce(config, buf, "BlockSize");
+
+	snprintf(buf_HW, sizeof buf_HW, "InterconnectParameters %s",
+		 config_read_string(config, section, "Interconnect", ""));
+
 
 	/* Read values */
 	str_token(mod_name, sizeof mod_name, section, 1, " ");
@@ -618,15 +635,25 @@ static struct mod_t *mem_config_read_cache(struct config_t *config,
 
 	
 	latency_add = config_read_int(config, section, "AdditionalLatency", 0);
-	
+	axi = config_read_int(config, section, "Axi", 1);
+
     if (latency_add < 0)
 		fatal("%s: cache %s: invalid value for variable "
 			"'AdditionalLatency'.\n%s %d", mem_config_file_name, 
 			mod_name, mem_err_config_note, latency_add); 
+    
+    burstlength = config_read_int(config, buf_HW, "BurstLength", 8);
+    burstwidth = config_read_int(config, buf_HW, "BurstWidth", 4);
+    burstextraread = config_read_int(config, buf_HW, "BurstReadExtra", 0); 
+    burstextrawrite = config_read_int(config, buf_HW, "BurstWriteExtra", 0);
+    port = config_read_int(config, buf_HW, "Port", 1);
+    inter = config_read_int(config, buf_HW, "InterLatency", 1);
+
 
 	/* Create module */
 	mod = mod_create(mod_name, mod_kind_cache, num_ports,
 		block_size, latency);
+	interconnect = xcalloc(1, sizeof(struct interconnect_t));
 	
 	/* Initialize */
 	mod->mshr_size = mshr_size;
@@ -635,6 +662,17 @@ static struct mod_t *mem_config_read_cache(struct config_t *config,
 	mod->dir_size = num_sets * assoc;
 	mod->dir_latency = dir_latency;
 	mod->latency_add = latency_add; 
+	interconnect->length = burstlength;
+	interconnect->width = burstwidth;
+	interconnect->rextra = burstextraread;
+	interconnect->wextra = burstextrawrite; 
+	interconnect->port = port;
+	interconnect->portuse = 0;
+	interconnect->axi = axi;
+	interconnect->gran = mod->block_size;
+	interconnect->inter = inter;
+	interconnect->memoplist = list_create();
+	mod->interconnect = interconnect;
 
 	/* High network */
 	net_name = config_read_string(config, section, "HighNetwork", "");

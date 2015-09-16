@@ -64,7 +64,7 @@ LDADD = \
 	\
 	$(top_builddir)/src/lib/mhandle/libmhandle.a \
 	$(top_builddir)/src/lib/esim/libesim.a \
-	$(top_builddir)/src/lib/util/libutil.a 
+	$(top_builddir)/src/lib/util/libutil.a
 
 if HAVE_GTK
 AM_CFLAGS = @GTK_CFLAGS@

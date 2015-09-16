@@ -328,6 +328,7 @@ void kernelfunction( void *src, int srcsize, void *dst, int dstsize)
      float64 result;
      x1= *(float64 *)src;
      x2= *(float64 *)(src+8); 
+     //fprintf(stderr, "function %016llx,%016llx\n", x1, x2); 
      result = x1;
      *(float64 *)dst = result;
     
@@ -462,6 +463,7 @@ void FPGACreate (FPGA *self, FPGAEmu *emu)
 	self->emu = emu;
 
 	/* Virtual functions */
+	//asTiming(self)->DumpSummary = FPGADumpSummary;
 	asTiming(self)->Run = FPGARun;
     asTiming(self)->MemConfigDefault = FPGAMemConfigDefault;
     asTiming(self)->MemConfigCheck = FPGAMemConfigCheck;
@@ -669,6 +671,9 @@ void X86CpuDumpSummary(Timing *self, FILE *f)
 	/* Call parent */
 	TimingDumpSummary(self, f);
 }
+
+
+
 
 
 #define DUMP_DISPATCH_STAT(NAME) { \
@@ -1111,7 +1116,8 @@ int FPGARun(Timing *self)
 
            task = kernel->runningtask;
            if(task->state == taskreadfinish)
-           {               
+           {  
+              fprintf(stderr, "call\n");             
               task->startwhen = asTiming(fpga)->cycle;
               task->finishwhen = asTiming(fpga)->cycle + kernel->delay;
               task->state = taskrun;
@@ -1137,6 +1143,7 @@ int FPGARun(Timing *self)
               	  addr = kernel->dstbase;
               	  mem_write_copy(task->ctx->mem, addr, task->dstsize, task->dst);
                   mem_write_copy(task->ctx->realmem, addr, task->dstsize, task->dst);  
+
                   task->state = taskwritefinish; 
               
                 }
@@ -1148,6 +1155,7 @@ int FPGARun(Timing *self)
               kernel->executing = 0;
               kernel->runningtask = NULL;
               list_remove(tasklist, task); 
+
               if(kernel->finish >= kernel->HW_bounds.low && kernel->finish <= kernel->HW_bounds.high)
               {   
                  unsigned int data=1;
@@ -1155,12 +1163,11 @@ int FPGARun(Timing *self)
                  mem_write_copy(task->ctx->realmem, kernel->finish, 4, &data);   
               }
               else
-              {
+              {   
               	 unsigned int data=1;
                  fpga_mod_access( fpga->mod, mod_access_store, kernel->finish, NULL, NULL, NULL, 
                  NULL, &data, 4, task->ctx, 0);	
               }	
-
 
            	} 
 
@@ -1174,13 +1181,14 @@ int FPGARun(Timing *self)
         { 
             task = KernelSchedule(kernel);
             kernel->runningtask = task;
-            
+           	
             task->state = taskread;  
              if(kernel->sharedmem)
               	{
               		mem_read_copy(task->ctx->realmem, kernel->srcbase, 4, &addr);
               		fpga_mod_access( fpga->mod, mod_access_load, addr, NULL, NULL, NULL, 
                     task, task->src, task->srcsize, task->ctx, 0);
+
               	}	
               else 
               	{

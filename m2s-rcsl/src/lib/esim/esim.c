@@ -27,6 +27,8 @@
 #include <lib/util/misc.h>
 #include <lib/util/string.h>
 #include <lib/util/timer.h>
+#include <mem-system/mod-stack.h> 
+#include <mem-system/nmoesi-protocol.h> 
 
 #include "esim.h"
 
@@ -558,6 +560,20 @@ void esim_schedule_event(int event_index, void *data, int cycles)
 	/* Create event and insert in heap */
 	event = esim_event_create(event_index, data);
 	heap_insert(esim_event_heap, when, event);
+	struct mod_stack_t *stack;
+	stack = data;
+	if(event_index == EV_MOD_NMOESI_LOAD ||
+           event_index ==  EV_MOD_NMOESI_LOAD_LOCK||
+           event_index ==  EV_MOD_NMOESI_LOAD_UNLOCK ||
+           event_index ==  EV_MOD_NMOESI_LOAD_FINISH ||
+           event_index == EV_MOD_NMOESI_STORE ||
+           event_index ==  EV_MOD_NMOESI_STORE_LOCK||
+           event_index ==  EV_MOD_NMOESI_STORE_UNLOCK ||
+           event_index ==  EV_MOD_NMOESI_STORE_FINISH )
+		{
+			if(stack->addr>=0x1f48 && stack->addr<=0x1f54)
+		    fprintf(stderr, "  eventsc %x,%lld,%lld,%d,%d \n", stack->addr, esim_time, when, cycles, event_index);
+		} 
 
 	/* Warn when heap is overloaded */
 	if (!esim_overload_shown && esim_event_heap->count >= ESIM_OVERLOAD_EVENTS)
@@ -648,6 +664,20 @@ void esim_process_events(int forward)
 		heap_extract(esim_event_heap, NULL);
 		event_info = list_get(esim_event_info_list, event->id);
 		assert(event_info && event_info->handler);
+		struct mod_stack_t *stack;
+		stack = event->data;
+		if(event->id == EV_MOD_NMOESI_LOAD ||
+           event->id ==  EV_MOD_NMOESI_LOAD_LOCK||
+           event->id ==  EV_MOD_NMOESI_LOAD_UNLOCK ||
+           event->id ==  EV_MOD_NMOESI_LOAD_FINISH ||
+           event->id == EV_MOD_NMOESI_STORE ||
+           event->id ==  EV_MOD_NMOESI_STORE_LOCK||
+           event->id ==  EV_MOD_NMOESI_STORE_UNLOCK ||
+           event->id ==  EV_MOD_NMOESI_STORE_FINISH )
+		{
+			if(stack->addr>=0x1f48 && stack->addr<=0x1f54)
+		    fprintf(stderr, "  event %x,%lld,%lld,%d \n", stack->addr, esim_time, when,event->id);
+		} 
 		event_info->handler(event->id, event->data);
 		esim_event_free(event);
 	}
