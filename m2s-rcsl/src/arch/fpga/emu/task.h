@@ -27,6 +27,8 @@
 /* Forward declarations */
 struct bit_map_t;
 
+extern int EV_FPGA_TASK_FINISH;
+
 /*
  * Class 'FPGATask'
  */
@@ -54,14 +56,9 @@ CLASS_BEGIN(FPGATask, Object)
 	FPGAKernel *kernel;
 
 	FPGATask *task_list_next, *task_list_prev;
-	FPGATask *waiting_list_next, *waiting_list_prev;
+	FPGATask *ready_list_next, *ready_list_prev;
 	FPGATask *finished_list_next, *finished_list_prev;
 
-	/* If task is in state 'mapped', these two variables represent the
-	 * node (core/thread) associated with the task. */
-	int kernel_index;
-
-	int task_ready_idx, task_done_idx;
 	int input_size, output_size;
 	void *input, *output;
 

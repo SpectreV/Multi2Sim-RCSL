@@ -19,6 +19,7 @@
 
 #include <arch/fpga/emu/kernel.h>
 #include <arch/fpga/emu/emu.h>
+#include <arch/fpga/emu/task.h>
 #include <lib/esim/esim.h>
 #include <lib/esim/trace.h>
 #include <lib/mhandle/mhandle.h>
@@ -169,6 +170,13 @@ void FPGACreate(FPGA *self, FPGAEmu *emu) {
 	fpga_trace_header("fpga.init version=\"%d.%d\" width=%d length=%d height=%d\n",
 			FPGA_TRACE_VERSION_MAJOR, FPGA_TRACE_VERSION_MINOR, fpga_clb_array_width,
 			fpga_clb_array_length, fpga_clb_ctx_depth);
+
+	EV_FPGA_TASK_FINISH = esim_register_event_with_name(fpga_task_finish_handler,
+			asTiming(self)->frequency_domain, "fpga_task_finish");
+	EV_FPGA_KERNEL_LOAD_ONCHIP = esim_register_event_with_name(fpga_kernel_reconfigure_handler,
+			asTiming(self)->frequency_domain, "fpga_kernel_load_onchip");
+	EV_FPGA_KERNEL_OFFLOAD = esim_register_event_with_name(fpga_kernel_reconfigure_handler,
+			asTiming(self)->frequency_domain, "fpga_kernel_offload");
 }
 
 void FPGADestroy(FPGA *self) {
@@ -277,20 +285,37 @@ int FPGARun(Timing *self) {
 	FPGA *fpga = asFPGA(self);
 	FPGAEmu *emu = fpga->emu;
 
+	FPGAKernel *kernel;
+
+	int kernel_running = FALSE;
+
+	DOUBLE_LINKED_LIST_FOR_EACH(emu, kernel, kernel)
+	{
+		if (kernel->state == FPGAKernelRunning) {
+			kernel_running = TRUE;
+			break;
+		}
+	}
+
+	if (!kernel_running) {
+		esim_finish = esim_finish_fpga_all_kernel_empty;
+	}
+
 	/* Stop if maximum number of cycles exceeded */
 	if (fpga_emu_max_cycles && self->cycle >= fpga_emu_max_cycles)
 		esim_finish = esim_finish_fpga_max_cycles;
 
 	/* Stop if any previous reason met */
 	if (esim_finish)
-		return TRUE;
+		return FALSE;
 
 	/* One more cycle of fpga timing simulation */
 	self->cycle++;
 
-	int i;
-	for (i = 0; i < emu->kernel_list_count; i++)
-		FPGAKernelProceed(&emu->kernel_list_head[i]);
+	DOUBLE_LINKED_LIST_FOR_EACH(emu, running, kernel)
+	{
+		FPGAKernelExecute(kernel);
+	}
 
 	/* Process host threads generating events */
 	//FPGAProcessEvents(emu);

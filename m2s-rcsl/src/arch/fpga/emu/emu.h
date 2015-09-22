@@ -109,5 +109,8 @@ extern int fpga_emu_process_prefetch_hints;
 void fpga_emu_init(void);
 void fpga_emu_done(void);
 
+void fpga_task_finish_handler(int event, void *data);
+void fpga_kernel_reconfigure_handler(int event, void *data);
+
 #endif
 

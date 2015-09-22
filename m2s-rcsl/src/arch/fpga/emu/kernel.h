@@ -23,9 +23,13 @@
 #include <pthread.h>
 
 #include <lib/util/class.h>
+#include <lib/util/string.h>
 
 /* Forward declarations */
 struct bit_map_t;
+
+extern int EV_FPGA_KERNEL_LOAD_ONCHIP;
+extern int EV_FPGA_KERNEL_OFFLOAD;
 
 /*
  * Class 'FPGAKernel'
@@ -35,11 +39,10 @@ typedef int (*FPGAKernelCanWakeupFunc)(FPGAKernel *self, void *data);
 typedef void (*FPGAKernelWakeupFunc)(FPGAKernel *self, void *data);
 
 typedef enum {
-	FPGAKernelOnchip = 0x00001, /* it is placed on chip */
-	FPGAKernelReady = 0x00002, /* it is ready to execute hardware tasks */
-	FPGAKernelBlocked = 0x00004, /* it is blocked by an overlapping kernel currently running */
-	FPGAKernelRunning = 0x00008, /* the kernel is currently running a hardware task */
-	FPGAKernelOffchip = 0x00010, /* the kernle is currently not placed on chip, needs to be reloaded */
+	FPGAKernelIdle = 0x00001, /* it is placed on chip and ready to execute tasks*/
+	FPGAKernelBlocked = 0x00002, /* it is blocked by an overlapping kernel currently running */
+	FPGAKernelRunning = 0x00004, /* the kernel is currently running a hardware task */
+	FPGAKernelOffchip = 0x00008, /* the kernel is currently not placed on chip, needs to be reloaded */
 	FPGAKernelNone = 0x00000
 } FPGAKernelState;
 
@@ -52,12 +55,13 @@ CLASS_BEGIN(FPGAKernel, Object)
 	int state;
 	int kid; /* Kernel ID */
 
-	char* kernel_name;
+	char kernel_name[MAX_STRING_SIZE];
 	int folding;
 
 	/* Implementations */
 	int num_implements;
-	int *widths, *lengths, *heights;
+	struct list_t *widths, *lengths, *heights;
+	int current_implement;
 
 	/* Placement Information */
 	int coordinate_x, coordinate_y;
@@ -94,8 +98,8 @@ CLASS_BEGIN(FPGAKernel, Object)
 	FPGATask *task_list_head, *task_list_tail;
 	int task_list_count, task_list_max;
 
-	FPGATask *waiting_list_head, *waiting_list_tail;
-	int waiting_list_count, waiting_list_max;
+	FPGATask *ready_list_head, *ready_list_tail;
+	int ready_list_count, ready_list_max;
 
 	FPGATask *finished_list_head, *finished_list_tail;
 	int finished_list_count, finished_list_max;
@@ -134,7 +138,6 @@ void FPGAKernelExecute(FPGAKernel *self);
 int FPGAKernelGetState(FPGAKernel *self, FPGAKernelState state);
 void FPGAKernelSetState(FPGAKernel *self, FPGAKernelState state);
 void FPGAKernelClearState(FPGAKernel *self, FPGAKernelState state);
-void FPGAKernelProceed(FPGAKernel *self);
 
 /*
  * Non-Class

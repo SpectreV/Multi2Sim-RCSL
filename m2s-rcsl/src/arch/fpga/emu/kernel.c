@@ -20,8 +20,6 @@
 #include <poll.h>
 #include <unistd.h>
 
-
-
 #include <arch/fpga/timing/fpga.h>
 #include <lib/esim/esim.h>
 #include <lib/mhandle/mhandle.h>
@@ -43,11 +41,14 @@
  * Class 'FPGAKernel'
  */
 
+int EV_FPGA_KERNEL_LOAD_ONCHIP;
+int EV_FPGA_KERNEL_OFFLOAD;
+
 CLASS_IMPLEMENTATION(FPGAKernel);
 
 static void FPGAKernelDoCreate(FPGAKernel *self, FPGAEmu *emu) {
 	/*int num_nodes;
-	int i;*/
+	 int i;*/
 
 	/* Initialize */
 	self->emu = emu;
@@ -56,7 +57,7 @@ static void FPGAKernelDoCreate(FPGAKernel *self, FPGAEmu *emu) {
 	/* Update state so that the kernel is inserted in the
 	 * corresponding lists. The fpga_ctx_running parameter has no
 	 * effect, since it will be updated later. */
-	FPGAKernelSetState(self, FPGAKernelOnchip);
+	FPGAKernelSetState(self, FPGAKernelIdle);
 	DOUBLE_LINKED_LIST_INSERT_HEAD(emu, kernel, self);
 
 	/* Virtual functions */
@@ -74,7 +75,6 @@ void FPGAKernelCreate(FPGAKernel *self, FPGAEmu *emu) {
 
 void FPGAKernelDestroy(FPGAKernel *self) {
 	FPGAEmu *emu = self->emu;
-
 
 	FPGAKernelDebug("inst %lld: context %d freed\n", asEmu(emu)->instructions, self->kid);
 }
@@ -95,30 +95,14 @@ void FPGAKernelDump(Object *self, FILE *f) {
 	fprintf(f, "\n\n");
 }
 
-void FPGAKernelProceed(FPGAKernel *self) {
-	/*FPGAEmu *emu = self->emu;*/
-
-	if (FPGAKernelGetState(self, FPGAKernelRunning))
-		return;
-
-	FPGATask *task = self->waiting_list_head;
-	FPGATaskExecute(task);
-
-}
-
-int FPGAKernelGetState(FPGAKernel *self, FPGAKernelState state) {
-	return (self->state & state) > 0;
-}
-
 static void FPGAKernelUpdateState(FPGAKernel *self, FPGAKernelState state) {
 	FPGAEmu *emu = self->emu;
 
 	/*FPGAKernelState status_diff;
-	char state_str[MAX_STRING_SIZE];*/
+	 char state_str[MAX_STRING_SIZE];*/
 
 	/* Remove contexts from the following lists:
 	 *   running, suspended, zombie */
-
 
 	/* Start/stop fpga timer depending on whether there are any contexts
 	 * currently running. */
@@ -127,6 +111,29 @@ static void FPGAKernelUpdateState(FPGAKernel *self, FPGAKernelState state) {
 	else
 		m2s_timer_stop(asEmu(emu)->timer);
 }
+
+
+void FPGAKernelExecute(FPGAKernel *self) {
+	/*FPGAEmu *emu = self->emu;*/
+
+	if (self->state != FPGAKernelRunning)
+		return;
+
+	if (!self->task_list_count) {
+		FPGAKernelSetState(self, FPGAKernelIdle);
+	} else if (!self->ready_list_count) {
+		FPGAKernelSetState(self, FPGAKernelIdle);
+	}
+
+	FPGATask *task = self->ready_list_head;
+	FPGATaskExecute(task);
+
+}
+
+int FPGAKernelGetState(FPGAKernel *self, FPGAKernelState state) {
+	return (self->state & state) > 0;
+}
+
 
 void FPGAKernelSetState(FPGAKernel *self, FPGAKernelState state) {
 	FPGAKernelUpdateState(self, self->state | state);
@@ -143,8 +150,7 @@ void FPGAKernelClearState(FPGAKernel *self, FPGAKernelState state) {
  * The zombie children will be finished. */
 void FPGAKernelFinish(FPGAKernel *self, int state) {
 	/*FPGAEmu *emu = self->emu;
-	FPGAKernel *aux;*/
-
+	 FPGAKernel *aux;*/
 
 }
 
@@ -154,6 +160,5 @@ void FPGAKernelFinish(FPGAKernel *self, int state) {
 
 int fpga_kernel_debug_category;
 
-struct str_map_t fpga_kernel_state_map = { 5, { { "onchip", FPGAKernelOnchip }, { "ready",
-		FPGAKernelReady }, { "blocked", FPGAKernelBlocked }, { "running", FPGAKernelRunning }, {
-		"offchip", FPGAKernelOffchip } } };
+struct str_map_t fpga_kernel_state_map = { 4, { { "idle", FPGAKernelIdle }, { "blocked",
+		FPGAKernelBlocked }, { "running", FPGAKernelRunning }, { "offchip", FPGAKernelOffchip } } };

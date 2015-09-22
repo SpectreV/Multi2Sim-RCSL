@@ -42,6 +42,7 @@ extern volatile enum esim_finish_t
 	esim_finish_x86_max_cycles,  /* Maximum cycle count reached in x86 CPU */
 
 	esim_finish_fpga_max_cycles,
+	esim_finish_fpga_all_kernel_empty,
 
 	esim_finish_arm_max_inst,
 	esim_finish_arm_max_cycles,

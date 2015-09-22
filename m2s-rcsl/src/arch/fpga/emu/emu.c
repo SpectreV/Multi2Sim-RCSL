@@ -128,7 +128,7 @@ int FPGAEmuRun(Emu *self) {
 
 	/* Run an instruction from every running process */
 	for (kernel = emu->running_list_head; kernel; kernel = kernel->running_list_next)
-		FPGAKernelProceed(kernel);
+		FPGAKernelExecute(kernel);
 
 	/* Process list of suspended contexts */
 	//FPGAEmuProcessEvents(emu);
@@ -207,7 +207,8 @@ void FPGAEmuLoadKernelsFromConfig(FPGAEmu *self, struct config_t *config, char *
 	imps = config_read_string(config, section, "NumImplements", "");
 	FPGAKernelSetNumImplements(kernel, imps);
 
-	kernel->kernel_name = config_read_string(config, section, "KernelName", "");
+	kernel_name = config_read_string(config, section, "KernelName", "");
+	FPGAKernelSetName(kernel, kernel_name);
 
 	folding = config_read_string(config, section, "Folding", "True");
 	FPGAKernelSetFolding(kernel, folding);
@@ -242,6 +243,9 @@ void FPGAEmuLoadKernelsFromConfig(FPGAEmu *self, struct config_t *config, char *
 	kernel->finish = finish;
 	kernel->delay = delay;
 	kernel->sharedmem = sharedmem;
+
+	if (kernel->folding)
+		kernel->current_implement = 0;
 
 	/* Load executable */
 	FPGAKernelLoadBlif(kernel, blif);
@@ -305,5 +309,22 @@ void fpga_emu_done(void) {
 
 	/* Free emulator */
 	delete(fpga_emu);
+}
+
+void fpga_task_finish_handler(int event, void *data) {
+	FPGATask *task = (FPGATask *)data;
+	FPGATaskSetState(task, FPGATaskFinished);
+}
+
+void fpga_kernel_reconfigure_handler(int event, void *data) {
+	FPGAKernel *kernel = (FPGAKernel *)data;
+
+	if (event == EV_FPGA_KERNEL_LOAD_ONCHIP) {
+		FPGAKernelSetState(kernel, FPGAKernelIdle);
+	}
+
+	if (event == EV_FPGA_KERNEL_OFFLOAD) {
+		FPGAKernelSetState(kernel, FPGAKernelOffchip);
+	}
 }
 

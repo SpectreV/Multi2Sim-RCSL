@@ -25,6 +25,7 @@
 #include <lib/util/bit-map.h>
 #include <lib/util/debug.h>
 #include <lib/util/misc.h>
+#include <lib/util/list.h>
 #include <lib/util/string.h>
 #include <lib/util/timer.h>
 #include <mem-system/memory.h>
@@ -36,6 +37,8 @@
 #include "task.h"
 #include "emu.h"
 #include "kernel.h"
+
+int EV_FPGA_TASK_FINISH;
 
 /*
  * Class 'FPGATask'
@@ -53,6 +56,10 @@ static void FPGATaskDoCreate(FPGATask *self, FPGAEmu *emu, FPGAKernel *kernel, X
 	self->pid = emu->current_pid++;
 	self->ctx = ctx;
 
+	if (kernel->state == FPGAKernelOffchip || kernel->state == FPGAKernelBlocked) {
+		printf("Task rejected, kernel %s currently not available\n", kernel->kernel_name);
+		return;
+	}
 	/* Update state so that the context is inserted in the
 	 * corresponding lists. The fpga_ctx_running parameter has no
 	 * effect, since it will be updated later. */
@@ -118,15 +125,23 @@ void FPGATaskDump(Object *self, FILE *f) {
 }
 
 void FPGATaskExecute(FPGATask *self) {
-	/*FPGAEmu *emu = self->emu;
-	FPGAKernel *kernel = self->kernel;*/
+	FPGAKernel *kernel = self->kernel;
+
+	if (kernel->folding) {
+		kernel->delay = *(int*) list_get(kernel->heights, kernel->current_implement);
+	}
+
+	if (kernel->delay) {
+		esim_schedule_event(EV_FPGA_TASK_FINISH, self, kernel->delay);
+	} else {
+		fatal("FPGA simulation type not support yet, pls specify a delay number\n");
+	}
 
 }
 
 int FPGATaskGetState(FPGATask *self, FPGATaskState state) {
 	return (self->state & state) > 0;
 }
-
 
 static void FPGATaskUpdateState(FPGATask *self, FPGATaskState state) {
 
@@ -146,13 +161,12 @@ static void FPGATaskUpdateState(FPGATask *self, FPGATaskState state) {
 	 FPGATaskUpdateState(self, self->state & ~state);
 	 }
 
-	*/
+	 */
 }
 
 void FPGATaskSetState(FPGATask *self, FPGATaskState state) {
 	FPGATaskUpdateState(self, self->state | state);
 }
-
 
 void FPGATaskFinish(FPGATask *self, int state) {
 

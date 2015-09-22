@@ -84,7 +84,6 @@ char *fpga_loader_help = "A context configuration file contains a list of execut
  */
 
 void FPGAKernelAddImpsString(FPGAKernel *self, char *imps, implement_param type) {
-	struct fpga_loader_t *loader = self->loader;
 
 	char *delim = " ";
 	char *param;
@@ -92,26 +91,41 @@ void FPGAKernelAddImpsString(FPGAKernel *self, char *imps, implement_param type)
 	/* Duplicate argument string */
 	imps = str_set(NULL, imps);
 
+	switch (type) {
+	case WIDTH:
+		self->widths = list_create();
+		break;
+	case LENGTH:
+		self->lengths = list_create();
+		break;
+	case HEIGHT:
+		self->heights = list_create();
+		break;
+	default:
+		fatal("Undefined Implement Parameter Type!\n");
+	}
+
 	/* Tokens */
 	int i = 0;
 	for (param = strtok(imps, delim); param; param = strtok(NULL, delim)) {
 		param = str_set(NULL, param);
+		int temp = atoi(param);
 		switch (type) {
 		case WIDTH:
-			linked_list_add(loader->widths, param);
+			list_add(self->widths, &temp);
 			break;
 		case LENGTH:
-			linked_list_add(loader->lengths, param);
+			list_add(self->lengths, &temp);
 			break;
 		case HEIGHT:
-			linked_list_add(loader->heights, param);
+			list_add(self->heights, &temp);
 			break;
 		default:
 			fatal("Undefined Implement Parameter Type!\n");
 		}
 		i++;
 	}
-	if (i != loader->num_implements)
+	if (i != self->num_implements)
 		fatal("Unmatched number of implements!");
 
 	/* Free argument string */
@@ -119,21 +133,15 @@ void FPGAKernelAddImpsString(FPGAKernel *self, char *imps, implement_param type)
 }
 
 void FPGAKernelSetNumImplements(FPGAKernel *self, char *num_imps) {
-	struct fpga_loader_t *loader = self->loader;
-
-	loader->num_implements = (int) strtol(num_imps, (char**) NULL, 10);
+	self->num_implements = (int) strtol(num_imps, (char**) NULL, 10);
 }
 
 void FPGAKernelSetName(FPGAKernel *self, char *name) {
-	struct fpga_loader_t *loader = self->loader;
-
-	strcpy(loader->kernel_name, name);
+	strncpy(self->kernel_name, name, strlen(name));
 }
 
 void FPGAKernelSetFolding(FPGAKernel *self, char *folding) {
-	struct fpga_loader_t *loader = self->loader;
-
-	loader->folding = strcmp(folding, "False") ? TRUE : FALSE;
+	self->folding = strncmp(folding, "False", strlen(folding)) ? TRUE : FALSE;
 }
 
 void FPGAKernelLoadBlif(FPGAKernel *self, char *blif) {
@@ -210,9 +218,6 @@ struct fpga_loader_t *fpga_loader_create(void) {
 
 	/* Initialize */
 	loader = xcalloc(1, sizeof(struct fpga_loader_t));
-	loader->widths = linked_list_create();
-	loader->lengths = linked_list_create();
-	loader->heights = linked_list_create();
 
 	/* Return */
 	return loader;
@@ -220,23 +225,6 @@ struct fpga_loader_t *fpga_loader_create(void) {
 
 void fpga_loader_free(struct fpga_loader_t *loader) {
 
-	/* Free arguments */
-	LINKED_LIST_FOR_EACH(loader->widths)
-		str_free(linked_list_get(loader->widths));
-	linked_list_free(loader->widths);
-
-	/* Free environment variables */
-	LINKED_LIST_FOR_EACH(loader->lengths)
-		str_free(linked_list_get(loader->lengths));
-	linked_list_free(loader->lengths);
-
-	/* Free environment variables */
-	LINKED_LIST_FOR_EACH(loader->heights)
-		str_free(linked_list_get(loader->heights));
-	linked_list_free(loader->heights);
-
-	/* Free loader */
-	str_free(loader->kernel_name);
 	str_free(loader->blif);
 	str_free(loader->cwd);
 	free(loader);

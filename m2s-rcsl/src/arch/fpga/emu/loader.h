@@ -52,17 +52,7 @@ void FPGAKernelGetFullPath(FPGAKernel *self, char *file_name, char *full_path, i
 
 struct fpga_loader_t
 {
-	int num_implements;
-
-	char *kernel_name;
-
 	char *cwd;
-
-	int folding;
-
-	struct linked_list_t *widths;
-	struct linked_list_t *lengths;
-	struct linked_list_t *heights;
 
 	char *blif;  /* Executable file name */
 };
