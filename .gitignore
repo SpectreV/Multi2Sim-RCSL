@@ -34,9 +34,6 @@
 # Auto created Makefiles
 Makefile.in
 
-# Eclipse project configuration
-*.cproject
-
 # Configure File
 configure
 
