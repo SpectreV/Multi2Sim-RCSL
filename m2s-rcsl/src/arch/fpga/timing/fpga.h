@@ -48,6 +48,10 @@ CLASS_BEGIN(FPGA, Timing)
 	 * 'fpga_update_min_alloc_cycle' */
 	long long min_alloc_cycle;
 	
+	struct mod_t *mod;
+	int translatency;
+	int axi;
+
 
 	/* Statistics */
 	long long num_kernels_placed;

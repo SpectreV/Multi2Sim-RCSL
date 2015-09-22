@@ -44,8 +44,8 @@
 CLASS_IMPLEMENTATION(FPGATask);
 
 static void FPGATaskDoCreate(FPGATask *self, FPGAEmu *emu, FPGAKernel *kernel, X86Context *ctx) {
-	int num_nodes;
-	int i;
+	/*int num_nodes;*/
+	/*int i;*/
 
 	/* Initialize */
 	self->emu = emu;
@@ -106,7 +106,7 @@ void FPGATaskDestroy(FPGATask *self) {
 
 void FPGATaskDump(Object *self, FILE *f) {
 	FPGATask *task = asFPGATask(self);
-	char state_str[MAX_STRING_SIZE];
+	/*char state_str[MAX_STRING_SIZE];*/
 
 	/* Title */
 	fprintf(f, "------------\n");
@@ -118,8 +118,8 @@ void FPGATaskDump(Object *self, FILE *f) {
 }
 
 void FPGATaskExecute(FPGATask *self) {
-	FPGAEmu *emu = self->emu;
-	FPGAKernel *kernel = self->kernel;
+	/*FPGAEmu *emu = self->emu;
+	FPGAKernel *kernel = self->kernel;*/
 
 }
 
@@ -146,11 +146,7 @@ static void FPGATaskUpdateState(FPGATask *self, FPGATaskState state) {
 	 FPGATaskUpdateState(self, self->state & ~state);
 	 }
 
-	 /* Finish a context. If the context has no parent, its state will be set
-	 * to 'fpga_ctx_finished'. If it has, its state is set to 'fpga_ctx_zombie', waiting for
-	 * a call to 'waitpid'.
-	 * The children of the finished context will set their 'parent' attribute to NULL.
-	 * The zombie children will be finished. */
+	*/
 }
 
 void FPGATaskSetState(FPGATask *self, FPGATaskState state) {

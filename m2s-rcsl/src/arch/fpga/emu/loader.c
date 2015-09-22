@@ -140,7 +140,7 @@ void FPGAKernelLoadBlif(FPGAKernel *self, char *blif) {
 	struct fpga_loader_t *loader = self->loader;
 
 	char blif_full_path[MAX_STRING_SIZE];
-	char clk_name[MAX_STRING_SIZE];
+	/*char clk_name[MAX_STRING_SIZE];*/
 
 	/* Load program into memory */
 	FPGAKernelGetFullPath(self, blif, blif_full_path, MAX_STRING_SIZE);

@@ -71,7 +71,6 @@ CLASS_BEGIN(FPGATask, Object)
 
 CLASS_END(FPGATask)
 
-static void FPGATaskDoCreate(FPGATask *self, FPGAEmu *emu, FPGAKernel *kernel, X86Context *ctx);
 void FPGATaskCreate(FPGATask *self, FPGAKernel *kernel, X86Context *ctx, int task_ready_idx,
 		int task_done_idx);
 void FPGATaskDestroy(FPGATask *self);

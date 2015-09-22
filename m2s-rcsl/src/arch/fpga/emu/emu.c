@@ -163,10 +163,6 @@ void FPGAEmuLoadKernelsFromConfig(FPGAEmu *self, struct config_t *config, char *
 	char *kernel_name;
 	char *folding;
 
-	unsigned int srclowbound;
-	unsigned int srchighbound;
-	unsigned int dstlowbound;
-	unsigned int dsthighbound;
 	unsigned int srcbase;
 	unsigned int dstbase;
 	unsigned int srcsize;
@@ -208,11 +204,10 @@ void FPGAEmuLoadKernelsFromConfig(FPGAEmu *self, struct config_t *config, char *
 	}
 
 	/* Arguments */
-	imps = config_read_string(config, section, "Implements", "");
+	imps = config_read_string(config, section, "NumImplements", "");
 	FPGAKernelSetNumImplements(kernel, imps);
 
-	kernel_name = config_read_string(config, section, "Name", "");
-	FPGAKernelSetName(kernel, kernel_name);
+	kernel->kernel_name = config_read_string(config, section, "KernelName", "");
 
 	folding = config_read_string(config, section, "Folding", "True");
 	FPGAKernelSetFolding(kernel, folding);
@@ -260,6 +255,7 @@ void fpga_emu_init(void) {
 	/* Classes */
 	CLASS_REGISTER(FPGAEmu);
 	CLASS_REGISTER(FPGAKernel);
+	CLASS_REGISTER(FPGATask);
 
 	/* Endian check */
 	union {

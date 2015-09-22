@@ -31,9 +31,8 @@
 #include <lib/util/timer.h>
 #include <mem-system/memory.h>
 
-
 #include "fpga.h"
-
+#include "mem-config.h"
 /*
  * Global variables
  */
@@ -128,6 +127,7 @@ void FPGAReadConfig(void) {
 
 void FPGAInit(void) {
 	/* Classes */
+	CLASS_REGISTER(FPGA);
 
 	/* Trace */
 	fpga_trace_category = trace_new_category();
@@ -145,10 +145,7 @@ CLASS_IMPLEMENTATION(FPGA);
 
 void FPGACreate(FPGA *self, FPGAEmu *emu) {
 
-	char name[MAX_STRING_SIZE];
-
-	int i;
-	int j;
+	/*char name[MAX_STRING_SIZE];*/
 
 	/* Parent */
 	TimingCreate(asTiming(self));
@@ -164,18 +161,18 @@ void FPGACreate(FPGA *self, FPGAEmu *emu) {
 	asObject(self)->Dump = FPGADump;
 	asTiming(self)->DumpSummary = FPGADumpSummary;
 	asTiming(self)->Run = FPGARun;
-	/*asTiming(self)->MemConfigCheck = FPGAMemConfigCheck;
-	 asTiming(self)->MemConfigDefault = FPGAMemConfigDefault;
-	 asTiming(self)->MemConfigParseEntry = FPGAMemConfigParseEntry;*/
+	asTiming(self)->MemConfigCheck = FPGAMemConfigCheck;
+	asTiming(self)->MemConfigDefault = FPGAMemConfigDefault;
+	asTiming(self)->MemConfigParseEntry = FPGAMemConfigParseEntry;
 
 	/* Trace */
 	fpga_trace_header("fpga.init version=\"%d.%d\" width=%d length=%d height=%d\n",
-	FPGA_TRACE_VERSION_MAJOR, FPGA_TRACE_VERSION_MINOR, fpga_clb_array_width, fpga_clb_array_length,
-			fpga_clb_ctx_depth);
+			FPGA_TRACE_VERSION_MAJOR, FPGA_TRACE_VERSION_MINOR, fpga_clb_array_width,
+			fpga_clb_array_length, fpga_clb_ctx_depth);
 }
 
 void FPGADestroy(FPGA *self) {
-	int i;
+	/*int i;*/
 	FILE *f;
 
 	/* Dump report */
@@ -189,8 +186,8 @@ void FPGADestroy(FPGA *self) {
 void FPGADump(Object *self, FILE *f) {
 	FPGA *fpga = asFPGA(self);
 
-	int i;
-	int j;
+	/*int i;
+	 int j;*/
 
 	/* General information */
 	fprintf(f, "\n");
@@ -233,7 +230,7 @@ static void FPGADumpConfig(FILE *f) {
 	fprintf(f, "Frequency = %d\n", fpga_frequency);
 	fprintf(f, "Width = %d\n", fpga_clb_array_width);
 	fprintf(f, "Length = %d\n", fpga_clb_array_length);
-	fprintf(f, "Height = %lld\n", fpga_clb_ctx_depth);
+	fprintf(f, "Height = %d\n", fpga_clb_ctx_depth);
 	fprintf(f, "\n");
 
 	/* Queues */
@@ -252,8 +249,8 @@ void FPGADumpReport(FPGA *self, FILE *f) {
 
 	long long now;
 
-	int i;
-	int j;
+	/*int i;
+	 int j;*/
 
 	/* Get FPGA timer value */
 	now = m2s_timer_get_value(asEmu(emu)->timer);
@@ -293,11 +290,10 @@ int FPGARun(Timing *self) {
 
 	int i;
 	for (i = 0; i < emu->kernel_list_count; i++)
-		FPGAKernelProceed(emu);
+		FPGAKernelProceed(&emu->kernel_list_head[i]);
 
 	/* Process host threads generating events */
 	//FPGAProcessEvents(emu);
-
 	/* Still simulating */
 	return TRUE;
 }

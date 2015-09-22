@@ -17,14 +17,14 @@
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
-#ifndef ARCH_X86_TIMING_MEM_CONFIG_H
-#define ARCH_X86_TIMING_MEM_CONFIG_H
+#ifndef ARCH_FPGA_TIMING_MEM_CONFIG_H
+#define ARCH_FPGA_TIMING_MEM_CONFIG_H
 
 struct config_t;
 
-void X86CpuMemConfigDefault(Timing *self, struct config_t *config);
-void X86CpuMemConfigParseEntry(Timing *self, struct config_t *config, char *section);
-void X86CpuMemConfigCheck(Timing *self, struct config_t *config);
+void FPGAMemConfigParseEntry(Timing *self, struct config_t *config, char *section);
+void FPGAMemConfigDefault(Timing *self, struct config_t *config);
+void FPGAMemConfigCheck(Timing *self, struct config_t *config);
 
 
 #endif

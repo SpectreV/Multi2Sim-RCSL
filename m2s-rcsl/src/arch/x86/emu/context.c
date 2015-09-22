@@ -207,7 +207,6 @@ void X86ContextDestroy(X86Context *self) {
 int FPGARegCheck(X86Context *self, struct x86_uop_t *uop, unsigned int address) {
 	FPGAKernel *kernel;
 	int i;
-	int *id;
 
 	uop->kernelrange = 0;
 	uop->kernelstart = 0;

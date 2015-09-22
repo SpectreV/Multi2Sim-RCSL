@@ -46,8 +46,8 @@
 CLASS_IMPLEMENTATION(FPGAKernel);
 
 static void FPGAKernelDoCreate(FPGAKernel *self, FPGAEmu *emu) {
-	int num_nodes;
-	int i;
+	/*int num_nodes;
+	int i;*/
 
 	/* Initialize */
 	self->emu = emu;
@@ -96,7 +96,7 @@ void FPGAKernelDump(Object *self, FILE *f) {
 }
 
 void FPGAKernelProceed(FPGAKernel *self) {
-	FPGAEmu *emu = self->emu;
+	/*FPGAEmu *emu = self->emu;*/
 
 	if (FPGAKernelGetState(self, FPGAKernelRunning))
 		return;
@@ -113,8 +113,8 @@ int FPGAKernelGetState(FPGAKernel *self, FPGAKernelState state) {
 static void FPGAKernelUpdateState(FPGAKernel *self, FPGAKernelState state) {
 	FPGAEmu *emu = self->emu;
 
-	FPGAKernelState status_diff;
-	char state_str[MAX_STRING_SIZE];
+	/*FPGAKernelState status_diff;
+	char state_str[MAX_STRING_SIZE];*/
 
 	/* Remove contexts from the following lists:
 	 *   running, suspended, zombie */
@@ -142,8 +142,8 @@ void FPGAKernelClearState(FPGAKernel *self, FPGAKernelState state) {
  * The children of the finished context will set their 'parent' attribute to NULL.
  * The zombie children will be finished. */
 void FPGAKernelFinish(FPGAKernel *self, int state) {
-	FPGAEmu *emu = self->emu;
-	FPGAKernel *aux;
+	/*FPGAEmu *emu = self->emu;
+	FPGAKernel *aux;*/
 
 
 }

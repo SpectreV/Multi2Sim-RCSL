@@ -579,7 +579,6 @@ void X86EmuLoadContextsFromConfig(X86Emu *self, struct config_t *config, char *s
 	char *out;
 
 	char *config_file_name;
-	int id;
 	int i;
 	int err;
 
@@ -640,6 +639,7 @@ void X86EmuLoadContextsFromConfig(X86Emu *self, struct config_t *config, char *s
 	token = strtok(kernelstr, delim);
 
 	ctx->kernel_list = list_create();
+	fpga_emu = self->fpga_emu;
 
 	if (token) {
 		while (1) {
@@ -713,7 +713,6 @@ void x86_emu_init(void) {
 	/* Classes */
 	CLASS_REGISTER(X86Emu);
 	CLASS_REGISTER(X86Context);
-	CLASS_REGISTER(FPGAEmu);
 
 	/* Endian check */
 	union {
@@ -731,7 +730,6 @@ void x86_emu_init(void) {
 
 	/* Create x86 emulator */
 	x86_emu = new(X86Emu);
-	fpga_emu = new(FPGAEmu);
 
 	/* Initialize */
 	x86_asm_init();

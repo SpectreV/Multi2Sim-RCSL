@@ -1887,10 +1887,9 @@ int main(int argc, char **argv) {
 	arch_x86 = arch_register("x86", "x86", x86_sim_kind, x86_emu_init, x86_emu_done,
 			X86CpuReadConfig,
 			NULL, NULL);
-	arch_fpga = arch_register("FPGA", "fpga", fpga_sim_kind,
-	NULL, NULL,
-	NULL,
-	NULL, NULL);
+	arch_fpga = arch_register("FPGA", "fpga", fpga_sim_kind, fpga_emu_init, fpga_emu_done,
+			FPGAReadConfig,
+			NULL, NULL); //FIXME!!!
 
 	arch_init();
 
@@ -1926,6 +1925,7 @@ int main(int argc, char **argv) {
 	}
 	arch_set_emu(arch_x86, asEmu(x86_emu));
 
+	FPGAInit();
 	if (fpga_sim_kind == arch_sim_kind_detailed) {
 		fpga = new(FPGA, fpga_emu);
 		arch_set_timing(arch_fpga, asTiming(fpga));
