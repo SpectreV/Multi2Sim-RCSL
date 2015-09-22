@@ -37,6 +37,7 @@
 #include "kernel.h"
 #include "emu.h"
 #include "loader.h"
+#include "task.h"
 
 /*
  * Class 'FPGAKernel'
@@ -79,15 +80,15 @@ void FPGAKernelDestroy(FPGAKernel *self) {
 }
 
 void FPGAKernelDump(Object *self, FILE *f) {
-	FPGAKernel *context = asFPGAKernel(self);
+	FPGAKernel *kernel = asFPGAKernel(self);
 	char state_str[MAX_STRING_SIZE];
 
 	/* Title */
 	fprintf(f, "------------\n");
-	fprintf(f, "Context %d\n", context->kid);
+	fprintf(f, "Context %d\n", kernel->kid);
 	fprintf(f, "------------\n\n");
 
-	str_map_flags(&fpga_context_state_map, context->state, state_str, sizeof state_str);
+	str_map_flags(&fpga_kernel_state_map, kernel->state, state_str, sizeof state_str);
 	fprintf(f, "State = %s\n", state_str);
 
 	/* End */
@@ -97,10 +98,10 @@ void FPGAKernelDump(Object *self, FILE *f) {
 void FPGAKernelProceed(FPGAKernel *self) {
 	FPGAEmu *emu = self->emu;
 
-	if (FPGAKernelGetState(self) != FPGAKernelRunning)
+	if (FPGAKernelGetState(self, FPGAKernelRunning))
 		return;
 
-	FPGATask *task = self.waiting_list_head;
+	FPGATask *task = self->waiting_list_head;
 	FPGATaskExecute(task);
 
 }
@@ -153,6 +154,6 @@ void FPGAKernelFinish(FPGAKernel *self, int state) {
 
 int fpga_kernel_debug_category;
 
-struct str_map_t fpga_context_state_map = { 5, { { "onchip", FPGAKernelOnchip }, { "ready",
+struct str_map_t fpga_kernel_state_map = { 5, { { "onchip", FPGAKernelOnchip }, { "ready",
 		FPGAKernelReady }, { "blocked", FPGAKernelBlocked }, { "running", FPGAKernelRunning }, {
 		"offchip", FPGAKernelOffchip } } };

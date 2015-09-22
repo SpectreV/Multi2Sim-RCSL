@@ -37,8 +37,7 @@ typedef void (*FPGATaskWakeupFunc)(FPGATask *self, void *data);
 typedef enum {
 	FPGATaskRunning = 0x00001, /* it is running */
 	FPGATaskReady = 0x00002, /* waiting in a kernel queue */
-	FPGATaskRejected = 0x00004,
-	FPGATaskFinished = 0x00008, /* no more inst to execute */
+	FPGATaskRejected = 0x00004, FPGATaskFinished = 0x00008, /* no more inst to execute */
 	FPGATaskNone = 0x00000
 } FPGATaskState;
 
@@ -48,7 +47,7 @@ CLASS_BEGIN(FPGATask, Object)
 	FPGAEmu *emu;
 
 	/* Task properties */
-	int state;
+	FPGATaskState state;
 	int pid; /* Task ID */
 
 	/* Host kernel */
@@ -72,9 +71,9 @@ CLASS_BEGIN(FPGATask, Object)
 
 CLASS_END(FPGATask)
 
-void FPGATaskCreate(FPGATask *self, FPGAEmu *emu, FPGAKernel *kernel, int input_size,
-		int output_size, void *input, void *output, int task_ready_idx, int task_done_idx);
-
+static void FPGATaskDoCreate(FPGATask *self, FPGAEmu *emu, FPGAKernel *kernel, X86Context *ctx);
+void FPGATaskCreate(FPGATask *self, FPGAKernel *kernel, X86Context *ctx, int task_ready_idx,
+		int task_done_idx);
 void FPGATaskDestroy(FPGATask *self);
 
 void FPGATaskDump(Object *self, FILE *f);

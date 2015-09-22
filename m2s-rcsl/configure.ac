@@ -1,11 +1,12 @@
 AC_INIT([multi2sim], [4.2])
 AC_CONFIG_MACRO_DIR([m4])
 AC_CONFIG_SRCDIR([src/m2s.c])
-AM_INIT_AUTOMAKE([nostdinc])
+AM_INIT_AUTOMAKE([nostdinc subdir-objects])
 AM_PROG_AS
 AC_PROG_CC
 AC_PROG_CXX
 AC_PROG_INSTALL
+
 
 # Silent rules if supported
 ifdef([AM_SILENT_RULES], [AM_SILENT_RULES([yes])])

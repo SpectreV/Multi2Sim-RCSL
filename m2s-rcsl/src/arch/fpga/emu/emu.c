@@ -37,11 +37,8 @@
 
 #include "kernel.h"
 #include "emu.h"
-#include "file-desc.h"
 #include "loader.h"
-#include "regs.h"
-#include "signal.h"
-#include "syscall.h"
+#include "task.h"
 
 /*
  * Global variables
@@ -99,8 +96,8 @@ void FPGAEmuDump(Object *self, FILE *f) {
 
 	/* More */
 	fprintf(f, "List of contexts (shows in any order)\n\n");
-	DOUBLE_LINKED_LIST_FOR_EACH(emu, kernel, kernel)
-		FPGAKernelDump(asObject(kernel), f);
+	DOUBLE_LINKED_LIST_FOR_EACH(emu, kernel, kernel);
+	FPGAKernelDump(asObject(kernel), f);
 }
 
 void FPGAEmuDumpSummary(Emu *self, FILE *f) {
@@ -121,7 +118,6 @@ void FPGAEmuProcessEventsSchedule(FPGAEmu *self) {
 	pthread_mutex_unlock(&self->process_events_mutex);
 }
 
-
 int FPGAEmuRun(Emu *self) {
 	FPGAEmu *emu = asFPGAEmu(self);
 	FPGAKernel *kernel;
@@ -135,7 +131,7 @@ int FPGAEmuRun(Emu *self) {
 		FPGAKernelProceed(kernel);
 
 	/* Process list of suspended contexts */
-	FPGAEmuProcessEvents(emu);
+	//FPGAEmuProcessEvents(emu);
 
 	/* Still running */
 	return TRUE;

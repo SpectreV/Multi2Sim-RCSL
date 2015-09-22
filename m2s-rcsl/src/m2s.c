@@ -54,6 +54,7 @@
 #include <arch/fpga/emu/kernel.h>
 #include <arch/fpga/emu/task.h>
 #include <arch/fpga/emu/loader.h>
+#include <arch/fpga/timing/fpga.h>
 #include <driver/cuda/cuda.h>
 #include <driver/glu/glu.h>
 #include <driver/glut/glut.h>

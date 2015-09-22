@@ -36,6 +36,9 @@ Makefile.in
 
 # Configure File
 configure
+config.log
+config.status
+configure.lineno
 
 # Temp Files
 Makefile

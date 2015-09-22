@@ -35,6 +35,9 @@ typedef enum {
 
 void FPGAKernelAddArgsVector(FPGAKernel *self, int argc, char **argv);
 void FPGAKernelAddArgsString(FPGAKernel *self, char *args);
+void FPGAKernelSetName(FPGAKernel *self, char *name);
+void FPGAKernelSetFolding(FPGAKernel *self, char *folding);
+void FPGAKernelLoadBlif(FPGAKernel *self, char *blif);
 void FPGAKernelSetNumImplements(FPGAKernel *self, char *num_implements);
 void FPGAKernelAddImpsString(FPGAKernel *self, char *imps, implement_param type);
 
@@ -55,7 +58,7 @@ struct fpga_loader_t
 
 	char *cwd;
 
-	bool folding;
+	int folding;
 
 	struct linked_list_t *widths;
 	struct linked_list_t *lengths;

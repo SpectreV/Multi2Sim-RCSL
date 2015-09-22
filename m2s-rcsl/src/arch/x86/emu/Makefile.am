@@ -43,7 +43,7 @@ libemu_a_SOURCES = \
 	syscall.h \
 	\
 	uinst.c \
-	uinst.h
+	uinst.h 
 
 AM_CPPFLAGS = @M2S_INCLUDES@
 

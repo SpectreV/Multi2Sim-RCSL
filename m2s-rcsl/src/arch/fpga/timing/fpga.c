@@ -31,26 +31,8 @@
 #include <lib/util/timer.h>
 #include <mem-system/memory.h>
 
-#include "bpred.h"
-#include "commit.h"
-#include "core.h"
+
 #include "fpga.h"
-#include "decode.h"
-#include "dispatch.h"
-#include "fetch.h"
-#include "fetch-queue.h"
-#include "fu.h"
-#include "inst-queue.h"
-#include "issue.h"
-#include "load-store-queue.h"
-#include "mem-config.h"
-#include "reg-file.h"
-#include "rob.h"
-#include "sched.h"
-#include "thread.h"
-#include "trace-cache.h"
-#include "uop-queue.h"
-#include "writeback.h"
 
 /*
  * Global variables
@@ -86,7 +68,7 @@ int fpga_trace_category;
 
 /* Configuration file and parameters */
 
-char *fpga_file_name = "";
+char *fpga_config_file_name = "";
 char *fpga_report_file_name = "";
 
 int fpga_frequency = 1000;
@@ -122,7 +104,7 @@ void FPGAReadConfig(void) {
 
 	fpga_frequency = config_read_int(config, section, "Frequency", fpga_frequency);
 	if (!IN_RANGE(fpga_frequency, 1, ESIM_MAX_FREQUENCY))
-		fatal("%s: invalid value for 'Frequency'.", fpga_file_name);
+		fatal("%s: invalid value for 'Frequency'.", fpga_config_file_name);
 
 	fpga_clb_array_width = config_read_int(config, section, "ClbArrayWidth", fpga_clb_array_width);
 
@@ -311,10 +293,10 @@ int FPGARun(Timing *self) {
 
 	int i;
 	for (i = 0; i < emu->kernel_list_count; i++)
-		FPGAKernelProceed(emu->kernel_list_head[i]);
+		FPGAKernelProceed(emu);
 
 	/* Process host threads generating events */
-	FPGAProcessEvents(emu);
+	//FPGAProcessEvents(emu);
 
 	/* Still simulating */
 	return TRUE;

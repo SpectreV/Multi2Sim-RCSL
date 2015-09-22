@@ -134,6 +134,7 @@ void FPGAKernelExecute(FPGAKernel *self);
 int FPGAKernelGetState(FPGAKernel *self, FPGAKernelState state);
 void FPGAKernelSetState(FPGAKernel *self, FPGAKernelState state);
 void FPGAKernelClearState(FPGAKernel *self, FPGAKernelState state);
+void FPGAKernelProceed(FPGAKernel *self);
 
 /*
  * Non-Class

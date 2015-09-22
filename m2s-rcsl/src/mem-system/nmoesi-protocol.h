@@ -160,7 +160,7 @@ void fpga_mem_load_handler (int event, void *data);
 void fpga_mem_store_handler (int event, void *data);
 void fpga_mem_large_load_handler (int event, void *data);
 void fpga_mem_large_store_handler (int event, void *data);
-void tasktokernel(struct kernel_t *kernel, struct task_t *task, X86Context *ctx);
+/*void tasktokernel(struct kernel_t *kernel, struct task_t *task, X86Context *ctx);*/
 
 #endif
 

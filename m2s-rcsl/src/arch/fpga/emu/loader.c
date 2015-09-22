@@ -30,10 +30,9 @@
 #include <lib/util/string.h>
 #include <mem-system/memory.h>
 
-#include "context.h"
-#include "file-desc.h"
+#include "emu.h"
 #include "loader.h"
-#include "regs.h"
+#include "kernel.h"
 
 int fpga_loader_debug_category;
 
@@ -122,7 +121,7 @@ void FPGAKernelAddImpsString(FPGAKernel *self, char *imps, implement_param type)
 void FPGAKernelSetNumImplements(FPGAKernel *self, char *num_imps) {
 	struct fpga_loader_t *loader = self->loader;
 
-	loader->num_implements = strtol(num_imps);
+	loader->num_implements = (int) strtol(num_imps, (char**) NULL, 10);
 }
 
 void FPGAKernelSetName(FPGAKernel *self, char *name) {
@@ -148,29 +147,29 @@ void FPGAKernelLoadBlif(FPGAKernel *self, char *blif) {
 	loader->blif = str_set(NULL, blif_full_path);
 
 	/*int num_clks;
-	blif_clock_info(loader->blif, &num_clks, clk_name);
-	if (num_clks > 1) {
-		printf("Multiple clocks detected in blif file.  This is not supported.\n");
-		exit(0);
-	} else if (num_clks == 1) {
-		printf("Clock Detected: %s\n", clk_name);
-	}*/
+	 blif_clock_info(loader->blif, &num_clks, clk_name);
+	 if (num_clks > 1) {
+	 printf("Multiple clocks detected in blif file.  This is not supported.\n");
+	 exit(0);
+	 } else if (num_clks == 1) {
+	 printf("Clock Detected: %s\n", clk_name);
+	 }*/
 
 	/*self->ntk = Io_Read(loader->blif, IO_FILE_BLIF, 1);
 
-	printf("Objects in network: %d\n", Abc_NtkObjNum(self->ntk));
-	printf("PIs in network: %d\n", Abc_NtkPiNum(self->ntk));
+	 printf("Objects in network: %d\n", Abc_NtkObjNum(self->ntk));
+	 printf("PIs in network: %d\n", Abc_NtkPiNum(self->ntk));
 
-	printf("POs in network: %d\n", Abc_NtkPoNum(self->ntk));
+	 printf("POs in network: %d\n", Abc_NtkPoNum(self->ntk));
 
-	printf("Nodes in network: %d\n", Abc_NtkNodeNum(self->ntk));
+	 printf("Nodes in network: %d\n", Abc_NtkNodeNum(self->ntk));
 
-	printf("Latches in network: %d\n", Abc_NtkLatchNum(self->ntk));
+	 printf("Latches in network: %d\n", Abc_NtkLatchNum(self->ntk));
 
-	if (!Abc_NtkIsAcyclic(self->ntk)) {
-		printf("Circuit has combinational loops\n");
-		exit(0);*/
-	}
+	 if (!Abc_NtkIsAcyclic(self->ntk)) {
+	 printf("Circuit has combinational loops\n");
+	 exit(0);
+	 }*/
 
 }
 

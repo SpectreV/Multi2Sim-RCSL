@@ -20,7 +20,6 @@
 #include <poll.h>
 #include <unistd.h>
 
-#include <arch/fpga/timing/cpu.h>
 #include <lib/esim/esim.h>
 #include <lib/mhandle/mhandle.h>
 #include <lib/util/bit-map.h>
@@ -32,14 +31,11 @@
 #include <mem-system/mmu.h>
 #include <mem-system/spec-mem.h>
 
+#include <arch/x86/emu/context.h>
+
 #include "task.h"
 #include "emu.h"
-#include "file-desc.h"
-#include "isa.h"
-#include "loader.h"
-#include "regs.h"
-#include "signal.h"
-#include "syscall.h"
+#include "kernel.h"
 
 /*
  * Class 'FPGATask'
@@ -47,7 +43,7 @@
 
 CLASS_IMPLEMENTATION(FPGATask);
 
-static void FPGATaskDoCreate(FPGATask *self, FPGAEmu *emu, FPGAKernel *kernel) {
+static void FPGATaskDoCreate(FPGATask *self, FPGAEmu *emu, FPGAKernel *kernel, X86Context *ctx) {
 	int num_nodes;
 	int i;
 
@@ -55,6 +51,7 @@ static void FPGATaskDoCreate(FPGATask *self, FPGAEmu *emu, FPGAKernel *kernel) {
 	self->emu = emu;
 	self->kernel = kernel;
 	self->pid = emu->current_pid++;
+	self->ctx = ctx;
 
 	/* Update state so that the context is inserted in the
 	 * corresponding lists. The fpga_ctx_running parameter has no
@@ -66,25 +63,29 @@ static void FPGATaskDoCreate(FPGATask *self, FPGAEmu *emu, FPGAKernel *kernel) {
 	asObject(self)->Dump = FPGATaskDump;
 }
 
-void FPGATaskCreate(FPGATask *self, FPGAEmu *emu, FPGAKernel *kernel, int input_size,
-		int output_size, void *input, void *output, int task_ready_idx, int task_done_idx) {
+void FPGATaskCreate(FPGATask *self, FPGAKernel *kernel, X86Context *ctx, int task_ready_idx,
+		int task_done_idx) {
 	/* Baseline initialization */
-	FPGATaskDoCreate(self, emu, kernel);
+	FPGATaskDoCreate(self, kernel->emu, kernel, ctx);
 
-	self->input_size = input_size;
-	self->output_size = output_size;
+	int srcsize;
+	int dstsize;
 
-	assert(task_ready_idx > 0 && task_done_idx > 0);
-	assert(input_size >= task_ready_idx && output_size >= task_done_idx);
-
-	self->input = xcalloc(input_size, sizeof(bool));
-	self->output = xcalloc(output_size, sizeof(bool));
-
-	memcpy(self->input, input, input_size*sizeof(bool));
-	memcpy(self->output, output, output_size*sizeof(bool));
-
-	self->task_done_idx = task_done_idx;
-	self->task_ready_idx = task_ready_idx;
+	self->state = FPGATaskReady;
+	DOUBLE_LINKED_LIST_INSERT_TAIL(kernel, task, self);
+	if (kernel->sharedmem) {
+		mem_read_copy(self->ctx->realmem, kernel->srcsize, 4, &srcsize);
+		self->input = (void *) xcalloc(1, srcsize);
+		self->input_size = srcsize;
+		mem_read_copy(self->ctx->realmem, kernel->dstsize, 4, &dstsize);
+		self->output = (void *) xcalloc(1, dstsize);
+		self->output_size = dstsize;
+	} else {
+		self->input = (void *) xcalloc(1, kernel->srcsize);
+		self->input_size = kernel->srcsize;
+		self->output = (void *) xcalloc(1, kernel->dstsize);
+		self->output_size = kernel->dstsize;
+	}
 }
 
 void FPGATaskDestroy(FPGATask *self) {
@@ -112,8 +113,6 @@ void FPGATaskDump(Object *self, FILE *f) {
 	fprintf(f, "Task %d\n", task->pid);
 	fprintf(f, "------------\n\n");
 
-
-
 	/* End */
 	fprintf(f, "\n\n");
 }
@@ -122,46 +121,46 @@ void FPGATaskExecute(FPGATask *self) {
 	FPGAEmu *emu = self->emu;
 	FPGAKernel *kernel = self->kernel;
 
-
 }
-
-
-
 
 int FPGATaskGetState(FPGATask *self, FPGATaskState state) {
 	return (self->state & state) > 0;
 }
 
+
 static void FPGATaskUpdateState(FPGATask *self, FPGATaskState state) {
 
 	/* Remove contexts from the following lists:
 
-	if (emu->running_list_count)
-		m2s_timer_start(asEmu(emu)->timer);
-	else
-		m2s_timer_stop(asEmu(emu)->timer);
+	 if (emu->running_list_count)
+	 m2s_timer_start(asEmu(emu)->timer);
+	 else
+	 m2s_timer_stop(asEmu(emu)->timer);
+	 }
+
+	 void FPGATaskSetState(FPGATask *self, FPGATaskState state) {
+	 FPGATaskUpdateState(self, self->state | state);
+	 }
+
+	 void FPGATaskClearState(FPGATask *self, FPGATaskState state) {
+	 FPGATaskUpdateState(self, self->state & ~state);
+	 }
+
+	 /* Finish a context. If the context has no parent, its state will be set
+	 * to 'fpga_ctx_finished'. If it has, its state is set to 'fpga_ctx_zombie', waiting for
+	 * a call to 'waitpid'.
+	 * The children of the finished context will set their 'parent' attribute to NULL.
+	 * The zombie children will be finished. */
 }
 
 void FPGATaskSetState(FPGATask *self, FPGATaskState state) {
 	FPGATaskUpdateState(self, self->state | state);
 }
 
-void FPGATaskClearState(FPGATask *self, FPGATaskState state) {
-	FPGATaskUpdateState(self, self->state & ~state);
-}
 
-/* Finish a context. If the context has no parent, its state will be set
- * to 'fpga_ctx_finished'. If it has, its state is set to 'fpga_ctx_zombie', waiting for
- * a call to 'waitpid'.
- * The children of the finished context will set their 'parent' attribute to NULL.
- * The zombie children will be finished. */
 void FPGATaskFinish(FPGATask *self, int state) {
 
-
-
 }
-
-
 
 /*
  * Non-Class
@@ -170,4 +169,4 @@ void FPGATaskFinish(FPGATask *self, int state) {
 int fpga_task_debug_category;
 
 struct str_map_t fpga_task_state_map = { 3, { { "running", FPGATaskRunning }, { "waiting",
-		FPGATaskWaiting }, { "finished", FPGATaskFinished } } };
+		FPGATaskReady }, { "finished", FPGATaskFinished } } };

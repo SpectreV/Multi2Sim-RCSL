@@ -85,6 +85,12 @@ extern char *fpga_config_help;
 extern char *fpga_config_file_name;
 extern char *fpga_report_file_name;
 
+/* Trace */
+#define fpga_tracing() trace_status(fpga_trace_category)
+#define fpga_trace(...) trace(fpga_trace_category, __VA_ARGS__)
+#define fpga_trace_header(...) trace_header(fpga_trace_category, __VA_ARGS__)
+extern int fpga_trace_category;
+
 void FPGAReadConfig(void);
 void FPGAInit(void);
 void FPGADone(void);

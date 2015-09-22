@@ -22,6 +22,8 @@
 #include <unistd.h>
 
 #include <arch/x86/timing/cpu.h>
+#include <arch/fpga/emu/emu.h>
+#include <arch/fpga/emu/kernel.h>
 #include <driver/glew/glew.h>
 #include <driver/glu/glu.h>
 #include <driver/glut/glut.h>
@@ -642,7 +644,7 @@ void X86EmuLoadContextsFromConfig(X86Emu *self, struct config_t *config, char *s
 	if (token) {
 		while (1) {
 			kernel_id = str_to_int(token, &err);
-			new_kernel = FPGAGetKernelByID(fpga_emu, kernel_id);
+			new_kernel = FPGAEmuGetKernelByID(fpga_emu, kernel_id);
 			if (err)
 				fatal("%s: %s: invalid value '%s' in 'Kernel'", config_file_name, exe, token);
 

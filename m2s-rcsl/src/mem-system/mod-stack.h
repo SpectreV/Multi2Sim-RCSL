@@ -67,7 +67,7 @@ struct mod_stack_t
 	void *buf;
 	struct interconnect_t *interconnect;
 	X86Context *ctx;
-	struct task_t *task;
+	FPGATask *task;
 
     struct x86_uop_t *uop;
 
