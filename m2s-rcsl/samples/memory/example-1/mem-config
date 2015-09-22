@@ -14,13 +14,23 @@ Latency = 20
 Policy = LRU
 Ports = 3
 
+[InterconnectParameters int-0]
+BurstLength = 8
+BurstWidth = 4
+BurstReadExtra = 10
+BurstWriteExtra = 10
+Port = 1
+TransLatency = 10
+InterLatency = 1
+ 
 [Module mod-l1-0]
 Type = Cache
 Geometry = geo-l1
 AdditionalLatency = 0
 LowNetwork = net-l1-l2 
 LowModules = mod-l2-0 
-
+Interconnect = int-0
+Axi = 1
 
 [Module mod-l1-1]
 Type = Cache
@@ -28,7 +38,8 @@ Geometry = geo-l1
 AdditionalLatency = 0
 LowNetwork = net-l1-l2 
 LowModules = mod-l2-0 
-
+Interconnect = int-0
+Axi = 1
 
 [Module mod-l2-0]
 Type = Cache
@@ -37,14 +48,16 @@ AdditionalLatency = 0
 HighNetwork = net-l1-l2 
 LowNetwork = net-l2-mm
 LowModules = mod-mm
-
+Interconnect = int-0
+Axi = 1
 
 [Module mod-mm]
 Type = MainMemory
 BlockSize = 256
 Latency = 200
 HighNetwork = net-l2-mm
-
+Interconnect = int-0
+Axi = 1
 
 [Network net-l2-mm]
 DefaultInputBufferSize = 1024 
@@ -61,13 +74,18 @@ DefaultBandwidth = 256
 Arch = x86
 Core = 0
 Thread = 0
-Module = mod-mm
-Latency = 0
-
+Module = mod-l1-0
+Latency = 1
 
 [Entry core-1]
 Arch = x86
-Core = 1
-Thread = 0
-Module = mod-mm
-Latency = 0
+Core = 0
+Thread = 1
+Module = mod-l1-0
+Latency = 1
+
+[Entry fpga-0]
+Arch = fpga
+Module = mod-l2-0
+
+
