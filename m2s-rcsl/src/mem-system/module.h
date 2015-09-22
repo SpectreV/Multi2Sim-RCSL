@@ -22,7 +22,7 @@
 
 #include <stdio.h>
 #include "memory.h" 
-#include <arch/fpga/emu/task.h>
+#include <arch/x86/emu/context.h> 
 
 
 /* Port */
@@ -49,6 +49,8 @@ enum mod_access_kind_t
 	mod_access_invalid = 0,
 	mod_access_load,
 	mod_access_store,
+	mod_access_reg_load,
+	mod_access_reg_store,
 	mod_access_nc_store,
 	mod_access_prefetch
 };
@@ -277,7 +279,7 @@ long long fpga_reg_access(struct mod_t *mod, enum mod_access_kind_t access_kind,
 
 long long fpga_mod_access(struct mod_t *mod, enum mod_access_kind_t access_kind, 
 	unsigned int addr, struct linked_list_t *event_queue, void *event_queue_item,
-	struct mod_client_info_t *client_info, FPGATask *task,
+	struct mod_client_info_t *client_info, struct task_t *task,
 	void * buf, int size, X86Context *ctx,  int latency_add);
 
 int mod_can_access(struct mod_t *mod, unsigned int addr);
@@ -299,6 +301,8 @@ void mod_access_finish(struct mod_t *mod, struct mod_stack_t *stack);
 int mod_in_flight_access(struct mod_t *mod, long long id, unsigned int addr);
 struct mod_stack_t *mod_in_flight_address(struct mod_t *mod, unsigned int addr,
 	struct mod_stack_t *older_than_stack);
+
+
 struct mod_stack_t *mod_in_flight_write(struct mod_t *mod,
 	struct mod_stack_t *older_than_stack);
 

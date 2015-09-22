@@ -22,7 +22,6 @@
 
 #include <arch/x86/emu/context.h>
 #include <arch/x86/emu/emu.h>
-#include <arch/fpga/emu/task.h>
 #include "module.h"
 #include "memory.h" 
 
@@ -68,7 +67,7 @@ struct mod_stack_t
 	void *buf;
 	struct interconnect_t *interconnect;
 	X86Context *ctx;
-	FPGATask *task;
+	struct task_t *task;
 
     struct x86_uop_t *uop;
 
@@ -90,6 +89,7 @@ struct mod_stack_t
 	int offset;
 	int transfer_count;
 	int modcount;
+	int comcount;
 	int load;
 
 	int src_set;

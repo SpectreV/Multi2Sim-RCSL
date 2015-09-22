@@ -524,6 +524,7 @@ static struct mod_t *mem_config_read_cache(struct config_t *config,
 	int port;
 	int axi;
 	int inter;
+	int translation_latency;
 
 	char *policy_str;
 	enum cache_policy_t policy;
@@ -648,6 +649,7 @@ static struct mod_t *mem_config_read_cache(struct config_t *config,
     burstextrawrite = config_read_int(config, buf_HW, "BurstWriteExtra", 0);
     port = config_read_int(config, buf_HW, "Port", 1);
     inter = config_read_int(config, buf_HW, "InterLatency", 1);
+    translation_latency = config_read_int(config, buf_HW, "TransLatency", 0);
 
 
 	/* Create module */
@@ -672,6 +674,7 @@ static struct mod_t *mem_config_read_cache(struct config_t *config,
 	interconnect->gran = mod->block_size;
 	interconnect->inter = inter;
 	interconnect->memoplist = list_create();
+	interconnect->latency = translation_latency;
 	mod->interconnect = interconnect;
 
 	/* High network */
@@ -713,6 +716,7 @@ static struct mod_t *mem_config_read_main_memory(struct config_t *config,
 	char *section)
 {
 	char mod_name[MAX_STRING_SIZE];
+	char buf_HW[MAX_STRING_SIZE];
 
 	int block_size;
 	int latency;
@@ -720,12 +724,26 @@ static struct mod_t *mem_config_read_main_memory(struct config_t *config,
 	int dir_size;
 	int dir_assoc;
 
+	int burstextraread;
+	int burstextrawrite;
+	int burstlength;
+	int burstwidth;
+	int port;
+	int axi;
+	int inter;
+	int translation_latency;
+
 	char *net_name;
 	char *net_node_name;
 
 	struct mod_t *mod;
 	struct net_t *net;
 	struct net_node_t *net_node;
+	struct interconnect_t *interconnect;
+
+
+	snprintf(buf_HW, sizeof buf_HW, "InterconnectParameters %s",
+		 config_read_string(config, section, "Interconnect", ""));
 
 	/* Read parameters */
 	str_token(mod_name, sizeof mod_name, section, 1, " ");
@@ -736,6 +754,17 @@ static struct mod_t *mem_config_read_main_memory(struct config_t *config,
 	num_ports = config_read_int(config, section, "Ports", 2);
 	dir_size = config_read_int(config, section, "DirectorySize", 1024);
 	dir_assoc = config_read_int(config, section, "DirectoryAssoc", 8);
+    
+    axi = config_read_int(config, section, "Axi", 1);
+
+    burstlength = config_read_int(config, buf_HW, "BurstLength", 8);
+    burstwidth = config_read_int(config, buf_HW, "BurstWidth", 4);
+    burstextraread = config_read_int(config, buf_HW, "BurstReadExtra", 0); 
+    burstextrawrite = config_read_int(config, buf_HW, "BurstWriteExtra", 0);
+    port = config_read_int(config, buf_HW, "Port", 1);
+    inter = config_read_int(config, buf_HW, "InterLatency", 1);
+    translation_latency = config_read_int(config, buf_HW, "TransLatency", 0); 
+
 
 	/* Check parameters */
 	if (block_size < 1 || (block_size & (block_size - 1)))
@@ -758,9 +787,23 @@ static struct mod_t *mem_config_read_main_memory(struct config_t *config,
 		fatal("%s: %s: invalid directory associativity.\n%s",
 			mem_config_file_name, mod_name, mem_err_config_note);
 
+	interconnect = xcalloc(1, sizeof(struct interconnect_t));
+
 	/* Create module */
 	mod = mod_create(mod_name, mod_kind_main_memory, num_ports,
 			block_size, latency);
+	interconnect->length = burstlength;
+	interconnect->width = burstwidth;
+	interconnect->rextra = burstextraread;
+	interconnect->wextra = burstextrawrite; 
+	interconnect->port = port;
+	interconnect->portuse = 0;
+	interconnect->axi = axi;
+	interconnect->gran = mod->block_size;
+	interconnect->inter = inter;
+	interconnect->memoplist = list_create();
+	interconnect->latency = translation_latency;
+	mod->interconnect = interconnect;
 
 	/* Store directory size */
 	mod->dir_size = dir_size;

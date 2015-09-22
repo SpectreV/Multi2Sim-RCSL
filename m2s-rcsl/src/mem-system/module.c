@@ -108,7 +108,7 @@ void mod_dump(struct mod_t *mod, FILE *f)
 
 long long fpga_mod_access(struct mod_t *mod, enum mod_access_kind_t access_kind, 
 	unsigned int addr, struct linked_list_t *event_queue, void *event_queue_item,
-	struct mod_client_info_t *client_info, FPGATask *task,void * buf, int size,
+	struct mod_client_info_t *client_info, struct task_t *task,void * buf, int size,
 	X86Context *ctx, int latency_add)
 
 {    
@@ -135,7 +135,8 @@ long long fpga_mod_access(struct mod_t *mod, enum mod_access_kind_t access_kind,
 	/* Select initial CPU/GPU event */
 	if (mod->interconnect->axi)
 
-    {if (access_kind == mod_access_load)
+    {      
+    	if (access_kind == mod_access_load)
 		{      
 			event = EV_FPGA_MEM_LOAD;
 			stack->load = 1;
@@ -154,15 +155,18 @@ long long fpga_mod_access(struct mod_t *mod, enum mod_access_kind_t access_kind,
 
 	else if (!mod->interconnect->axi)
 
-	{if (access_kind == mod_access_load)
+	{   
+		if (access_kind == mod_access_load)
 		{
 			event = EV_FPGA_MEM_LARGE_LOAD;
 			stack->load = 1;
+			stack->transfer_count = 0;
 		}
 	else if (access_kind == mod_access_store)
 		{
 			event = EV_FPGA_MEM_LARGE_STORE;
 			stack->load = 0;
+			stack->transfer_count = 0;
 		}
 	
 	else 
@@ -572,6 +576,8 @@ int mod_in_flight_access(struct mod_t *mod, long long id, unsigned int addr)
 }
 
 
+
+
 /* Return the youngest in-flight access older than 'older_than_stack' to block containing 'addr'.
  * If 'older_than_stack' is NULL, return the youngest in-flight access containing 'addr'.
  * The function returns NULL if there is no in-flight access to block containing 'addr'.
@@ -601,6 +607,10 @@ struct mod_stack_t *mod_in_flight_address(struct mod_t *mod, unsigned int addr,
 }
 
 
+
+
+
+
 /* Return the youngest in-flight write older than 'older_than_stack'. If 'older_than_stack'
  * is NULL, return the youngest in-flight write. Return NULL if there is no in-flight write.
  */
@@ -616,9 +626,12 @@ struct mod_stack_t *mod_in_flight_write(struct mod_t *mod,
 	/* Search */
 	for (stack = older_than_stack->access_list_prev; stack;
 		stack = stack->access_list_prev)
+	{   //fprintf(stderr, "here %x %lld %lld\n", stack->addr, stack->id, stack->access_list_prev->id);
 		if (stack->access_kind == mod_access_store)
+		{	 
 			return stack;
-
+	    }
+    }
 	/* Not found */
 	return NULL;
 }

@@ -317,10 +317,14 @@ void mem_system_init(void)
 
 	EV_FPGA_REG_STORE = esim_register_event_with_name(fpga_reg_handler, 
 		    mem_domain_index, "FPGA_reg_store");
+	EV_FPGA_REG_STORE_START = esim_register_event_with_name(fpga_reg_handler, 
+		    mem_domain_index, "FPGA_reg_store_start");	
 	EV_FPGA_REG_STORE_FINISH = esim_register_event_with_name(fpga_reg_handler, 
 		    mem_domain_index, "FPGA_reg_store_finish");
 	EV_FPGA_REG_LOAD = esim_register_event_with_name(fpga_reg_handler, 
 		    mem_domain_index, "FPGA_reg_load");
+	EV_FPGA_REG_LOAD_START = esim_register_event_with_name(fpga_reg_handler, 
+		    mem_domain_index, "FPGA_reg_load_start");	
 	EV_FPGA_REG_LOAD_FINISH = esim_register_event_with_name(fpga_reg_handler, 
 		    mem_domain_index, "FPGA_reg_load_finish");
 

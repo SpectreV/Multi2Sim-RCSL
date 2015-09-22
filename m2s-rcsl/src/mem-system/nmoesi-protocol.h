@@ -23,8 +23,6 @@
 #include <arch/x86/emu/context.h>
 #include <arch/x86/emu/emu.h> 
 
-#include <arch/fpga/emu/kernel.h>
-#include <arch/fpga/emu/task.h>
 
 /* NMOESI Event-Driven Simulation */
 
@@ -109,8 +107,10 @@ extern int EV_MOD_NMOESI_MESSAGE_REPLY;
 extern int EV_MOD_NMOESI_MESSAGE_FINISH;
 
 extern int EV_FPGA_REG_LOAD;
+extern int EV_FPGA_REG_LOAD_START;
 extern int EV_FPGA_REG_LOAD_FINISH;
 extern int EV_FPGA_REG_STORE;
+extern int EV_FPGA_REG_STORE_START;
 extern int EV_FPGA_REG_STORE_FINISH;
 
 
@@ -160,7 +160,7 @@ void fpga_mem_load_handler (int event, void *data);
 void fpga_mem_store_handler (int event, void *data);
 void fpga_mem_large_load_handler (int event, void *data);
 void fpga_mem_large_store_handler (int event, void *data);
-void tasktokernel(FPGAKernel *kernel, FPGATask *task, X86Context *ctx);
+void tasktokernel(struct kernel_t *kernel, struct task_t *task, X86Context *ctx);
 
 #endif
 

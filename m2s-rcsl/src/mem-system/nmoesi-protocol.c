@@ -31,6 +31,7 @@
 #include <network/node.h>
 #include <arch/x86/emu/context.h>
 #include <arch/x86/emu/emu.h>
+#include <arch/common/arch.h> 
 #include <lib/util/misc.h>
 #include <lib/util/repos.h>
 #include <lib/mhandle/mhandle.h>
@@ -129,8 +130,10 @@ int EV_MOD_NMOESI_MESSAGE_REPLY;
 int EV_MOD_NMOESI_MESSAGE_FINISH;
 
 int EV_FPGA_REG_LOAD;
+int EV_FPGA_REG_LOAD_START;
 int EV_FPGA_REG_LOAD_FINISH;
 int EV_FPGA_REG_STORE;
+int EV_FPGA_REG_STORE_START;
 int EV_FPGA_REG_STORE_FINISH;
 
 int EV_FPGA_MEM_LOAD;
@@ -193,7 +196,8 @@ void mod_handler_nmoesi_load(int event, void *data)
 		/* Coalesce access */
 		master_stack = mod_can_coalesce(mod, mod_access_load, stack->addr, stack);
 		if (master_stack)
-		{
+		{    if(stack->addr>=0x1f00 && stack->addr<=0x1fff)
+			;//fprintf(stderr, "colaesce load%x\n", stack->addr);
 			mod->reads++;
 			mod_coalesce(mod, master_stack, stack);
 			mod_stack_wait_in_stack(stack, master_stack, EV_MOD_NMOESI_LOAD_FINISH);
@@ -201,7 +205,7 @@ void mod_handler_nmoesi_load(int event, void *data)
 		}
 
         if(stack->addr >= 0x1F48 && stack->addr<= 0x1F54)
-           	fprintf(stderr, "x86stload %x,%lld\n", stack->addr,esim_time);
+           ;//	fprintf(stderr, "x86stload %x,%lld\n", stack->addr,esim_time);
 	 	 
 		/* Next event */
 		esim_schedule_event(EV_MOD_NMOESI_LOAD_LOCK, stack, 0);
@@ -239,7 +243,7 @@ void mod_handler_nmoesi_load(int event, void *data)
 		}
         
           if(stack->addr >= 0x1F48 && stack->addr<= 0x1F54)
-           	fprintf(stderr, "x86loload %x,%lld\n", stack->addr,esim_time);
+          	;//fprintf(stderr, "x86loload %x,%lld\n", stack->addr,esim_time);
 		/* Call find and lock */
 		new_stack = mod_stack_create(stack->id, mod, stack->addr,
 			EV_MOD_NMOESI_LOAD_ACTION, stack, latency_add);
@@ -338,7 +342,7 @@ void mod_handler_nmoesi_load(int event, void *data)
 		/* Unlock directory entry */
 		dir_entry_unlock(mod->dir, stack->set, stack->way);
 		  if(stack->addr >= 0x1F48 && stack->addr<= 0x1F54)
-           	fprintf(stderr, "x86ulload %x,%lld\n", stack->addr,esim_time);
+          	;//fprintf(stderr, "x86ulload %x,%lld\n", stack->addr,esim_time);
 
 		/* Impose the access latency before continuing */
 		esim_schedule_event(EV_MOD_NMOESI_LOAD_FINISH, stack, 
@@ -369,8 +373,13 @@ void mod_handler_nmoesi_load(int event, void *data)
 
 		/* Finish access */
 		mod_access_finish(mod, stack);
+		 
 		  if(stack->addr >= 0x1F48 && stack->addr<= 0x1F54)
-           	fprintf(stderr, "x86fiload %x,%lld\n", stack->addr,esim_time);
+           { 
+            ;//   fprintf(stderr, "x86fiload %x,%lld\n", stack->addr,esim_time);	
+           }
+        
+
 
 		/* Return */
 		mod_stack_return(stack);
@@ -405,7 +414,8 @@ void mod_handler_nmoesi_store(int event, void *data)
 		/* Coalesce access */
 		master_stack = mod_can_coalesce(mod, mod_access_store, stack->addr, stack);
 		if (master_stack)
-		{
+		{   if(stack->addr>=0x1f00 && stack->addr<=0x1fff)
+			;//fprintf(stderr, "colaesce store %x\n", stack->addr);
 			mod->writes++;
 			mod_coalesce(mod, master_stack, stack);
 			mod_stack_wait_in_stack(stack, master_stack, EV_MOD_NMOESI_STORE_FINISH);
@@ -417,8 +427,8 @@ void mod_handler_nmoesi_store(int event, void *data)
 			return;
 		}
 	   
-           if(stack->addr >= 0x1F48 && stack->addr<= 0x1F54)
-           	fprintf(stderr, "x86ststor %x,%lld,%x\n", stack->addr,esim_time, stack->uop->data);
+           if(stack->addr >= 0x1F40 && stack->addr<= 0x1F44)
+          ;//	fprintf(stderr, "x86ststor %x,%lld\n", stack->addr,esim_time);
 	 
 		/* Continue */
 		esim_schedule_event(EV_MOD_NMOESI_STORE_LOCK, stack, 0);
@@ -445,8 +455,8 @@ void mod_handler_nmoesi_store(int event, void *data)
 			return;
 		}
 
-	    if(stack->addr >= 0x1F48 && stack->addr<= 0x1F54)
-           	fprintf(stderr, "x86lostor %x,%lld,%x\n", stack->addr,esim_time, stack->uop->data);
+	    if(stack->addr >= 0x1F40 && stack->addr<= 0x1F44)
+           ;//	fprintf(stderr, "x86lostor %x,%lld,%x\n", stack->addr,esim_time);
 
 		/* Call find and lock */
 		new_stack = mod_stack_create(stack->id, mod, stack->addr,
@@ -534,8 +544,8 @@ void mod_handler_nmoesi_store(int event, void *data)
 		}
 
 		/* Update tag/state and unlock */
-	      if(stack->addr >= 0x1F48 && stack->addr<= 0x1F54)
-           	fprintf(stderr, "x86ulstor %x,%lld,%x\n", stack->addr,esim_time, stack->uop->data);
+	      if(stack->addr >= 0x1F40 && stack->addr<= 0x1F44)
+          ;//	fprintf(stderr, "x86ulstor %x,%lld\n", stack->addr,esim_time);
 		
 		cache_set_block(mod->cache, stack->set, stack->way,
 			stack->tag, cache_block_modified);
@@ -569,8 +579,11 @@ void mod_handler_nmoesi_store(int event, void *data)
            mem_write_copy(stack->uop->ctx->realmem,stack->uop->addr,4, &(stack->uop->data));
 	 	  }
         }
-        if(stack->addr >= 0x1F48 && stack->addr<= 0x1F54)
-           	fprintf(stderr, "x86fistor %x,%lld,%x\n", stack->addr,esim_time, stack->uop->data);
+        if(stack->addr >= 0x1F40 && stack->addr<= 0x1F44)
+           {
+            ;//   fprintf(stderr, "x86fistor %x,%lld\n", stack->addr,esim_time);	
+           }
+          
 		/* Free the mod_client_info object, if any */
 		if (stack->client_info)
 		    mod_client_info_free(mod, stack->client_info);
@@ -588,6 +601,7 @@ void mod_handler_nmoesi_store(int event, void *data)
 
 	abort();
 }
+
 
 void mod_handler_nmoesi_nc_store(int event, void *data)
 {
@@ -3013,14 +3027,14 @@ void mod_handler_nmoesi_message(int event, void *data)
 }
 
 
-void tasktokernel(FPGAKernel *kernel, FPGATask *task, X86Context *ctx)
+void tasktokernel(struct kernel_t *kernel, struct task_t *task, X86Context *ctx)
 {
       int srcsize;
       int dstsize;
       task->kernel= kernel;
       task->ctx = ctx;
-      task->state = FPGATaskReady;
-      DOUBLE_LINKED_LIST_INSERT_TAIL(kernel, task, task);
+      task->state = taskready;
+      list_add(kernel->tasklist, task);
       if(kernel->sharedmem)
       {  
          mem_read_copy(task->ctx->realmem, kernel->srcsize, 4, &srcsize); 
@@ -3032,8 +3046,10 @@ void tasktokernel(FPGAKernel *kernel, FPGATask *task, X86Context *ctx)
       }
       else
       {  
-    	  FPGATaskCreate(task, kernel->emu, kernel, srcsize,
-    	  		dstsize, NULL, NULL, 0, 0);
+         task->src = xcalloc(1,kernel->srcsize);
+         task->srcsize = kernel->srcsize;
+         task->dst = xcalloc(1,kernel->dstsize);
+         task->dstsize = kernel->dstsize;
       }
 
 }
@@ -3043,6 +3059,11 @@ void fpga_reg_handler (int event, void *data)
 	struct mod_stack_t *stack = data;
 	struct mod_stack_t *new_stack;
 	struct mod_stack_t *wait_stack;
+    struct mod_stack_t *older_stack;
+    struct mod_stack_t *sta;
+    {
+    	/* data */
+    };
 
 	struct mod_t *mod = stack->mod;
 	int latency_add = stack->latency_add;
@@ -3053,17 +3074,49 @@ void fpga_reg_handler (int event, void *data)
     int rextra = mod->interconnect->rextra;
 
 
+
 	if (event == EV_FPGA_REG_LOAD)
-	{
-		int latency;
+	{               
+		mem_debug("%lld %lld 0x%x %s load\n", esim_time, stack->id,
+			stack->addr, mod->name);
+		mem_trace("mem.new_access name=\"A-%lld\" type=\"load\" "
+			"state=\"%s:load\" addr=0x%x\n",
+			stack->id, mod->name, stack->addr);
+        
+
+		mod_access_start(mod, stack, mod_access_reg_load);
+
+	    
+    	/* Next event */
+		esim_schedule_event(EV_FPGA_REG_LOAD_START, stack, 0);
+		return;
+	}
+    
+    if (event == EV_FPGA_REG_LOAD_START)
+    { 
+      int latency;
 
 		mem_debug("%lld %lld 0x%x %s load\n", esim_time, stack->id,
 			stack->addr, mod->name);
 		mem_trace("mem.new_access name=\"A-%lld\" type=\"load\" "
 			"state=\"%s:load\" addr=0x%x\n",
 			stack->id, mod->name, stack->addr);
-
+   
+        
         latency = ( rextra + length * 1 ) * ((size-1)/(length*width) + 1);
+      
+
+		/* If there is any older access to the same address that this access could not
+		 * be coalesced with, wait for it. */
+		older_stack = mod_in_flight_address(mod, stack->addr, stack);
+		if (older_stack)
+		{  
+			mem_debug("    %lld wait for access %lld\n",
+				stack->id, older_stack->id);
+			mod_stack_wait_in_stack(stack, older_stack, EV_FPGA_REG_LOAD_START);
+			return;
+		} 
+
 
         if(mod->interconnect->portuse == mod->interconnect->port)
         {
@@ -3072,11 +3125,12 @@ void fpga_reg_handler (int event, void *data)
 
         return; 
         }
+
         mod->interconnect->portuse++;
     	/* Next event */
 		esim_schedule_event(EV_FPGA_REG_LOAD_FINISH, stack, latency);
-		return;
-	}
+		return; 
+    }	
 
 	if (event == EV_FPGA_REG_LOAD_FINISH)
 	{   
@@ -3104,13 +3158,14 @@ void fpga_reg_handler (int event, void *data)
 		{  
             wait_stack = list_dequeue(mod->interconnect->memoplist);
 			if(wait_stack->load)
-                esim_schedule_event(EV_FPGA_REG_LOAD, wait_stack, 0);
+                esim_schedule_event(EV_FPGA_REG_LOAD_START, wait_stack, 0);
             else 
-            	esim_schedule_event(EV_FPGA_REG_STORE, wait_stack, 0); 
+            	esim_schedule_event(EV_FPGA_REG_STORE_START, wait_stack, 0); 
         }
 
 		mod->interconnect->portuse--;
-
+        
+        mod_access_finish(mod,stack);
 		/* Return */
 		mod_stack_return(stack);
 		return;
@@ -3119,14 +3174,55 @@ void fpga_reg_handler (int event, void *data)
     if (event == EV_FPGA_REG_STORE)
 	{
 		int latency;
-
-		mem_debug("%lld %lld 0x%x %s load\n", esim_time, stack->id,
+        
+		mem_debug("%lld %lld 0x%x %s store\n", esim_time, stack->id,
 			stack->addr, mod->name);
 		mem_trace("mem.new_access name=\"A-%lld\" type=\"load\" "
 			"state=\"%s:load\" addr=0x%x\n",
 			stack->id, mod->name, stack->addr);
-        
+
+        mod_access_start(mod, stack, mod_access_reg_store);
+
+
+    	/* Next event */
+		esim_schedule_event(EV_FPGA_REG_STORE_START, stack, 0);
+		return;
+	}
+
+    if (event == EV_FPGA_REG_STORE_START)
+	{
+		int latency;
+    
+		mem_debug("%lld %lld 0x%x %s store\n", esim_time, stack->id,
+			stack->addr, mod->name);
+		mem_trace("mem.new_access name=\"A-%lld\" type=\"store\" "
+			"state=\"%s:store\" addr=0x%x\n",
+			stack->id, mod->name, stack->addr);
+
+
         latency = ( wextra + length * 1 ) * ((size-1)/(length*width) + 1);
+
+
+        older_stack = mod_in_flight_write(mod, stack);
+		if (older_stack)
+		{  
+			mem_debug("    %lld wait for write %lld\n",
+				stack->id, older_stack->id);
+			mod_stack_wait_in_stack(stack, older_stack, EV_FPGA_REG_STORE_START);
+			return;
+		}
+
+		/* If there is any older access to the same address that this access could not
+		 * be coalesced with, wait for it. */
+		older_stack = mod_in_flight_address(mod, stack->addr, stack);
+		if (older_stack)
+		{   
+			mem_debug("    %lld wait for access %lld\n",
+				stack->id, older_stack->id);
+			mod_stack_wait_in_stack(stack, older_stack, EV_FPGA_REG_STORE_START);
+			return;
+		} 
+
 
         if(mod->interconnect->portuse == mod->interconnect->port)
         {
@@ -3141,13 +3237,12 @@ void fpga_reg_handler (int event, void *data)
 		esim_schedule_event(EV_FPGA_REG_STORE_FINISH, stack, latency);
 		return;
 	}
-
 	if (event == EV_FPGA_REG_STORE_FINISH)
 	{
          
-        mem_debug("%lld %lld 0x%x %s load finish\n", esim_time, stack->id,
+        mem_debug("%lld %lld 0x%x %s store finish\n", esim_time, stack->id,
 			stack->addr, mod->name);
-		mem_trace("mem.access name=\"A-%lld\" state=\"%s:load_finish\"\n",
+		mem_trace("mem.access name=\"A-%lld\" state=\"%s:store_finish\"\n",
 			stack->id, mod->name);
 		mem_trace("mem.end_access name=\"A-%lld\"\n",
 			stack->id);
@@ -3170,6 +3265,7 @@ void fpga_reg_handler (int event, void *data)
            mem_write_copy(stack->uop->ctx->realmem,stack->uop->addr,4, &(stack->uop->data));
            if(stack->uop->kernelstart && stack->uop->addr == stack->uop->kernel->start && stack->uop->data == 1)
            {  
+           	 // fprintf(stderr, "call \n"); 
               struct task_t *newtask;               
               newtask = xcalloc(1, sizeof(struct task_t));
               tasktokernel(stack->uop->kernel, newtask, stack->uop->ctx);  
@@ -3181,19 +3277,20 @@ void fpga_reg_handler (int event, void *data)
 		{  
             wait_stack = list_dequeue(mod->interconnect->memoplist);
 			if(wait_stack->load)
-                esim_schedule_event(EV_FPGA_REG_LOAD, wait_stack, 0);
+                esim_schedule_event(EV_FPGA_REG_LOAD_START, wait_stack, 0);
             else 
-            	esim_schedule_event(EV_FPGA_REG_STORE, wait_stack, 0); 
+            	esim_schedule_event(EV_FPGA_REG_STORE_START, wait_stack, 0); 
         }
 
         
 
 		mod->interconnect->portuse--;
 
-
+        mod_access_finish(mod,stack);
 
 		/* Return */
 		mod_stack_return(stack);
+	
 		return;
 	}
 
@@ -3204,18 +3301,13 @@ void fpga_reg_handler (int event, void *data)
 
 
 
-
-
-
-
-
-
-
 void fpga_mem_load_handler (int event, void *data)
 {
 	struct mod_stack_t *stack = data;
 	struct mod_stack_t *new_stack;
 	struct mod_stack_t *wait_stack;
+	struct mod_stack_t *newer_stack;
+
 	struct mod_t *mod = stack->mod;
 	int latency_add = stack->latency_add;
     int size = stack->size;
@@ -3293,6 +3385,8 @@ void fpga_mem_load_handler (int event, void *data)
 	    new_stack->client_info = stack->client_info;
 	    new_stack->ctx = stack->ctx; 
 	    new_stack->size = stack->size;
+	    new_stack->modcount = 0;
+	    new_stack->comcount = 0;
 		esim_schedule_event(EV_FPGA_MEM_LOAD_TRANSFER_START, new_stack, rextra); 
 
 		stack->offset = stack->offset + length * width;
@@ -3314,13 +3408,12 @@ void fpga_mem_load_handler (int event, void *data)
 
         if(stack->transfer_count == 0)
         {
-            esim_schedule_event(EV_FPGA_MEM_LOAD_TRANSFER_FINISH, stack, 0);   
             return;
         } 
 
 
         new_stack = mod_stack_create(stack->id, mod, addr + stack->offset,
-			EV_FPGA_MEM_LOAD_TRANSFER_START, stack, latency_add);
+			EV_FPGA_MEM_LOAD_TRANSFER_FINISH, stack, latency_add);
 		new_stack->buf = buf + stack->offset;
 		new_stack->interconnect = stack->interconnect;
 		new_stack->event_queue = stack->event_queue;
@@ -3328,15 +3421,18 @@ void fpga_mem_load_handler (int event, void *data)
 	    new_stack->client_info = stack->client_info;
 	    new_stack->ctx = stack->ctx; 
 	    new_stack->size = stack->size;
+	    new_stack->modcount = 0;
 
 
     	/* Next event */
 		esim_schedule_event(EV_FPGA_MEM_LOAD_TRANSFER_ACTION, new_stack, 1);
 
+		esim_schedule_event(EV_FPGA_MEM_LOAD_TRANSFER_START,stack, 1);
+
 		stack->transfer_count = stack->transfer_count - 1;
 		stack->offset = stack->offset + width;
         stack->size = stack->size - width ; 
-
+        stack->comcount ++;
 		return;
 	}
 
@@ -3356,12 +3452,12 @@ void fpga_mem_load_handler (int event, void *data)
 
 		//fprintf(stderr,"mem_load_transfer_action,%x,%d\n",stack->addr,stack->size);
 
-		stack->modcount = 0;
 		if(stack->size<=0)
 			{
 			  mod_stack_return(stack);
-             return;
+              return;
             }  
+
 
         for(i=0;i < width/4;i++)
         { 
@@ -3369,7 +3465,8 @@ void fpga_mem_load_handler (int event, void *data)
           {
             phy_addr = mmu_translate( ctx->address_space_index,
 		 		stack->addr + i*4);
-            new_stack = mod_stack_create( stack->id,
+           mod_stack_id++;
+           new_stack = mod_stack_create( mod_stack_id,
 		      mod, phy_addr, EV_FPGA_MEM_LOAD_TRANSFER_ACTION_FINISH, stack, latency_add);
 	       new_stack->event_queue = stack->event_queue;
 	       new_stack->event_queue_item = stack->event_queue_item;
@@ -3380,6 +3477,7 @@ void fpga_mem_load_handler (int event, void *data)
            stack->modcount++; 
           }    
         }
+        
 
 		return;
 	}
@@ -3403,21 +3501,11 @@ void fpga_mem_load_handler (int event, void *data)
         {   
            if(stack->size > 0)
            {
-           mem_read_copy(ctx->realmem, stack->addr, MIN(width, stack->size), stack->buf);
-           /*if(stack->addr >= 0xBFFEFF48 && stack->addr<= 0xBFFEFF54)
-           	{
-           	if(MIN(width, stack->size)>=4)	
-           	fprintf(stderr, "fpga %x,%x\n", stack->addr, *(unsigned int*)stack->buf);
-            if(MIN(width, stack->size)>=8)	
-            fprintf(stderr, "fpga %x,%x\n", stack->addr+4, *(unsigned int*)(stack->buf+4));
-            if(MIN(width, stack->size)>=12)	 
-            fprintf(stderr, "fpga %x,%x\n", stack->addr+8, *(unsigned int*)(stack->buf+8));
-            if(MIN(width, stack->size)>=16)	 
-            fprintf(stderr, "fpga %x,%x\n", stack->addr+12, *(unsigned int*)(stack->buf+12));	
-            }*/
+             mem_read_copy(ctx->realmem, stack->addr, MIN(width, stack->size), stack->buf);
+             //fprintf(stderr, "here %x\n", stack->buf ); 
            } 
-           
-           mod_stack_return(stack);
+
+          mod_stack_return(stack);
         }
 		return; 
 
@@ -3431,6 +3519,9 @@ void fpga_mem_load_handler (int event, void *data)
 		mem_trace("mem.new_access name=\"A-%lld\" type=\"load\" "
 			"state=\"%s:load\" addr=0x%x\n",
 			stack->id, mod->name, stack->addr);
+		
+		stack->comcount--;
+		if(stack->comcount == 0)
 
         //fprintf(stderr,"mem_load_transfer_finish,%x,%d\n",stack->addr,stack->size);
 
@@ -3454,10 +3545,13 @@ void fpga_mem_load_handler (int event, void *data)
             wait_stack = list_dequeue(mod->interconnect->memoplist);
 			if(wait_stack->load)
                 {
+                  // fprintf(stderr,"load_schedule,%x,%d\n",wait_stack->addr,wait_stack->size);
+
                 	esim_schedule_event(EV_FPGA_MEM_LOAD, wait_stack, 0);
                 }
             else 
             {   
+              //  fprintf(stderr,"store_schedule,%x,%d\n",wait_stack->addr,wait_stack->size); 
             	esim_schedule_event(EV_FPGA_MEM_STORE, wait_stack, 0); 
             }
 
@@ -3559,6 +3653,7 @@ void fpga_mem_store_handler (int event, void *data)
 	    new_stack->client_info = stack->client_info;
 	    new_stack->ctx = stack->ctx; 
 	    new_stack->size = stack->size;
+	    new_stack->modcount = 0;
 
 		esim_schedule_event(EV_FPGA_MEM_STORE_TRANSFER_START, new_stack, wextra); 
 
@@ -3581,13 +3676,12 @@ void fpga_mem_store_handler (int event, void *data)
 
         if(stack->transfer_count == 0)
         {
-            esim_schedule_event(EV_FPGA_MEM_STORE_TRANSFER_FINISH, stack, 0);   
             return;
         } 
 
 
         new_stack = mod_stack_create(stack->id, mod, addr + stack->offset,
-			EV_FPGA_MEM_STORE_TRANSFER_START, stack, latency_add);
+			EV_FPGA_MEM_STORE_TRANSFER_FINISH, stack, latency_add);
 		new_stack->buf = buf + stack->offset;
 		new_stack->interconnect = stack->interconnect;
 		new_stack->event_queue = stack->event_queue;
@@ -3595,13 +3689,17 @@ void fpga_mem_store_handler (int event, void *data)
 	    new_stack->client_info = stack->client_info;
 	    new_stack->ctx = stack->ctx; 
         new_stack->size = stack->size;
+        new_stack->modcount = 0;
 
     	/* Next event */
 		esim_schedule_event(EV_FPGA_MEM_STORE_TRANSFER_ACTION, new_stack, 1);
 
+		esim_schedule_event(EV_FPGA_MEM_STORE_TRANSFER_START, stack, 1);
+
 		stack->transfer_count = stack->transfer_count - 1;
 		stack->offset = stack->offset + width;
 		stack->size = stack->size - width;
+		stack->comcount ++;
          
 
 		return;
@@ -3619,7 +3717,6 @@ void fpga_mem_store_handler (int event, void *data)
 			"state=\"%s:store\" addr=0x%x\n",
 			stack->id, mod->name, stack->addr);
 
-		stack->modcount = 0;
 
 	    if(stack->size<=0)
 			{
@@ -3631,14 +3728,14 @@ void fpga_mem_store_handler (int event, void *data)
            if( i < stack->size / 4)
         {   phy_addr = mmu_translate( ctx->address_space_index,
 		 		stack->addr + i*4);
-        
-           new_stack = mod_stack_create( stack->id,
+           mod_stack_id++;
+           new_stack = mod_stack_create( mod_stack_id,
 		      mod, phy_addr, EV_FPGA_MEM_STORE_TRANSFER_ACTION_FINISH, stack, latency_add);
 	       new_stack->event_queue = stack->event_queue;
 	       new_stack->event_queue_item = stack->event_queue_item;
 	       new_stack->client_info = stack->client_info;
 	       new_stack->size = 4;
-          
+           //fprintf(stderr,"come to store\n"); 
            esim_schedule_event(EV_MOD_NMOESI_STORE, new_stack, 0); 
            stack->modcount++; 
         }
@@ -3687,6 +3784,9 @@ void fpga_mem_store_handler (int event, void *data)
 		mem_trace("mem.new_access name=\"A-%lld\" type=\"store\" "
 			"state=\"%s:store\" addr=0x%x\n",
 			stack->id, mod->name, stack->addr);
+
+		stack->comcount--;
+		if(stack->comcount == 0)
 
         mod_stack_return(stack);
 		return;
@@ -3737,6 +3837,7 @@ void fpga_mem_large_load_handler (int event, void *data)
 {
 	struct mod_stack_t *stack = data;
 	struct mod_stack_t *new_stack;
+	struct mod_stack_t *wait_stack;
 
 	struct mod_t *mod = stack->mod;
 	int latency_add = stack->latency_add;
@@ -3747,6 +3848,8 @@ void fpga_mem_large_load_handler (int event, void *data)
     unsigned int addr = stack->addr;
     X86Context *ctx = stack->ctx;
     unsigned int gran = stack->interconnect->gran;
+    int translation_latency;
+
 
 
 	if (event == EV_FPGA_MEM_LARGE_LOAD)
@@ -3762,7 +3865,6 @@ void fpga_mem_large_load_handler (int event, void *data)
 
 		if(size <= 0)
 			{
-				esim_schedule_event(EV_FPGA_MEM_LARGE_LOAD_FINISH, stack, 0); 
                 return; 
             }         
 
@@ -3770,7 +3872,7 @@ void fpga_mem_large_load_handler (int event, void *data)
         chunksize = MIN(size , gran - offset);
 
 		new_stack = mod_stack_create(stack->id, mod, addr,
-			EV_FPGA_MEM_LARGE_LOAD, stack, latency_add);
+			EV_FPGA_MEM_LARGE_LOAD_FINISH, stack, latency_add);
 		new_stack->buf = buf;
 		new_stack->interconnect = stack->interconnect;
 		new_stack->event_queue = stack->event_queue;
@@ -3781,10 +3883,13 @@ void fpga_mem_large_load_handler (int event, void *data)
 
 		esim_schedule_event(EV_FPGA_MEM_LARGE_LOAD_START, new_stack, inter); 
 
+		esim_schedule_event(EV_FPGA_MEM_LARGE_LOAD, stack, inter);
 
+       
 		stack->size -= chunksize;
 		stack->buf += chunksize;
-		stack->addr += chunksize;        
+		stack->addr += chunksize;  
+		stack->transfer_count++;   
 
 		return;
 	}
@@ -3796,10 +3901,19 @@ void fpga_mem_large_load_handler (int event, void *data)
 		mem_trace("mem.new_access name=\"A-%lld\" type=\"load\" "
 			"state=\"%s:load\" addr=0x%x\n",
 			stack->id, mod->name, stack->addr);
-       
+
+		if(stack->interconnect->portuse == stack->interconnect->port)
+		  { 
+		  	list_enqueue(mod->interconnect->memoplist, stack);
+            return;
+          }
+
+        
+
+	    stack->interconnect->portuse++;   
 
         esim_schedule_event(EV_FPGA_MEM_LARGE_LOAD_ACTION, stack, latency); 
-
+       
 	
 		return;
 	
@@ -3827,7 +3941,8 @@ void fpga_mem_large_load_handler (int event, void *data)
         { 
           phy_addr = mmu_translate( ctx->address_space_index,
 		 		addr_gran + i*4);
-           new_stack = mod_stack_create( stack->id,
+          mod_stack_id++;
+           new_stack = mod_stack_create( mod_stack_id,
 		      mod, phy_addr, EV_FPGA_MEM_LARGE_LOAD_ACTION_FINISH, stack, latency_add);
 	       new_stack->event_queue = stack->event_queue;
 	       new_stack->event_queue_item = stack->event_queue_item;
@@ -3859,16 +3974,27 @@ void fpga_mem_large_load_handler (int event, void *data)
 			"state=\"%s:load\" addr=0x%x\n",
 			stack->id, mod->name, stack->addr);
 
+        // fprintf(stderr,"mem_large_load_transfer_action_finish,%x,%d\n",stack->addr,stack->size);
         
         stack->modcount--;
 
         if(stack->modcount == 0)
         {
-
           mem_read_copy(ctx->realmem, addr, stack->size, stack->buf);
-        
+          //fprintf(stderr, "here %x\n", stack->buf ); 
+
           mod_stack_return(stack);
-           
+        
+          if(list_count(mod->interconnect->memoplist))
+		{  
+            wait_stack = list_dequeue(mod->interconnect->memoplist);
+			if(wait_stack->load)
+                esim_schedule_event(EV_FPGA_MEM_LARGE_LOAD_START, wait_stack, 0);
+            else 
+            	esim_schedule_event(EV_FPGA_MEM_LARGE_STORE_START, wait_stack, 0); 
+        }
+          mod->interconnect->portuse--; 
+
         }
 
         
@@ -3889,11 +4015,18 @@ void fpga_mem_large_load_handler (int event, void *data)
 			"state=\"%s:load\" addr=0x%x\n",
 			stack->id, mod->name, stack->addr);
 
+        stack->transfer_count--;
 
-        mod_stack_return(stack);
-      
+        if(stack->transfer_count == 0)
+
+
+        {
         if(stack->task)
         stack->task->state = taskreadfinish;
+
+        mod_stack_return(stack); 
+		
+        }
 		return;
 	}
 
@@ -3909,6 +4042,7 @@ void fpga_mem_large_store_handler (int event, void *data)
 {
 	struct mod_stack_t *stack = data;
 	struct mod_stack_t *new_stack;
+	struct mod_stack_t *wait_stack;	
 
 	struct mod_t *mod = stack->mod;
 	int latency_add = stack->latency_add;
@@ -3934,7 +4068,6 @@ void fpga_mem_large_store_handler (int event, void *data)
 
 		if(size <= 0)
 			{
-				esim_schedule_event(EV_FPGA_MEM_LARGE_STORE_FINISH, stack, 0); 
                 return; 
             }         
 
@@ -3942,7 +4075,7 @@ void fpga_mem_large_store_handler (int event, void *data)
         chunksize = MIN(size , gran - offset);
 
 		new_stack = mod_stack_create(stack->id, mod, addr,
-			EV_FPGA_MEM_LARGE_STORE, stack, latency_add);
+			EV_FPGA_MEM_LARGE_STORE_FINISH, stack, latency_add);
 		new_stack->buf = buf;
 		new_stack->interconnect = stack->interconnect;
 		new_stack->event_queue = stack->event_queue;
@@ -3952,11 +4085,12 @@ void fpga_mem_large_store_handler (int event, void *data)
 	    new_stack->size = chunksize;
 
 		esim_schedule_event(EV_FPGA_MEM_LARGE_STORE_START, new_stack, inter); 
-
+        esim_schedule_event(EV_FPGA_MEM_LARGE_STORE, stack, inter); 
 
 		stack->size -= chunksize;
 		stack->buf += chunksize;
-		stack->addr += chunksize;        
+		stack->addr += chunksize;   
+		stack->transfer_count++;     
 
 		return;
 	}
@@ -3970,10 +4104,16 @@ void fpga_mem_large_store_handler (int event, void *data)
 			stack->id, mod->name, stack->addr);
 
      
+        if(stack->interconnect->portuse == stack->interconnect->port)
+		  { 
+		  	list_enqueue(mod->interconnect->memoplist, stack);
+            return;
+          }
+        
+        stack->interconnect->portuse++;     
 
         esim_schedule_event(EV_FPGA_MEM_LARGE_STORE_ACTION, stack, latency); 
-
-
+        
 	
 		return;
 	
@@ -4000,7 +4140,8 @@ void fpga_mem_large_store_handler (int event, void *data)
         { 
           phy_addr = mmu_translate( ctx->address_space_index,
 		 		addr_gran + i*4);
-           new_stack = mod_stack_create( stack->id,
+          mod_stack_id++;
+           new_stack = mod_stack_create( mod_stack_id,
 		      mod, phy_addr, EV_FPGA_MEM_LARGE_STORE_ACTION_FINISH, stack, latency_add);
 	       new_stack->event_queue = stack->event_queue;
 	       new_stack->event_queue_item = stack->event_queue_item;
@@ -4013,9 +4154,7 @@ void fpga_mem_large_store_handler (int event, void *data)
           stack->modcount = gran/4;
         		
 		return;
-         
-
-		
+        		
 	}
 
 
@@ -4042,14 +4181,18 @@ void fpga_mem_large_store_handler (int event, void *data)
           mem_write_copy(ctx->realmem, addr, stack->size, stack->buf);
           mod_stack_return(stack);
            
+           if(list_count(mod->interconnect->memoplist))
+		{  
+            wait_stack = list_dequeue(mod->interconnect->memoplist);
+			if(wait_stack->load)
+                esim_schedule_event(EV_FPGA_MEM_LARGE_LOAD_START, wait_stack, 0);
+            else 
+            	esim_schedule_event(EV_FPGA_MEM_LARGE_STORE_START, wait_stack, 0); 
+        }
+          mod->interconnect->portuse--;  
         }
 
-        
-		
 		return;
-         
-
-		
 	}
 
 
@@ -4061,10 +4204,18 @@ void fpga_mem_large_store_handler (int event, void *data)
 			"state=\"%s:store\" addr=0x%x\n",
 			stack->id, mod->name, stack->addr);
 
-        mod_stack_return(stack);
+		  stack->transfer_count--;
+
+        if(stack->transfer_count == 0)
+
+
+        {  
+            if(stack->task) 
+              stack->task->state = taskwritefinish;
         
-        if(stack->task) 
-        stack->task->state = taskwritefinish;
+             mod_stack_return(stack);
+		
+        }
 		return;
 	}
 
