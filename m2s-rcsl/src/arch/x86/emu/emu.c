@@ -770,6 +770,5 @@ void x86_emu_done(void) {
 
 	/* Free emulator */
 	delete(x86_emu);
-	delete(fpga_emu);
 }
 

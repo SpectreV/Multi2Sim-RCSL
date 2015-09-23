@@ -66,7 +66,8 @@ static int X86ThreadCanFetch(X86Thread *self) {
 	block = self->fetch_neip & ~(self->inst_mod->block_size - 1);
 
 	if (block != self->fetch_block) {
-		phy_addr = mmu_translate(self->ctx->address_space_index, self->fetch_neip);
+		phy_addr = mmu_translate(self->ctx->address_space_index,
+				self->fetch_neip);
 		if (!mod_can_access(self->inst_mod, phy_addr))
 			return 0;
 	}
@@ -78,7 +79,8 @@ static int X86ThreadCanFetch(X86Thread *self) {
 /* Run the emulation of one x86 macro-instruction and create its uops.
  * If any of the uops is a control uop, this uop will be the return value of
  * the function. Otherwise, the first decoded uop is returned. */
-static struct x86_uop_t *X86ThreadFetchInst(X86Thread *self, int fetch_trace_cache) {
+static struct x86_uop_t *X86ThreadFetchInst(X86Thread *self,
+		int fetch_trace_cache) {
 	X86Cpu *cpu = self->cpu;
 	X86Core *core = self->core;
 	X86Context *ctx = self->ctx;
@@ -152,7 +154,8 @@ static struct x86_uop_t *X86ThreadFetchInst(X86Thread *self, int fetch_trace_cac
 					uop->addr = uinst->address;
 					mem_read_copy(ctx->mem, uop->addr, 4, &(uop->data));
 				} else {
-					uop->phy_addr = mmu_translate(self->ctx->address_space_index, uinst->address);
+					uop->phy_addr = mmu_translate(
+							self->ctx->address_space_index, uinst->address);
 					uop->addr = uinst->address;
 					mem_read_copy(ctx->mem, uop->addr, 4, &(uop->data));
 				}
@@ -173,8 +176,8 @@ static struct x86_uop_t *X86ThreadFetchInst(X86Thread *self, int fetch_trace_cac
 			str_size = sizeof str;
 
 			/* Command */
-			str_printf(&str_ptr, &str_size, "x86.new_inst id=%lld core=%d", uop->id_in_core,
-					core->id);
+			str_printf(&str_ptr, &str_size, "x86.new_inst id=%lld core=%d",
+					uop->id_in_core, core->id);
 
 			/* Speculative mode */
 			if (uop->specmode)
@@ -188,7 +191,8 @@ static struct x86_uop_t *X86ThreadFetchInst(X86Thread *self, int fetch_trace_cac
 
 			/* Rest */
 			x86_uinst_dump_buf(uinst, uinst_name, sizeof uinst_name);
-			str_printf(&str_ptr, &str_size, " uasm=\"%s\" stg=\"fe\"", uinst_name);
+			str_printf(&str_ptr, &str_size, " uasm=\"%s\" stg=\"fe\"",
+					uinst_name);
 
 			/* Dump */
 			x86_trace("%s\n", str);
@@ -211,6 +215,12 @@ static struct x86_uop_t *X86ThreadFetchInst(X86Thread *self, int fetch_trace_cac
 
 		/* Next uinst */
 		uinst_index++;
+
+		if (uop->id == 58362) {
+			printf("uop create id %d, mem address %x\n", uop->id,
+					uop->ctx->realmem);
+		}
+
 	}
 
 	/* Increase fetch queue occupancy if instruction does not come from
@@ -240,10 +250,14 @@ static int X86ThreadFetchTraceCache(X86Thread *self) {
 		return 0;
 
 	/* Access BTB, branch predictor, and trace cache */
-	eip_branch = X86ThreadGetNextBranch(self, self->fetch_neip, self->inst_mod->block_size);
+	eip_branch = X86ThreadGetNextBranch(self, self->fetch_neip,
+			self->inst_mod->block_size);
 	mpred = eip_branch ?
-			X86ThreadLookupBranchPredMultiple(self, eip_branch, x86_trace_cache_branch_max) : 0;
-	hit = X86ThreadLookupTraceCache(self, self->fetch_neip, mpred, &mop_count, &mop_array, &neip);
+			X86ThreadLookupBranchPredMultiple(self, eip_branch,
+					x86_trace_cache_branch_max) :
+			0;
+	hit = X86ThreadLookupTraceCache(self, self->fetch_neip, mpred, &mop_count,
+			&mop_array, &neip);
 	if (!hit)
 		return 0;
 
@@ -299,12 +313,14 @@ static void X86ThreadFetch(X86Thread *self) {
 		 phy_addr = self->fetch_neip;
 
 		 else*/
-		phy_addr = mmu_translate(self->ctx->address_space_index, self->fetch_neip);
+		phy_addr = mmu_translate(self->ctx->address_space_index,
+				self->fetch_neip);
 
 		self->fetch_block = block;
 		self->fetch_address = phy_addr;
-		self->fetch_access = mod_access(self->inst_mod, mod_access_load, phy_addr, NULL, NULL, NULL,
-		NULL, self->inst_latency, 4);
+		self->fetch_access = mod_access(self->inst_mod, mod_access_load,
+				phy_addr, NULL, NULL, NULL,
+				NULL, self->inst_latency, 4);
 		self->btb_reads++;
 
 		/* MMU statistics */
@@ -370,7 +386,8 @@ static void X86CoreFetch(X86Core *self) {
 	case x86_cpu_fetch_kind_timeslice: {
 		/* Round-robin fetch */
 		for (i = 0; i < x86_cpu_num_threads; i++) {
-			self->fetch_current = (self->fetch_current + 1) % x86_cpu_num_threads;
+			self->fetch_current = (self->fetch_current + 1)
+					% x86_cpu_num_threads;
 			thread = self->threads[self->fetch_current];
 			if (X86ThreadCanFetch(thread)) {
 				X86ThreadFetch(thread);
@@ -398,7 +415,8 @@ static void X86CoreFetch(X86Core *self) {
 		must_switch = !X86ThreadCanFetch(thread);
 		must_switch = must_switch
 				|| asTiming(cpu)->cycle - self->fetch_switch_when
-						> x86_cpu_thread_quantum + x86_cpu_thread_switch_penalty;
+						> x86_cpu_thread_quantum
+								+ x86_cpu_thread_switch_penalty;
 		must_switch = must_switch || X86ThreadLongLatencyInEventQueue(thread);
 
 		/* Switch thread */
@@ -430,8 +448,8 @@ static void X86CoreFetch(X86Core *self) {
 			if (new_index != thread->id_in_core) {
 				self->fetch_current = new_index;
 				self->fetch_switch_when = asTiming(cpu)->cycle;
-				new_thread->fetch_stall_until = asTiming(cpu)->cycle + x86_cpu_thread_switch_penalty
-						- 1;
+				new_thread->fetch_stall_until = asTiming(cpu)->cycle
+						+ x86_cpu_thread_switch_penalty - 1;
 			}
 		}
 
