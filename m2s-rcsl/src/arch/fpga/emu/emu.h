@@ -67,11 +67,23 @@ CLASS_BEGIN(FPGAEmu, Emu)
 	int running_list_count;
 	int running_list_max;
 
-	/* List of suspended kernels */
-	FPGAKernel *suspended_list_head;
-	FPGAKernel *suspended_list_tail;
-	int suspended_list_count;
-	int suspended_list_max;
+	/* List of blocked kernels */
+	FPGAKernel *blocked_list_head;
+	FPGAKernel *blocked_list_tail;
+	int blocked_list_count;
+	int blocked_list_max;
+
+	/* List of idle kernels */
+	FPGAKernel *idle_list_head;
+	FPGAKernel *idle_list_tail;
+	int idle_list_count;
+	int idle_list_max;
+
+	/* List of offchip kernels */
+	FPGAKernel *offchip_list_head;
+	FPGAKernel *offchip_list_tail;
+	int offchip_list_count;
+	int offchip_list_max;
 
 	/* Table of tasks associated with each kernel */
 	FPGATask **kernel_task_table;
@@ -92,8 +104,7 @@ void FPGAEmuProcessEventsSchedule(FPGAEmu *self);
 
 FPGAKernel* FPGAEmuGetKernelByID(FPGAEmu *self, int kid);
 
-void FPGAEmuLoadKernelsFromConfig(FPGAEmu *self, struct config_t *config,
-		char *section, int id);
+void FPGAEmuLoadKernelsFromConfig(FPGAEmu *self, struct config_t *config, char *section, int id);
 /*
  * Non-Class
  */

@@ -74,44 +74,16 @@ void FPGATaskDestroy(FPGATask *self);
 
 void FPGATaskDump(Object *self, FILE *f);
 
-/* Thread safe/unsafe versions */
-void FPGATaskHostThreadSuspendCancelUnsafe(FPGATask *self);
-void FPGATaskHostThreadSuspendCancel(FPGATask *self);
-void FPGATaskHostThreadTimerCancelUnsafe(FPGATask *self);
-void FPGATaskHostThreadTimerCancel(FPGATask *self);
-
-void FPGATaskSuspend(FPGATask *self, FPGATaskCanWakeupFunc can_wakeup_callback_func,
-		void *can_wakeup_callback_data, FPGATaskWakeupFunc wakeup_callback_func,
-		void *wakeup_callback_data);
 
 void FPGATaskFinish(FPGATask *self, int state);
 void FPGATaskFinishGroup(FPGATask *self, int state);
 void FPGATaskExecute(FPGATask *self);
 
-void FPGATaskSetEip(FPGATask *self, unsigned int eip);
-void FPGATaskRecover(FPGATask *self);
 
-FPGATask *FPGATaskGetZombie(FPGATask *parent, int pid);
 
 int FPGATaskGetState(FPGATask *self, FPGATaskState state);
 void FPGATaskSetState(FPGATask *self, FPGATaskState state);
 void FPGATaskClearState(FPGATask *self, FPGATaskState state);
-
-int FPGATaskFutexWake(FPGATask *self, unsigned int futex, unsigned int count, unsigned int bitset);
-void FPGATaskExitRobustList(FPGATask *self);
-
-void FPGATaskProcSelfMaps(FPGATask *self, char *path, int size);
-void FPGATaskProcCPUInfo(FPGATask *self, char *path, int size);
-
-/* Function that suspends the host thread waiting for an event to occur.
- * When the event finally occurs (i.e., before the function finishes, a
- * call to 'FPGAEmuProcessEvents' is scheduled.
- * The argument 'arg' is the associated guest task. */
-void *FPGAEmuHostThreadSuspend(void *self);
-
-/* Function that suspends the host thread waiting for a timer to expire,
- * and then schedules a call to 'FPGAEmuProcessEvents'. */
-void *FPGATaskHostThreadTimer(void *self);
 
 /*
  * Non-Class

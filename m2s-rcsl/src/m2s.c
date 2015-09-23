@@ -679,6 +679,12 @@ static void m2s_read_command_line(int *argc_ptr, char **argv) {
 			continue;
 		}
 
+		if (!strcmp(argv[argi], "--x86-debug-kernel")) {
+			m2s_need_argument(argc, argv, argi);
+			fpga_kernel_debug_file_name = argv[++argi];
+			continue;
+		}
+
 		/* CUDA runtime debug file */
 		if (!strcmp(argv[argi], "--x86-debug-cuda")) {
 			m2s_need_argument(argc, argv, argi);
@@ -1837,6 +1843,7 @@ int main(int argc, char **argv) {
 	x86_loader_debug_category = debug_new_category(x86_loader_debug_file_name);
 	x86_sys_debug_category = debug_new_category(x86_sys_debug_file_name);
 	x86_trace_cache_debug_category = debug_new_category(x86_trace_cache_debug_file_name);
+	fpga_kernel_debug_category = debug_new_category(fpga_kernel_debug_file_name);
 	mem_debug_category = debug_new_category(mem_debug_file_name);
 	evg_opencl_debug_category = debug_new_category(evg_opencl_debug_file_name);
 	evg_isa_debug_category = debug_new_category(evg_isa_debug_file_name);

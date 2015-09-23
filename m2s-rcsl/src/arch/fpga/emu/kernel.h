@@ -89,9 +89,8 @@ CLASS_BEGIN(FPGAKernel, Object)
 	FPGAKernel *kernel_list_next, *kernel_list_prev;
 	FPGAKernel *running_list_next, *running_list_prev;
 	FPGAKernel *blocked_list_next, *blocked_list_prev;
-	FPGAKernel *onchip_list_next, *onchip_list_prev;
+	FPGAKernel *idle_list_next, *idle_list_prev;
 	FPGAKernel *offchip_list_next, *offchip_list_prev;
-	FPGAKernel *ready_list_next, *ready_list_prev;
 
 	/* List of tasks assigned to a kernel. This list is
 	 * managed by the timing simulator for scheduling purposes. */

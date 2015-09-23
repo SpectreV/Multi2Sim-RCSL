@@ -314,6 +314,8 @@ void fpga_emu_done(void) {
 void fpga_task_finish_handler(int event, void *data) {
 	FPGATask *task = (FPGATask *)data;
 	FPGATaskSetState(task, FPGATaskFinished);
+	FPGAKernelSetState(task->kernel, FPGAKernelIdle);
+	FPGAKernelDebug("kernel $d finishes executing its task and return to idle\n", task->kernel->kid);
 }
 
 void fpga_kernel_reconfigure_handler(int event, void *data) {

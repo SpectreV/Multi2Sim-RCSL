@@ -298,7 +298,7 @@ int FPGARun(Timing *self) {
 	}
 
 	if (!kernel_running) {
-		esim_finish = esim_finish_fpga_all_kernel_empty;
+		return FALSE;
 	}
 
 	/* Stop if maximum number of cycles exceeded */

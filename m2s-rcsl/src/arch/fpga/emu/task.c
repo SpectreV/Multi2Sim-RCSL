@@ -104,11 +104,14 @@ void FPGATaskDestroy(FPGATask *self) {
 	if (!FPGATaskGetState(self, FPGATaskFinished))
 		FPGATaskFinish(self, 0);
 
+	assert(FPGATaskGetState(self, FPGATaskFinished));
+	DOUBLE_LINKED_LIST_REMOVE(kernel, finished, self);
+
 	/* Remove context from finished contexts list. This should
 	 * be the only list the context is in right now. */
 	DOUBLE_LINKED_LIST_REMOVE(kernel, task, self);
 
-	FPGATaskDebug("inst %lld: context %d freed\n", asEmu(emu)->instructions, self->pid);
+	FPGAKernelDebug("task %d freed on kernel %d\n", self->pid, self->kernel->kid);
 }
 
 void FPGATaskDump(Object *self, FILE *f) {
@@ -127,6 +130,10 @@ void FPGATaskDump(Object *self, FILE *f) {
 void FPGATaskExecute(FPGATask *self) {
 	FPGAKernel *kernel = self->kernel;
 
+	assert(FPGATaskGetState(self, FPGATaskReady));
+
+	FPGATaskSetState(self, FPGATaskRunning);
+
 	if (kernel->folding) {
 		kernel->delay = *(int*) list_get(kernel->heights, kernel->current_implement);
 	}
@@ -144,32 +151,42 @@ int FPGATaskGetState(FPGATask *self, FPGATaskState state) {
 }
 
 static void FPGATaskUpdateState(FPGATask *self, FPGATaskState state) {
+	FPGAKernel *kernel = self->kernel;
 
 	/* Remove contexts from the following lists:
-
-	 if (emu->running_list_count)
-	 m2s_timer_start(asEmu(emu)->timer);
-	 else
-	 m2s_timer_stop(asEmu(emu)->timer);
-	 }
-
-	 void FPGATaskSetState(FPGATask *self, FPGATaskState state) {
-	 FPGATaskUpdateState(self, self->state | state);
-	 }
-
-	 void FPGATaskClearState(FPGATask *self, FPGATaskState state) {
-	 FPGATaskUpdateState(self, self->state & ~state);
-	 }
-
+	 * ready, finished
 	 */
+
+	if (DOUBLE_LINKED_LIST_MEMBER(kernel, ready, self))
+		DOUBLE_LINKED_LIST_REMOVE(kernel, ready, self);
+	if (DOUBLE_LINKED_LIST_MEMBER(kernel, finished, self))
+		DOUBLE_LINKED_LIST_MEMBER(kernel, finished, self);
+
+	self->state = state;
+	if(self->state & FPGATaskReady) {
+		DOUBLE_LINKED_LIST_INSERT_TAIL(kernel, ready, self);
+	}
+	if (self->state & FPGATaskFinished) {
+		DOUBLE_LINKED_LIST_INSERT_TAIL(kernel, finished, self);
+	}
+	if (self->state & FPGATaskRunning) {
+		DOUBLE_LINKED_LIST_INSERT_HEAD(kernel, ready, self);
+		self->state |= FPGATaskReady;
+	}
+
+
 }
 
 void FPGATaskSetState(FPGATask *self, FPGATaskState state) {
-	FPGATaskUpdateState(self, self->state | state);
+	FPGATaskUpdateState(self, state);
+}
+
+void FPGATaskClearState(FPGATask *self, FPGATaskState state) {
+	FPGATaskUpdateState(self, self->state & ~state);
 }
 
 void FPGATaskFinish(FPGATask *self, int state) {
-
+	FPGATaskSetState(self, FPGATaskFinished);
 }
 
 /*
@@ -178,5 +195,5 @@ void FPGATaskFinish(FPGATask *self, int state) {
 
 int fpga_task_debug_category;
 
-struct str_map_t fpga_task_state_map = { 3, { { "running", FPGATaskRunning }, { "waiting",
+struct str_map_t fpga_task_state_map = { 3, { { "running", FPGATaskRunning }, { "ready",
 		FPGATaskReady }, { "finished", FPGATaskFinished } } };

@@ -98,25 +98,55 @@ void FPGAKernelDump(Object *self, FILE *f) {
 static void FPGAKernelUpdateState(FPGAKernel *self, FPGAKernelState state) {
 	FPGAEmu *emu = self->emu;
 
-	/*FPGAKernelState status_diff;
-	 char state_str[MAX_STRING_SIZE];*/
+	FPGAKernelState status_diff;
+	char state_str[MAX_STRING_SIZE];
 
-	/* Remove contexts from the following lists:
-	 *   running, suspended, zombie */
+	/* Remove kernel from the following lists:
+	 *   running, blocked, offchip, idle */
+	if (DOUBLE_LINKED_LIST_MEMBER(emu, running, self))
+		DOUBLE_LINKED_LIST_REMOVE(emu, running, self);
+	if (DOUBLE_LINKED_LIST_MEMBER(emu, blocked, self))
+		DOUBLE_LINKED_LIST_REMOVE(emu, blocked, self);
+	if (DOUBLE_LINKED_LIST_MEMBER(emu, offchip, self))
+		DOUBLE_LINKED_LIST_REMOVE(emu, offchip, self);
+	if (DOUBLE_LINKED_LIST_MEMBER(emu, idle, self))
+		DOUBLE_LINKED_LIST_REMOVE(emu, idle, self);
+
+	if (debug_status(fpga_kernel_debug_category)) {
+		str_map_flags(&fpga_kernel_state_map, self->state, state_str, sizeof state_str);
+		FPGAKernelDebug("kernel %d current state is %s\n", self->kid, state_str);
+	}
+
+	self->state = state;
+	if (self->state & FPGAKernelRunning)
+		DOUBLE_LINKED_LIST_INSERT_HEAD(emu, running, self);
+	if (self->state & FPGAKernelIdle)
+		DOUBLE_LINKED_LIST_INSERT_HEAD(emu, idle, self);
+	if (self->state & FPGAKernelBlocked)
+		DOUBLE_LINKED_LIST_INSERT_HEAD(emu, blocked, self);
+	if (self->state & FPGAKernelOffchip)
+		DOUBLE_LINKED_LIST_INSERT_HEAD(emu, offchip, self);
+
+	if (debug_status(fpga_kernel_debug_category)) {
+		str_map_flags(&fpga_kernel_state_map, self->state, state_str, sizeof state_str);
+		FPGAKernelDebug("kernel %d change state to %s\n", self->kid, state_str);
+	}
 
 	/* Start/stop fpga timer depending on whether there are any contexts
 	 * currently running. */
-	if (emu->running_list_count)
+	if (emu->running_list_count || emu->idle_list_count)
 		m2s_timer_start(asEmu(emu)->timer);
 	else
 		m2s_timer_stop(asEmu(emu)->timer);
 }
 
-
 void FPGAKernelExecute(FPGAKernel *self) {
 	/*FPGAEmu *emu = self->emu;*/
 
-	if (self->state != FPGAKernelRunning)
+	/* The kernel is already running some tasks, or
+	 * The kernel is not currently on chip, or
+	 * The kernel is currently blocked by some other kernel */
+	if (!FPGAKernelGetState(self, FPGAKernelIdle))
 		return;
 
 	if (!self->task_list_count) {
@@ -124,6 +154,10 @@ void FPGAKernelExecute(FPGAKernel *self) {
 	} else if (!self->ready_list_count) {
 		FPGAKernelSetState(self, FPGAKernelIdle);
 	}
+
+	FPGAKernelSetState(self, FPGAKernelRunning);
+
+	FPGAKernelDebug("kernel $d starts to execute the first task in its ready task queue\n", self->kid);
 
 	FPGATask *task = self->ready_list_head;
 	FPGATaskExecute(task);
@@ -133,7 +167,6 @@ void FPGAKernelExecute(FPGAKernel *self) {
 int FPGAKernelGetState(FPGAKernel *self, FPGAKernelState state) {
 	return (self->state & state) > 0;
 }
-
 
 void FPGAKernelSetState(FPGAKernel *self, FPGAKernelState state) {
 	FPGAKernelUpdateState(self, self->state | state);
@@ -151,7 +184,7 @@ void FPGAKernelClearState(FPGAKernel *self, FPGAKernelState state) {
 void FPGAKernelFinish(FPGAKernel *self, int state) {
 	/*FPGAEmu *emu = self->emu;
 	 FPGAKernel *aux;*/
-
+	FPGAKernelSetState(self, FPGAKernelIdle);
 }
 
 /*
