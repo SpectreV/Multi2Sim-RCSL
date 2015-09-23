@@ -2025,11 +2025,11 @@ configure:17964: checking lex output file root
 configure:17978: result: lex.yy
 configure:17983: checking lex library
 configure:17997: gcc -o conftest -msse2 -Wall -DMHANDLE -g -O0 -std=gnu99 -Wno-error=deprecated-declarations   conftest.c   >&5
-/tmp/ccF1Oi9Y.o: In function `yylex':
+/tmp/ccbgohR3.o: In function `yylex':
 /home/liang/git/Multi2Sim-RCSL/m2s-rcsl/lex.yy.c:884: undefined reference to `yywrap'
-/tmp/ccF1Oi9Y.o: In function `input':
+/tmp/ccbgohR3.o: In function `input':
 /home/liang/git/Multi2Sim-RCSL/m2s-rcsl/lex.yy.c:1186: undefined reference to `yywrap'
-/tmp/ccF1Oi9Y.o: In function `main':
+/tmp/ccbgohR3.o: In function `main':
 /home/liang/git/Multi2Sim-RCSL/m2s-rcsl/conftest.l:17: undefined reference to `yywrap'
 collect2: error: ld returned 1 exit status
 configure:17997: $? = 1
