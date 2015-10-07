@@ -628,7 +628,8 @@ static void m2s_read_command_line(int *argc_ptr, char **argv) {
 			m2s_need_argument(argc, argv, argi);
 			m2s_max_time = str_to_llint(argv[argi + 1], &err);
 			if (err)
-				fatal("option %s, value '%s': %s", argv[argi], argv[argi + 1], str_error(err));
+				fatal("option %s, value '%s': %s", argv[argi], argv[argi + 1],
+						str_error(err));
 			argi++;
 			continue;
 		}
@@ -764,7 +765,8 @@ static void m2s_read_command_line(int *argc_ptr, char **argv) {
 		/* Last x86 instruction */
 		if (!strcmp(argv[argi], "--x86-last-inst")) {
 			m2s_need_argument(argc, argv, argi);
-			x86_emu_last_inst_size = hex_str_to_byte_array(x86_emu_last_inst_bytes, argv[++argi],
+			x86_emu_last_inst_size = hex_str_to_byte_array(
+					x86_emu_last_inst_bytes, argv[++argi],
 					sizeof x86_emu_last_inst_bytes);
 			continue;
 		}
@@ -781,7 +783,8 @@ static void m2s_read_command_line(int *argc_ptr, char **argv) {
 			m2s_need_argument(argc, argv, argi);
 			x86_emu_max_cycles = str_to_llint(argv[argi + 1], &err);
 			if (err)
-				fatal("option %s, value '%s': %s", argv[argi], argv[argi + 1], str_error(err));
+				fatal("option %s, value '%s': %s", argv[argi], argv[argi + 1],
+						str_error(err));
 			argi++;
 			continue;
 		}
@@ -791,7 +794,8 @@ static void m2s_read_command_line(int *argc_ptr, char **argv) {
 			m2s_need_argument(argc, argv, argi);
 			x86_emu_max_inst = str_to_llint(argv[argi + 1], &err);
 			if (err)
-				fatal("option %s, value '%s': %s", argv[argi], argv[argi + 1], str_error(err));
+				fatal("option %s, value '%s': %s", argv[argi], argv[argi + 1],
+						str_error(err));
 			argi++;
 			continue;
 		}
@@ -813,8 +817,15 @@ static void m2s_read_command_line(int *argc_ptr, char **argv) {
 		/* x86 simulation accuracy */
 		if (!strcmp(argv[argi], "--x86-sim")) {
 			m2s_need_argument(argc, argv, argi);
-			x86_sim_kind = str_map_string_err_msg(&arch_sim_kind_map, argv[++argi],
-					"invalid value for --x86-sim.");
+			x86_sim_kind = str_map_string_err_msg(&arch_sim_kind_map,
+					argv[++argi], "invalid value for --x86-sim.");
+			continue;
+		}
+
+		if (!strcmp(argv[argi], "--fpga-sim")) {
+			m2s_need_argument(argc, argv, argi);
+			fpga_sim_kind = str_map_string_err_msg(&arch_sim_kind_map,
+					argv[++argi], "invalid value for --fpga-sim.");
 			continue;
 		}
 
@@ -874,7 +885,8 @@ static void m2s_read_command_line(int *argc_ptr, char **argv) {
 		/* Evergreen OpenGL shader binary disassembler */
 		if (!strcmp(argv[argi], "--evg-disasm-opengl")) {
 			if (argc != 4)
-				fatal("option '%s' requires two argument.\n%s", argv[argi], m2s_err_note);
+				fatal("option '%s' requires two argument.\n%s", argv[argi],
+						m2s_err_note);
 			evg_opengl_disasm_file_name = argv[++argi];
 			evg_opengl_disasm_shader_index = atoi(argv[++argi]);
 			continue;
@@ -905,7 +917,8 @@ static void m2s_read_command_line(int *argc_ptr, char **argv) {
 			m2s_need_argument(argc, argv, argi);
 			evg_emu_max_cycles = str_to_llint(argv[argi + 1], &err);
 			if (err)
-				fatal("option %s, value '%s': %s", argv[argi], argv[argi + 1], str_error(err));
+				fatal("option %s, value '%s': %s", argv[argi], argv[argi + 1],
+						str_error(err));
 			argi++;
 			continue;
 		}
@@ -915,7 +928,8 @@ static void m2s_read_command_line(int *argc_ptr, char **argv) {
 			m2s_need_argument(argc, argv, argi);
 			evg_emu_max_inst = str_to_llint(argv[argi + 1], &err);
 			if (err)
-				fatal("option %s, value '%s': %s", argv[argi], argv[argi + 1], str_error(err));
+				fatal("option %s, value '%s': %s", argv[argi], argv[argi + 1],
+						str_error(err));
 			argi++;
 			continue;
 		}
@@ -944,8 +958,8 @@ static void m2s_read_command_line(int *argc_ptr, char **argv) {
 		/* Evergreen simulation accuracy */
 		if (!strcmp(argv[argi], "--evg-sim")) {
 			m2s_need_argument(argc, argv, argi);
-			evg_sim_kind = str_map_string_err_msg(&arch_sim_kind_map, argv[++argi],
-					"invalid value for --evg-sim.");
+			evg_sim_kind = str_map_string_err_msg(&arch_sim_kind_map,
+					argv[++argi], "invalid value for --evg-sim.");
 			continue;
 		}
 
@@ -997,7 +1011,8 @@ static void m2s_read_command_line(int *argc_ptr, char **argv) {
 		/* Souther Islands OpenGL shader binary disassembler */
 		if (!strcmp(argv[argi], "--si-disasm-opengl")) {
 			if (argc != 4)
-				fatal("option '%s' requires two argument.\n%s", argv[argi], m2s_err_note);
+				fatal("option '%s' requires two argument.\n%s", argv[argi],
+						m2s_err_note);
 			si_opengl_disasm_file_name = argv[++argi];
 			si_opengl_disasm_shader_index = atoi(argv[++argi]);
 			continue;
@@ -1015,7 +1030,8 @@ static void m2s_read_command_line(int *argc_ptr, char **argv) {
 			m2s_need_argument(argc, argv, argi);
 			si_emu_max_cycles = str_to_llint(argv[argi + 1], &err);
 			if (err)
-				fatal("option %s, value '%s': %s", argv[argi], argv[argi + 1], str_error(err));
+				fatal("option %s, value '%s': %s", argv[argi], argv[argi + 1],
+						str_error(err));
 			argi++;
 			continue;
 		}
@@ -1025,7 +1041,8 @@ static void m2s_read_command_line(int *argc_ptr, char **argv) {
 			m2s_need_argument(argc, argv, argi);
 			si_emu_max_inst = str_to_llint(argv[argi + 1], &err);
 			if (err)
-				fatal("option %s, value '%s': %s", argv[argi], argv[argi + 1], str_error(err));
+				fatal("option %s, value '%s': %s", argv[argi], argv[argi + 1],
+						str_error(err));
 			argi++;
 			continue;
 		}
@@ -1047,8 +1064,8 @@ static void m2s_read_command_line(int *argc_ptr, char **argv) {
 		/* Southern Islands simulation accuracy */
 		if (!strcmp(argv[argi], "--si-sim")) {
 			m2s_need_argument(argc, argv, argi);
-			si_sim_kind = str_map_string_err_msg(&arch_sim_kind_map, argv[++argi],
-					"invalid value for --si-sim.");
+			si_sim_kind = str_map_string_err_msg(&arch_sim_kind_map,
+					argv[++argi], "invalid value for --si-sim.");
 			continue;
 		}
 
@@ -1096,7 +1113,8 @@ static void m2s_read_command_line(int *argc_ptr, char **argv) {
 			m2s_need_argument(argc, argv, argi);
 			frm_emu_max_cycles = str_to_llint(argv[argi + 1], &err);
 			if (err)
-				fatal("option %s, value '%s': %s", argv[argi], argv[argi + 1], str_error(err));
+				fatal("option %s, value '%s': %s", argv[argi], argv[argi + 1],
+						str_error(err));
 			argi++;
 			continue;
 		}
@@ -1106,7 +1124,8 @@ static void m2s_read_command_line(int *argc_ptr, char **argv) {
 			m2s_need_argument(argc, argv, argi);
 			frm_emu_max_inst = str_to_llint(argv[argi + 1], &err);
 			if (err)
-				fatal("option %s, value '%s': %s", argv[argi], argv[argi + 1], str_error(err));
+				fatal("option %s, value '%s': %s", argv[argi], argv[argi + 1],
+						str_error(err));
 			argi++;
 			continue;
 		}
@@ -1121,8 +1140,8 @@ static void m2s_read_command_line(int *argc_ptr, char **argv) {
 		/* Fermi simulation accuracy */
 		if (!strcmp(argv[argi], "--frm-sim")) {
 			m2s_need_argument(argc, argv, argi);
-			frm_sim_kind = str_map_string_err_msg(&arch_sim_kind_map, argv[++argi],
-					"invalid value for --frm-sim.");
+			frm_sim_kind = str_map_string_err_msg(&arch_sim_kind_map,
+					argv[++argi], "invalid value for --frm-sim.");
 			continue;
 		}
 
@@ -1291,7 +1310,8 @@ static void m2s_read_command_line(int *argc_ptr, char **argv) {
 			net_sim_last_option = argv[argi];
 			net_max_cycles = str_to_llint(argv[argi + 1], &err);
 			if (err)
-				fatal("option %s, value '%s': %s", argv[argi], argv[argi + 1], str_error(err));
+				fatal("option %s, value '%s': %s", argv[argi], argv[argi + 1],
+						str_error(err));
 			argi++;
 			continue;
 		}
@@ -1355,7 +1375,8 @@ static void m2s_read_command_line(int *argc_ptr, char **argv) {
 			dram_sim_last_option = argv[argi];
 			dram_system_max_cycles = str_to_llint(argv[argi + 1], &err);
 			if (err)
-				fatal("option %s, value '%s': %s", argv[argi], argv[argi + 1], str_error(err));
+				fatal("option %s, value '%s': %s", argv[argi], argv[argi + 1],
+						str_error(err));
 			argi++;
 			continue;
 		}
@@ -1388,7 +1409,8 @@ static void m2s_read_command_line(int *argc_ptr, char **argv) {
 
 		/* Invalid option */
 		if (argv[argi][0] == '-') {
-			fatal("'%s' is not a valid command-line option.\n%s", argv[argi], m2s_err_note);
+			fatal("'%s' is not a valid command-line option.\n%s", argv[argi],
+					m2s_err_note);
 		}
 
 		/* End of options */
@@ -1457,11 +1479,14 @@ static void m2s_read_command_line(int *argc_ptr, char **argv) {
 	if (*si_disasm_file_name && argc > 3)
 		fatal("option '--si-disasm' is incompatible with any other options.");
 	if (*si_gpu_dump_default_config_file_name && argc > 3)
-		fatal("option '--si-dump-default-config' is incompatible with any other options.");
+		fatal(
+				"option '--si-dump-default-config' is incompatible with any other options.");
 	if (*evg_opengl_disasm_file_name && argc != 4)
-		fatal("option '--evg-disasm-opengl' is incompatible with any other options.");
+		fatal(
+				"option '--evg-disasm-opengl' is incompatible with any other options.");
 	if (*si_opengl_disasm_file_name && argc != 4)
-		fatal("option '--si-disasm-opengl' is incompatible with any other options.");
+		fatal(
+				"option '--si-disasm-opengl' is incompatible with any other options.");
 	if (*frm_disasm_file_name && argc > 3)
 		fatal("option '--frm-disasm' is incompatible with any other options.");
 	if (*x86_disasm_file_name && argc > 3)
@@ -1556,7 +1581,8 @@ static void m2s_load_programs(int argc, char **argv) {
 		/* Read executable full path */
 		exe_file_name = config_read_string(config, section, "Exe", "");
 		cwd_path = config_read_string(config, section, "Cwd", "");
-		file_full_path(exe_file_name, cwd_path, exe_full_path, sizeof exe_full_path);
+		file_full_path(exe_file_name, cwd_path, exe_full_path,
+				sizeof exe_full_path);
 
 		/* Load context depending on architecture */
 		elf_file_read_header(exe_full_path, &ehdr);
@@ -1662,7 +1688,8 @@ static void m2s_signal_process(void) {
 
 		/* Report file name */
 		time_in_dsec = (double) esim_real_time() / 1.0e4;
-		snprintf(file_name, sizeof file_name, "m2s-%s-%lld", m2s_sim_id, time_in_dsec);
+		snprintf(file_name, sizeof file_name, "m2s-%s-%lld", m2s_sim_id,
+				time_in_dsec);
 		warning("user signal received, dumping report in '%s'\n", file_name);
 
 		/* Create report file */
@@ -1714,8 +1741,10 @@ static void m2s_init(void) {
 	/* Initial information */
 	fprintf(stderr, "\n");
 	fprintf(stderr, "; Multi2Sim %s - ", VERSION);
-	fprintf(stderr, "A Simulation Framework for CPU-GPU Heterogeneous Computing\n");
-	fprintf(stderr, "; Please use command 'm2s --help' for a list of command-line options.\n");
+	fprintf(stderr,
+			"A Simulation Framework for CPU-GPU Heterogeneous Computing\n");
+	fprintf(stderr,
+			"; Please use command 'm2s --help' for a list of command-line options.\n");
 	fprintf(stderr, "; Simulation alpha-numeric ID: %s\n", m2s_sim_id);
 	fprintf(stderr, "\n");
 
@@ -1788,11 +1817,13 @@ int main(int argc, char **argv) {
 
 	/* Evergreen OpenGL disassembler tool */
 	if (*evg_opengl_disasm_file_name)
-		evg_emu_opengl_disasm(evg_opengl_disasm_file_name, evg_opengl_disasm_shader_index);
+		evg_emu_opengl_disasm(evg_opengl_disasm_file_name,
+				evg_opengl_disasm_shader_index);
 
 	/* Southern Islands OpenGL disassembler tool */
 	if (*si_opengl_disasm_file_name)
-		si_emu_opengl_disasm(si_opengl_disasm_file_name, si_opengl_disasm_shader_index);
+		si_emu_opengl_disasm(si_opengl_disasm_file_name,
+				si_opengl_disasm_shader_index);
 
 	/* Fermi disassembler tool */
 	if (*frm_disasm_file_name)
@@ -1838,12 +1869,16 @@ int main(int argc, char **argv) {
 	opencl_debug_category = debug_new_category(opencl_debug_file_name);
 	cuda_debug_category = debug_new_category(cuda_debug_file_name);
 	x86_context_debug_category = debug_new_category(x86_ctx_debug_file_name);
-	x86_context_isa_debug_category = debug_new_category(x86_isa_debug_file_name);
-	x86_context_call_debug_category = debug_new_category(x86_call_debug_file_name);
+	x86_context_isa_debug_category = debug_new_category(
+			x86_isa_debug_file_name);
+	x86_context_call_debug_category = debug_new_category(
+			x86_call_debug_file_name);
 	x86_loader_debug_category = debug_new_category(x86_loader_debug_file_name);
 	x86_sys_debug_category = debug_new_category(x86_sys_debug_file_name);
-	x86_trace_cache_debug_category = debug_new_category(x86_trace_cache_debug_file_name);
-	fpga_kernel_debug_category = debug_new_category(fpga_kernel_debug_file_name);
+	x86_trace_cache_debug_category = debug_new_category(
+			x86_trace_cache_debug_file_name);
+	fpga_kernel_debug_category = debug_new_category(
+			fpga_kernel_debug_file_name);
 	mem_debug_category = debug_new_category(mem_debug_file_name);
 	evg_opencl_debug_category = debug_new_category(evg_opencl_debug_file_name);
 	evg_isa_debug_category = debug_new_category(evg_isa_debug_file_name);
@@ -1855,22 +1890,31 @@ int main(int argc, char **argv) {
 	arm_isa_inst_debug_category = debug_new_category(arm_isa_debug_file_name);
 	arm_sys_debug_category = debug_new_category(arm_sys_debug_file_name);
 	arm_isa_call_debug_category = debug_new_category(arm_call_debug_file_name);
-	mips_loader_debug_category = debug_new_category(mips_loader_debug_file_name);
+	mips_loader_debug_category = debug_new_category(
+			mips_loader_debug_file_name);
 	mips_isa_inst_debug_category = debug_new_category(mips_isa_debug_file_name);
 	mips_sys_debug_category = debug_new_category(mips_sys_debug_file_name);
-	mips_isa_call_debug_category = debug_new_category(mips_call_debug_file_name);
+	mips_isa_call_debug_category = debug_new_category(
+			mips_call_debug_file_name);
 
 	/* Initialization of runtimes */
 	runtime_init();
 	runtime_register("Old OpenCL", "m2s-opencl-old", "m2s-opencl-old", 325,
 			(runtime_abi_func_t) evg_opencl_abi_call);
-	runtime_register("GLUT", "glut", "m2s-glut", 326, (runtime_abi_func_t) glut_abi_call);
-	runtime_register("OpenGL", "GL", "m2s-opengl", 327, (runtime_abi_func_t) opengl_abi_call);
-	runtime_register("CUDA", "cuda", "m2s-cuda", 328, (runtime_abi_func_t) cuda_abi_call);
-	runtime_register("CudaRT", "cudart", "m2s-cuda", 328, (runtime_abi_func_t) cuda_abi_call);
-	runtime_register("OpenCL", "OpenCL", "m2s-opencl", 329, (runtime_abi_func_t) opencl_abi_call);
-	runtime_register("GLEW", "GLEW", "m2s-glew", 330, (runtime_abi_func_t) glew_abi_call);
-	runtime_register("GLU", "GLU", "m2s-glu", 331, (runtime_abi_func_t) glu_abi_call);
+	runtime_register("GLUT", "glut", "m2s-glut", 326,
+			(runtime_abi_func_t) glut_abi_call);
+	runtime_register("OpenGL", "GL", "m2s-opengl", 327,
+			(runtime_abi_func_t) opengl_abi_call);
+	runtime_register("CUDA", "cuda", "m2s-cuda", 328,
+			(runtime_abi_func_t) cuda_abi_call);
+	runtime_register("CudaRT", "cudart", "m2s-cuda", 328,
+			(runtime_abi_func_t) cuda_abi_call);
+	runtime_register("OpenCL", "OpenCL", "m2s-opencl", 329,
+			(runtime_abi_func_t) opencl_abi_call);
+	runtime_register("GLEW", "GLEW", "m2s-glew", 330,
+			(runtime_abi_func_t) glew_abi_call);
+	runtime_register("GLU", "GLU", "m2s-glu", 331,
+			(runtime_abi_func_t) glu_abi_call);
 
 	/* Initialization of drivers */
 	opencl_init();
@@ -1881,21 +1925,23 @@ int main(int argc, char **argv) {
 	trace_init(trace_file_name);
 
 	/* Initialization of architectures */
-	arch_arm = arch_register("ARM", "arm", arm_sim_kind, arm_emu_init, arm_emu_done,
-			arm_cpu_read_config, arm_cpu_init, arm_cpu_done);
-	arch_evergreen = arch_register("Evergreen", "evg", evg_sim_kind, evg_emu_init, evg_emu_done,
-			evg_gpu_read_config, evg_gpu_init, evg_gpu_done);
-	arch_fermi = arch_register("Fermi", "frm", frm_sim_kind, frm_emu_init, frm_emu_done,
-			frm_gpu_read_config, frm_gpu_init, frm_gpu_done);
-	arch_mips = arch_register("MIPS", "mips", mips_sim_kind, mips_emu_init, mips_emu_done,
-			mips_cpu_read_config, mips_cpu_init, mips_cpu_done);
-	arch_southern_islands = arch_register("SouthernIslands", "si", si_sim_kind, si_emu_init,
-			si_emu_done, si_gpu_read_config, si_gpu_init, si_gpu_done);
-	arch_x86 = arch_register("x86", "x86", x86_sim_kind, x86_emu_init, x86_emu_done,
-			X86CpuReadConfig,
+	arch_arm = arch_register("ARM", "arm", arm_sim_kind, arm_emu_init,
+			arm_emu_done, arm_cpu_read_config, arm_cpu_init, arm_cpu_done);
+	arch_evergreen = arch_register("Evergreen", "evg", evg_sim_kind,
+			evg_emu_init, evg_emu_done, evg_gpu_read_config, evg_gpu_init,
+			evg_gpu_done);
+	arch_fermi = arch_register("Fermi", "frm", frm_sim_kind, frm_emu_init,
+			frm_emu_done, frm_gpu_read_config, frm_gpu_init, frm_gpu_done);
+	arch_mips = arch_register("MIPS", "mips", mips_sim_kind, mips_emu_init,
+			mips_emu_done, mips_cpu_read_config, mips_cpu_init, mips_cpu_done);
+	arch_southern_islands = arch_register("SouthernIslands", "si", si_sim_kind,
+			si_emu_init, si_emu_done, si_gpu_read_config, si_gpu_init,
+			si_gpu_done);
+	arch_x86 = arch_register("x86", "x86", x86_sim_kind, x86_emu_init,
+			x86_emu_done, X86CpuReadConfig,
 			NULL, NULL);
-	arch_fpga = arch_register("FPGA", "fpga", fpga_sim_kind, fpga_emu_init, fpga_emu_done,
-			FPGAReadConfig,
+	arch_fpga = arch_register("FPGA", "fpga", fpga_sim_kind, fpga_emu_init,
+			fpga_emu_done, FPGAReadConfig,
 			NULL, NULL); //FIXME!!!
 
 	arch_init();
