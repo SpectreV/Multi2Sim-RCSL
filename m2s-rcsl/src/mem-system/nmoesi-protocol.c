@@ -1263,8 +1263,8 @@ void mod_handler_nmoesi_find_and_lock(int event, void *data) {
 				stack->id, mod->name);
 
 		if ((stack->uop) && (stack->uop->id == 58362)) {
-			printf("FIND_AND_LOCK_FINISH id %d, mem address %x\n", stack->uop->id,
-					stack->uop->ctx->realmem);
+			printf("FIND_AND_LOCK_FINISH id %d, mem address %x\n",
+					stack->uop->id, stack->uop->ctx->realmem);
 		}
 
 		/* If evict produced err, return err */
@@ -3109,7 +3109,7 @@ void fpga_reg_handler(int event, void *data) {
 					&& stack->uop->data == 1) {
 				// fprintf(stderr, "call \n");
 				FPGATask *task = new(FPGATask, stack->uop->kernel,
-						stack->uop->ctx, 0, 0);
+						stack->uop->ctx);
 
 			}
 		}

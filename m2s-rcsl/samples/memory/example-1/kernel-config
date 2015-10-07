@@ -4,7 +4,7 @@ Exe = Vsort
 InputFormat = 32,1;32,20
 OutputFormat = 32,20;
 
-Folding = True
+Folding = False
 NumImplements = 3
 Widths = 3 5 6
 Lengths = 3 5 6
@@ -26,4 +26,3 @@ DstAXISize = 0x0000001c
 
 StartReg = 0xF0000008
 FinishReg = 0xF000000C
-Delay = 1000

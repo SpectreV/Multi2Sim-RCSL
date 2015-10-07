@@ -157,7 +157,8 @@ void FPGAKernelSetInputOutputFormat(FPGAKernel *self, char *format, int type) {
 	char *param, *param1;
 	int i;
 
-	int param_num, *param_sizes, *param_counts;
+	int param_num, *param_counts;
+	short *param_sizes;
 
 	/* Duplicate argument string */
 	format = str_set(NULL, format);

@@ -55,7 +55,7 @@ CLASS_BEGIN(FPGAKernel, Object)
 	int state;
 	int kid; /* Kernel ID */
 
-	char kernel_name[MAX_STRING_SIZE];
+	char *kernel_name;
 	int folding;
 
 	/* Implementations */

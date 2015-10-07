@@ -271,9 +271,6 @@ void FPGAEmuLoadKernelsFromConfig(FPGAEmu *self, struct config_t *config,
 
 	if (kernel->folding)
 		kernel->current_implement = 0;
-
-	/* Load executable */
-	FPGAKernelLoadBlif(kernel, sim_file);
 }
 
 /*
