@@ -40,6 +40,7 @@ config.status
 configure.lineno
 
 # Temp Files
+aclocal.m4
 Makefile
 .deps/
 Debug/
