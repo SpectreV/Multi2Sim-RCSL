@@ -77,7 +77,8 @@ void FPGAEmuDestroy(FPGAEmu *self) {
 	FPGAKernel *kernel;
 
 	/* Finish all contexts */
-	for (kernel = self->kernel_list_head; kernel; kernel = kernel->kernel_list_next)
+	for (kernel = self->kernel_list_head; kernel;
+			kernel = kernel->kernel_list_next)
 		if (FPGAKernelGetState(kernel, FPGAKernelRunning))
 			FPGAKernelFinish(kernel, 0);
 
@@ -127,12 +128,12 @@ int FPGAEmuRun(Emu *self) {
 		return FALSE;
 
 	/* Run an instruction from every running process */
-	for (kernel = emu->running_list_head; kernel; kernel = kernel->running_list_next)
+	for (kernel = emu->running_list_head; kernel;
+			kernel = kernel->running_list_next)
 		FPGAKernelExecute(kernel);
 
 	/* Process list of suspended contexts */
 	//FPGAEmuProcessEvents(emu);
-
 	/* Still running */
 	return TRUE;
 }
@@ -147,21 +148,23 @@ FPGAKernel* FPGAEmuGetKernelByID(FPGAEmu *self, int kid) {
 	return kernel;
 }
 
-void FPGAEmuLoadKernelsFromConfig(FPGAEmu *self, struct config_t *config, char *section, int id) {
+void FPGAEmuLoadKernelsFromConfig(FPGAEmu *self, struct config_t *config,
+		char *section, int id) {
 	FPGAKernel *kernel;
 	struct fpga_loader_t *loader;
 
 	char buf[MAX_STRING_SIZE];
 
-	char *blif;
+	char *kernel_name;
+	char *sim_file;
+	char *input, *output;
+	char *cwd;
+
+	char *folding;
 	char *imps;
 	char *widths;
 	char *lengths;
 	char *heights;
-	char *cwd;
-
-	char *kernel_name;
-	char *folding;
 
 	unsigned int srcbase;
 	unsigned int dstbase;
@@ -184,10 +187,10 @@ void FPGAEmuLoadKernelsFromConfig(FPGAEmu *self, struct config_t *config, char *
 	loader = kernel->loader;
 
 	/* Executable */
-	blif = config_read_string(config, section, "Blif", "");
-	blif = str_set(NULL, blif);
-	if (!*blif)
-		fatal("%s: [%s]: invalid blif", config_file_name, section);
+	sim_file = config_read_string(config, section, "Sim", "");
+	sim_file = str_set(NULL, sim_file);
+	if (!*sim_file)
+		fatal("%s: [%s]: invalid simulation file", config_file_name, section);
 
 	/* Current working directory */
 	cwd = config_read_string(config, section, "Cwd", "");
@@ -204,30 +207,51 @@ void FPGAEmuLoadKernelsFromConfig(FPGAEmu *self, struct config_t *config, char *
 	}
 
 	/* Arguments */
-	imps = config_read_string(config, section, "NumImplements", "");
-	FPGAKernelSetNumImplements(kernel, imps);
 
 	kernel_name = config_read_string(config, section, "KernelName", "");
 	FPGAKernelSetName(kernel, kernel_name);
 
+	sim_file = config_read_string(config, section, "Sim", "");
+	FPGAKernelSetSimFile(kernel, sim_file);
+
+	input = config_read_string(config, section, "InputFormat", "");
+	FPGAKernelSetInputOutputFormat(kernel, input, 0);
+
+	output = config_read_string(config, section, "OutputFormat", "");
+	FPGAKernelSetInputOutputFormat(kernel, output, 1);
+
 	folding = config_read_string(config, section, "Folding", "True");
 	FPGAKernelSetFolding(kernel, folding);
 
-	/* Environment variables */
-	widths = config_read_string(config, section, "Widths", "");
-	FPGAKernelAddImpsString(kernel, widths, WIDTH);
-	lengths = config_read_string(config, section, "Lengths", "");
-	FPGAKernelAddImpsString(kernel, lengths, LENGTH);
-	heights = config_read_string(config, section, "Heights", "");
-	FPGAKernelAddImpsString(kernel, heights, HEIGHT);
+	if (kernel->folding) {
+		imps = config_read_string(config, section, "NumImplements", "");
+		FPGAKernelSetNumImplements(kernel, imps);
+
+		widths = config_read_string(config, section, "Widths", "");
+		FPGAKernelAddImpsString(kernel, widths, WIDTH);
+		lengths = config_read_string(config, section, "Lengths", "");
+		FPGAKernelAddImpsString(kernel, lengths, LENGTH);
+		heights = config_read_string(config, section, "Heights", "");
+		FPGAKernelAddImpsString(kernel, heights, HEIGHT);
+	}
 
 	HWlowbound = config_read_int(config, section, "HWLowBound", 0);
 	HWhighbound = config_read_int(config, section, "HWHighBound", 0);
-	srcbase = config_read_int(config, section, "SrcBase", 0);
-	srcsize = config_read_int(config, section, "SrcSize", 0);
-	dstbase = config_read_int(config, section, "DstBase", 0);
-	dstsize = config_read_int(config, section, "DstSize", 0);
+
 	sharedmem = config_read_int(config, section, "SharedMem", 1);
+
+	if (sharedmem) {
+		srcbase = config_read_int(config, section, "SrcMemBaseReg", 0);
+		srcsize = config_read_int(config, section, "SrcMemSizeReg", 0);
+		dstbase = config_read_int(config, section, "DstMemBaseReg", 0);
+		dstsize = config_read_int(config, section, "DstMemSizeReg", 0);
+	} else {
+		srcbase = config_read_int(config, section, "SrcAXIBase", 0);
+		srcsize = config_read_int(config, section, "SrcAXISize", 0);
+		dstbase = config_read_int(config, section, "DstAXIBase", 0);
+		dstsize = config_read_int(config, section, "DstAXISize", 0);
+	}
+
 	start = config_read_int(config, section, "StartReg", 0);
 	finish = config_read_int(config, section, "FinishReg", 0);
 	delay = config_read_int(config, section, "Delay", 0);
@@ -235,6 +259,7 @@ void FPGAEmuLoadKernelsFromConfig(FPGAEmu *self, struct config_t *config, char *
 	kernel->kid = id;
 	kernel->HW_bounds.low = HWlowbound;
 	kernel->HW_bounds.high = HWhighbound;
+
 	kernel->srcbase = srcbase;
 	kernel->srcsize = srcsize;
 	kernel->dstbase = dstbase;
@@ -248,7 +273,7 @@ void FPGAEmuLoadKernelsFromConfig(FPGAEmu *self, struct config_t *config, char *
 		kernel->current_implement = 0;
 
 	/* Load executable */
-	FPGAKernelLoadBlif(kernel, blif);
+	FPGAKernelLoadBlif(kernel, sim_file);
 }
 
 /*
@@ -312,14 +337,16 @@ void fpga_emu_done(void) {
 }
 
 void fpga_task_finish_handler(int event, void *data) {
-	FPGATask *task = (FPGATask *)data;
+	FPGATask *task = (FPGATask *) data;
 	FPGATaskSetState(task, FPGATaskFinished);
 	FPGAKernelSetState(task->kernel, FPGAKernelIdle);
-	FPGAKernelDebug("kernel $d finishes executing its task and return to idle\n", task->kernel->kid);
+	FPGAKernelDebug(
+			"kernel $d finishes executing its task and return to idle\n",
+			task->kernel->kid);
 }
 
 void fpga_kernel_reconfigure_handler(int event, void *data) {
-	FPGAKernel *kernel = (FPGAKernel *)data;
+	FPGAKernel *kernel = (FPGAKernel *) data;
 
 	if (event == EV_FPGA_KERNEL_LOAD_ONCHIP) {
 		FPGAKernelSetState(kernel, FPGAKernelIdle);

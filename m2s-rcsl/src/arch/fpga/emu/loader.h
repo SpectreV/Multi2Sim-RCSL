@@ -33,15 +33,13 @@ typedef enum {
  * Additional Functions
  */
 
-void FPGAKernelAddArgsVector(FPGAKernel *self, int argc, char **argv);
-void FPGAKernelAddArgsString(FPGAKernel *self, char *args);
 void FPGAKernelSetName(FPGAKernel *self, char *name);
 void FPGAKernelSetFolding(FPGAKernel *self, char *folding);
-void FPGAKernelLoadBlif(FPGAKernel *self, char *blif);
 void FPGAKernelSetNumImplements(FPGAKernel *self, char *num_implements);
 void FPGAKernelAddImpsString(FPGAKernel *self, char *imps, implement_param type);
+void FPGAKernelSetInputOutputFormat(FPGAKernel *self, char *format, int type);
 
-void FPGAKernelLoadExe(FPGAKernel *self, char *exe);
+void FPGAKernelSetSimFile(FPGAKernel *self, char *sim_file);
 void FPGAKernelGetFullPath(FPGAKernel *self, char *file_name, char *full_path, int size);
 
 

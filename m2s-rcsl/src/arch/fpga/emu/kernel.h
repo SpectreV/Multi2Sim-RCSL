@@ -68,9 +68,6 @@ CLASS_BEGIN(FPGAKernel, Object)
 	/* Placement Affinity */
 	int affinity_x, affinity_y, affinity_imp;
 
-	int exit_signal; /* Signal to send host when finished */
-	int exit_code; /* For zombie kernels */
-
 	/* Instruction pointers */
 	unsigned int last_stage; /* Address of last emulated instruction */
 	unsigned int curr_stage; /* Address of currently emulated instruction */
@@ -108,11 +105,21 @@ CLASS_BEGIN(FPGAKernel, Object)
 	/* Thread affinity mask */
 	struct bit_map_t *affinity;
 
+	char *sim_file;
+
+	short *in_param_sizes;
+	short *out_param_sizes;
+	int *in_param_counts;
+	int *out_param_counts;
+	int in_param_num;
+	int out_param_num;
+
 	struct bounds {
 		unsigned int low;
 		unsigned int high;
 	} HW_bounds;
 
+	int sharedmem;
 	unsigned int srcbase;
 	unsigned int dstbase;
 	unsigned int srcsize;
@@ -121,7 +128,7 @@ CLASS_BEGIN(FPGAKernel, Object)
 	unsigned int start;
 	unsigned int finish;
 	int delay;
-	int sharedmem;
+
 
 CLASS_END(FPGAKernel)
 

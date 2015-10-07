@@ -70,8 +70,7 @@ static void FPGATaskDoCreate(FPGATask *self, FPGAEmu *emu, FPGAKernel *kernel, X
 	asObject(self)->Dump = FPGATaskDump;
 }
 
-void FPGATaskCreate(FPGATask *self, FPGAKernel *kernel, X86Context *ctx, int task_ready_idx,
-		int task_done_idx) {
+void FPGATaskCreate(FPGATask *self, FPGAKernel *kernel, X86Context *ctx) {
 	/* Baseline initialization */
 	FPGATaskDoCreate(self, kernel->emu, kernel, ctx);
 
@@ -141,7 +140,6 @@ void FPGATaskExecute(FPGATask *self) {
 	if (kernel->delay) {
 		esim_schedule_event(EV_FPGA_TASK_FINISH, self, kernel->delay);
 	} else {
-		fatal("FPGA simulation type not support yet, pls specify a delay number\n");
 	}
 
 }

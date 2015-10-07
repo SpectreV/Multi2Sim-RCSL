@@ -36,47 +36,48 @@
 
 int fpga_loader_debug_category;
 
-char *fpga_loader_help = "A context configuration file contains a list of executable programs and\n"
-		"their parameters that will be simulated by Multi2Sim. The context\n"
-		"configuration file is a plain text file in the IniFile format, containing\n"
-		"as many sections as fpga programs simulated. Each program is denoted with\n"
-		"a section called '[ Kernel <num> ]', where <num> is an integer number\n"
-		"starting from 0.\n"
-		"\n"
-		"Variables in section '[ Kernel <num> ]':\n"
-		"\n"
-		"  Exe = <path> (Required)\n"
-		"      Path for the fpga executable file that will be simulated.\n"
-		"  Args = <arg_list>\n"
-		"      List of command-line arguments for the simulated program.\n"
-		"  Env = <env_list>\n"
-		"      List of environment variables enumerated using single or double\n"
-		"      quotes. These variables will be added to the current set of\n"
-		"      active environment variables.\n"
-		"      E.g.: Env = 'ENV_VAR1=100' \"ENV_VAR2=200\"\n"
-		"  Cwd = <path>\n"
-		"      Current working directory for simulated program. If not specified,\n"
-		"      the current working directory for the simulator will be also used\n"
-		"      for the simulated program.\n"
-		"  StdIn = <file>\n"
-		"      File to use as standard input for the simulated program. If none\n"
-		"      specified, the simulator standard input is selected.\n"
-		"  StdOut = <file>\n"
-		"      File to use as standard output and standard error output for the\n"
-		"      simulated program. If none specified, the standard output for the\n"
-		"      simulator is used in both cases.\n"
-		"  IPCReport = <file>\n"
-		"      File to dump a report of the context performance. At specific\n"
-		"      intervals, the context IPC (instructions-per-cycle) value will be\n"
-		"      dumped in this file. This option must be specified together with\n"
-		"      command-line option '--fpga-sim detailed'.\n"
-		"  IPCReportInterval = <cycles>\n"
-		"      Interval in number of cycles that a new record will be added into\n"
-		"      the IPC report file.\n"
-		"\n"
-		"See the Multi2Sim Guide (www.multi2sim.org) for further details and\n"
-		"examples on how to use the context configuration file.\n"
-		"\n";
+char *fpga_loader_help =
+		"A context configuration file contains a list of executable programs and\n"
+				"their parameters that will be simulated by Multi2Sim. The context\n"
+				"configuration file is a plain text file in the IniFile format, containing\n"
+				"as many sections as fpga programs simulated. Each program is denoted with\n"
+				"a section called '[ Kernel <num> ]', where <num> is an integer number\n"
+				"starting from 0.\n"
+				"\n"
+				"Variables in section '[ Kernel <num> ]':\n"
+				"\n"
+				"  Exe = <path> (Required)\n"
+				"      Path for the fpga executable file that will be simulated.\n"
+				"  Args = <arg_list>\n"
+				"      List of command-line arguments for the simulated program.\n"
+				"  Env = <env_list>\n"
+				"      List of environment variables enumerated using single or double\n"
+				"      quotes. These variables will be added to the current set of\n"
+				"      active environment variables.\n"
+				"      E.g.: Env = 'ENV_VAR1=100' \"ENV_VAR2=200\"\n"
+				"  Cwd = <path>\n"
+				"      Current working directory for simulated program. If not specified,\n"
+				"      the current working directory for the simulator will be also used\n"
+				"      for the simulated program.\n"
+				"  StdIn = <file>\n"
+				"      File to use as standard input for the simulated program. If none\n"
+				"      specified, the simulator standard input is selected.\n"
+				"  StdOut = <file>\n"
+				"      File to use as standard output and standard error output for the\n"
+				"      simulated program. If none specified, the standard output for the\n"
+				"      simulator is used in both cases.\n"
+				"  IPCReport = <file>\n"
+				"      File to dump a report of the context performance. At specific\n"
+				"      intervals, the context IPC (instructions-per-cycle) value will be\n"
+				"      dumped in this file. This option must be specified together with\n"
+				"      command-line option '--fpga-sim detailed'.\n"
+				"  IPCReportInterval = <cycles>\n"
+				"      Interval in number of cycles that a new record will be added into\n"
+				"      the IPC report file.\n"
+				"\n"
+				"See the Multi2Sim Guide (www.multi2sim.org) for further details and\n"
+				"examples on how to use the context configuration file.\n"
+				"\n";
 
 /*
  * Class 'FPGAKernel'
@@ -137,51 +138,66 @@ void FPGAKernelSetNumImplements(FPGAKernel *self, char *num_imps) {
 }
 
 void FPGAKernelSetName(FPGAKernel *self, char *name) {
-	strncpy(self->kernel_name, name, strlen(name));
+	self->kernel_name = str_set(NULL, name);
+}
+
+void FPGAKernelSetSimFile(FPGAKernel *self, char *sim_file) {
+	char sim_full_path[MAX_STRING_SIZE];
+	FPGAKernelGetFullPath(self, sim_file, sim_full_path, MAX_STRING_SIZE);
+	self->sim_file = str_set(NULL, sim_full_path);
 }
 
 void FPGAKernelSetFolding(FPGAKernel *self, char *folding) {
 	self->folding = strncmp(folding, "False", strlen(folding)) ? TRUE : FALSE;
 }
 
-void FPGAKernelLoadBlif(FPGAKernel *self, char *blif) {
-	struct fpga_loader_t *loader = self->loader;
+void FPGAKernelSetInputOutputFormat(FPGAKernel *self, char *format, int type) {
+	char *temp;
+	char *delim = ";", *delim1 = ",";
+	char *param, *param1;
+	int i;
 
-	char blif_full_path[MAX_STRING_SIZE];
-	/*char clk_name[MAX_STRING_SIZE];*/
+	int param_num, *param_sizes, *param_counts;
 
-	/* Load program into memory */
-	FPGAKernelGetFullPath(self, blif, blif_full_path, MAX_STRING_SIZE);
-	loader->blif = str_set(NULL, blif_full_path);
+	/* Duplicate argument string */
+	format = str_set(NULL, format);
+	temp = xstrdup(format);
 
-	/*int num_clks;
-	 blif_clock_info(loader->blif, &num_clks, clk_name);
-	 if (num_clks > 1) {
-	 printf("Multiple clocks detected in blif file.  This is not supported.\n");
-	 exit(0);
-	 } else if (num_clks == 1) {
-	 printf("Clock Detected: %s\n", clk_name);
-	 }*/
+	param_num = 0;
+	for (param = strtok(temp, delim); param; param = strtok(NULL, delim)) {
+		param_num++;
+	}
+	param_sizes = xcalloc(param_num, sizeof(int));
+	param_counts = xcalloc(param_num, sizeof(int));
 
-	/*self->ntk = Io_Read(loader->blif, IO_FILE_BLIF, 1);
+	temp = xstrdup(format);
+	i = 0;
+	for (param = strtok(temp, delim); param; param = strtok(NULL, delim)) {
+		param = str_set(NULL, param);
 
-	 printf("Objects in network: %d\n", Abc_NtkObjNum(self->ntk));
-	 printf("PIs in network: %d\n", Abc_NtkPiNum(self->ntk));
+		param1 = strtok(param, delim1);
+		param_sizes[i] = atoi(param1);
 
-	 printf("POs in network: %d\n", Abc_NtkPoNum(self->ntk));
+		param1 = strtok(NULL, delim1);
+		param_counts[i] = atoi(param1);
 
-	 printf("Nodes in network: %d\n", Abc_NtkNodeNum(self->ntk));
+		i++;
+	}
 
-	 printf("Latches in network: %d\n", Abc_NtkLatchNum(self->ntk));
-
-	 if (!Abc_NtkIsAcyclic(self->ntk)) {
-	 printf("Circuit has combinational loops\n");
-	 exit(0);
-	 }*/
+	if (!type) {
+		self->in_param_num = param_num;
+		self->in_param_sizes = param_sizes;
+		self->in_param_counts = param_counts;
+	} else {
+		self->out_param_num = param_num;
+		self->out_param_sizes = param_sizes;
+		self->out_param_counts = param_counts;
+	}
 
 }
 
-void FPGAKernelGetFullPath(FPGAKernel *kernel, char *file_name, char *full_path, int size) {
+void FPGAKernelGetFullPath(FPGAKernel *kernel, char *file_name, char *full_path,
+		int size) {
 	struct fpga_loader_t *loader = kernel->loader;
 
 	/* Remove './' prefix from 'file_name' */

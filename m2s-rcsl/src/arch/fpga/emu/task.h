@@ -68,8 +68,7 @@ CLASS_BEGIN(FPGATask, Object)
 
 CLASS_END(FPGATask)
 
-void FPGATaskCreate(FPGATask *self, FPGAKernel *kernel, X86Context *ctx, int task_ready_idx,
-		int task_done_idx);
+void FPGATaskCreate(FPGATask *self, FPGAKernel *kernel, X86Context *ctx);
 void FPGATaskDestroy(FPGATask *self);
 
 void FPGATaskDump(Object *self, FILE *f);
