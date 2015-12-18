@@ -74,7 +74,7 @@ void FPGATaskDestroy(FPGATask *self);
 void FPGATaskDump(Object *self, FILE *f);
 
 
-void FPGATaskFinish(FPGATask *self, int state);
+void FPGATaskFinish(FPGATask *self);
 void FPGATaskFinishGroup(FPGATask *self, int state);
 void FPGATaskExecute(FPGATask *self);
 

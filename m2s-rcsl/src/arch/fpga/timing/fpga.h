@@ -37,7 +37,6 @@ CLASS_BEGIN(FPGA, Timing)
 	/* Array of cores */
 	int clb_array_width;
 	int clb_array_length;
-	int ctx_depth;
 
 	struct linked_list_t *kernel_trace_list;
 

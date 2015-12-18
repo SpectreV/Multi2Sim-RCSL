@@ -143,21 +143,24 @@ static void FPGAKernelUpdateState(FPGAKernel *self, FPGAKernelState state) {
 void FPGAKernelExecute(FPGAKernel *self) {
 	/*FPGAEmu *emu = self->emu;*/
 
-	/* The kernel is already running some tasks, or
-	 * The kernel is not currently on chip, or
-	 * The kernel is currently blocked by some other kernel */
+	/* Return if:
+	 * 	The kernel is already running some tasks, or
+	 * 	The kernel is not currently on chip, or
+	 * 	The kernel is currently blocked by some other kernel */
 	if (!FPGAKernelGetState(self, FPGAKernelIdle))
 		return;
 
 	if (!self->task_list_count) {
 		FPGAKernelSetState(self, FPGAKernelIdle);
+		return;
 	} else if (!self->ready_list_count) {
 		FPGAKernelSetState(self, FPGAKernelIdle);
+		return;
 	}
 
 	FPGAKernelSetState(self, FPGAKernelRunning);
 
-	FPGAKernelDebug("kernel $d starts to execute the first task in its ready task queue\n", self->kid);
+	FPGAKernelDebug("kernel %d starts to execute the first task in its ready task queue\n", self->kid);
 
 	FPGATask *task = self->ready_list_head;
 	FPGATaskExecute(task);
@@ -169,7 +172,7 @@ int FPGAKernelGetState(FPGAKernel *self, FPGAKernelState state) {
 }
 
 void FPGAKernelSetState(FPGAKernel *self, FPGAKernelState state) {
-	FPGAKernelUpdateState(self, self->state | state);
+	FPGAKernelUpdateState(self, state);
 }
 
 void FPGAKernelClearState(FPGAKernel *self, FPGAKernelState state) {

@@ -89,6 +89,8 @@ CLASS_BEGIN(FPGAEmu, Emu)
 	FPGATask **kernel_task_table;
 	int *task_count_of_kernel;
 
+	int cpu_running;
+
 CLASS_END(FPGAEmu)
 
 void FPGAEmuCreate(FPGAEmu *self);

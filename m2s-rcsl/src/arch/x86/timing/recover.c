@@ -48,6 +48,7 @@ void X86ThreadRecover(X86Thread *self)
 
 	struct x86_uop_t *uop;
 
+
 	/* Remove instructions of this thread in fetch queue, uop queue,
 	 * instruction queue, store queue, load queue, and event queue. */
 	X86ThreadRecoverFetchQueue(self);

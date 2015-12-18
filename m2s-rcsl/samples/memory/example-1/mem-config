@@ -77,13 +77,6 @@ Thread = 0
 Module = mod-l1-0
 Latency = 1
 
-[Entry core-1]
-Arch = x86
-Core = 0
-Thread = 1
-Module = mod-l1-0
-Latency = 1
-
 [Entry fpga-0]
 Arch = fpga
 Module = mod-l2-0

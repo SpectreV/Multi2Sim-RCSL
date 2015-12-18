@@ -123,7 +123,8 @@ void X86ContextCreateAndClone(X86Context *self, X86Context *cloned) {
 	self->loader = x86_loader_link(cloned->loader);
 
 	/* Signal handlers and file descriptor table */
-	self->signal_handler_table = x86_signal_handler_table_link(cloned->signal_handler_table);
+	self->signal_handler_table = x86_signal_handler_table_link(
+			cloned->signal_handler_table);
 	self->file_desc_table = x86_file_desc_table_link(cloned->file_desc_table);
 
 	/* Libc segment */
@@ -201,7 +202,8 @@ void X86ContextDestroy(X86Context *self) {
 
 	/* Remove context from contexts list and free */
 	DOUBLE_LINKED_LIST_REMOVE(emu, context, self);
-	X86ContextDebug("inst %lld: context %d freed\n", asEmu(emu)->instructions, self->pid);
+	X86ContextDebug("inst %lld: context %d freed\n", asEmu(emu)->instructions,
+			self->pid);
 }
 
 int FPGARegCheck(X86Context *self, struct x86_uop_t *uop, unsigned int address) {
@@ -212,15 +214,14 @@ int FPGARegCheck(X86Context *self, struct x86_uop_t *uop, unsigned int address) 
 	uop->kernelstart = 0;
 
 	for (i = 0; i < list_count(self->kernel_list); i++) {
-
 		kernel = list_get(self->kernel_list, i);
-
 		if (address == kernel->start) {
 			uop->kernelstart = 1;
 			uop->phy_addr = address;
 			uop->addr = address;
 			uop->kernel = kernel;
 			mem_read_copy(uop->ctx->mem, uop->addr, 4, &(uop->data));
+			break;
 		}
 		if (address == kernel->finish) {
 			uop->kernelfinish = 1;
@@ -228,50 +229,53 @@ int FPGARegCheck(X86Context *self, struct x86_uop_t *uop, unsigned int address) 
 			uop->addr = address;
 			uop->kernel = kernel;
 			mem_read_copy(uop->ctx->mem, uop->addr, 4, &(uop->data));
-
+			break;
 		}
-
-		if (address >= kernel->HW_bounds.low && address <= kernel->HW_bounds.high) {
+		if (address >= kernel->HW_bounds.low
+				&& address <= kernel->HW_bounds.high) {
 			uop->kernelrange = 1;
 			uop->phy_addr = address;
 			uop->addr = address;
 			uop->kernel = kernel;
 			mem_read_copy(uop->ctx->mem, uop->addr, 4, &(uop->data));
+			break;
 		}
-
 	}
 
-	if (uop->kernelrange == 1 || uop->kernelstart == 1)
+
+	if (uop->kernelrange == 1 || uop->kernelstart == 1) {
+		//printf("%d %d: %d, %d, %d\n", uop->id, uop->uinst->opcode, uop->kernelstart, uop->kernelfinish, uop->kernelrange);
 		return 1;
+	}
 	else
 		return 0;
 
 }
 
 /*int FPGARegMemCheck(struct mem_t *mem, unsigned int address) {
-	FPGAKernel *kernel;
-	int i;
+ FPGAKernel *kernel;
+ int i;
 
-	if (!list_count(mem->kernel_list))
-		return 0;
+ if (!list_count(mem->kernel_list))
+ return 0;
 
-	for (i = 0; i < list_count(mem->kernel_list); i++) {
+ for (i = 0; i < list_count(mem->kernel_list); i++) {
 
-		kernel = list_get(mem->kernel_list, i);
+ kernel = list_get(mem->kernel_list, i);
 
-		if (address == kernel->start) {
-			return 1;
-		}
+ if (address == kernel->start) {
+ return 1;
+ }
 
-		if (address >= kernel->HW_bounds.low && address <= kernel->HW_bounds.high) {
-			return 1;
-		}
+ if (address >= kernel->HW_bounds.low && address <= kernel->HW_bounds.high) {
+ return 1;
+ }
 
-	}
+ }
 
-	return 0;
+ return 0;
 
-}*/
+ }*/
 
 void X86ContextDump(Object *self, FILE *f) {
 	X86Context *context = asX86Context(self);
@@ -282,7 +286,8 @@ void X86ContextDump(Object *self, FILE *f) {
 	fprintf(f, "Context %d\n", context->pid);
 	fprintf(f, "------------\n\n");
 
-	str_map_flags(&x86_context_state_map, context->state, state_str, sizeof state_str);
+	str_map_flags(&x86_context_state_map, context->state, state_str,
+			sizeof state_str);
 	fprintf(f, "State = %s\n", state_str);
 	if (!context->parent)
 		fprintf(f, "Parent = None\n");
@@ -291,12 +296,15 @@ void X86ContextDump(Object *self, FILE *f) {
 	fprintf(f, "Heap break: 0x%x\n", context->mem->heap_break);
 
 	/* Bit masks */
-	fprintf(f, "BlockedSignalMask = 0x%llx ", context->signal_mask_table->blocked);
+	fprintf(f, "BlockedSignalMask = 0x%llx ",
+			context->signal_mask_table->blocked);
 	x86_sigset_dump(context->signal_mask_table->blocked, f);
-	fprintf(f, "\nPendingSignalMask = 0x%llx ", context->signal_mask_table->pending);
+	fprintf(f, "\nPendingSignalMask = 0x%llx ",
+			context->signal_mask_table->pending);
 	x86_sigset_dump(context->signal_mask_table->pending, f);
 	fprintf(f, "\nAffinity = ");
-	bit_map_dump(context->affinity, 0, x86_cpu_num_cores * x86_cpu_num_threads, f);
+	bit_map_dump(context->affinity, 0, x86_cpu_num_cores * x86_cpu_num_threads,
+			f);
 	fprintf(f, "\n");
 
 	/* End */
@@ -335,12 +343,14 @@ void X86ContextExecute(X86Context *self) {
 	/* Disassemble */
 	x86_inst_decode(&self->inst, regs->eip, buffer_ptr);
 	if (self->inst.opcode == x86_inst_opcode_invalid && !spec_mode)
-		fatal("0x%x: not supported x86 instruction (%02x %02x %02x %02x...)", regs->eip,
-				buffer_ptr[0], buffer_ptr[1], buffer_ptr[2], buffer_ptr[3]);
+		fatal("0x%x: not supported x86 instruction (%02x %02x %02x %02x...)",
+				regs->eip, buffer_ptr[0], buffer_ptr[1], buffer_ptr[2],
+				buffer_ptr[3]);
 
 	/* Stop if instruction matches last instruction bytes */
 	if (x86_emu_last_inst_size && x86_emu_last_inst_size == self->inst.size
-			&& !memcmp(x86_emu_last_inst_bytes, buffer_ptr, x86_emu_last_inst_size))
+			&& !memcmp(x86_emu_last_inst_bytes, buffer_ptr,
+					x86_emu_last_inst_size))
 		esim_finish = esim_finish_x86_last_inst;
 
 	/* Execute instruction */
@@ -355,7 +365,8 @@ void X86ContextExecute(X86Context *self) {
  * starts, which will end on the next call to 'x86_ctx_recover'. */
 void X86ContextSetEip(X86Context *self, unsigned int eip) {
 	/* Entering specmode */
-	if (self->regs->eip != eip && !X86ContextGetState(self, X86ContextSpecMode)) {
+	if (self->regs->eip != eip
+			&& !X86ContextGetState(self, X86ContextSpecMode)) {
 		X86ContextSetState(self, X86ContextSpecMode);
 		x86_regs_copy(self->backup_regs, self->regs);
 		self->regs->fpu_ctrl |= 0x3f; /* mask all FP exceptions on wrong path */
@@ -402,11 +413,15 @@ static void X86ContextUpdateState(X86Context *self, X86ContextState state) {
 	/* Update state */
 	self->state = state;
 	if (self->state & X86ContextFinished)
-		self->state = X86ContextFinished | (state & X86ContextAlloc) | (state & X86ContextMapped);
+		self->state = X86ContextFinished | (state & X86ContextAlloc)
+				| (state & X86ContextMapped);
 	if (self->state & X86ContextZombie)
-		self->state = X86ContextZombie | (state & X86ContextAlloc) | (state & X86ContextMapped);
-	if (!(self->state & X86ContextSuspended) && !(self->state & X86ContextFinished)
-			&& !(self->state & X86ContextZombie) && !(self->state & X86ContextLocked))
+		self->state = X86ContextZombie | (state & X86ContextAlloc)
+				| (state & X86ContextMapped);
+	if (!(self->state & X86ContextSuspended)
+			&& !(self->state & X86ContextFinished)
+			&& !(self->state & X86ContextZombie)
+			&& !(self->state & X86ContextLocked))
 		self->state |= X86ContextRunning;
 	else
 		self->state &= ~X86ContextRunning;
@@ -422,10 +437,12 @@ static void X86ContextUpdateState(X86Context *self, X86ContextState state) {
 		DOUBLE_LINKED_LIST_INSERT_HEAD(emu, suspended, self);
 
 	/* Dump new state (ignore 'x86_ctx_specmode' state, it's too frequent) */
-	if (debug_status(x86_context_debug_category) && (status_diff & ~X86ContextSpecMode)) {
-		str_map_flags(&x86_context_state_map, self->state, state_str, sizeof state_str);
-		X86ContextDebug("inst %lld: ctx %d changed state to %s\n", asEmu(emu)->instructions,
-				self->pid, state_str);
+	if (debug_status(x86_context_debug_category)
+			&& (status_diff & ~X86ContextSpecMode)) {
+		str_map_flags(&x86_context_state_map, self->state, state_str,
+				sizeof state_str);
+		X86ContextDebug("inst %lld: ctx %d changed state to %s\n",
+				asEmu(emu)->instructions, self->pid, state_str);
 	}
 
 	/* Start/stop x86 timer depending on whether there are any contexts
@@ -451,7 +468,8 @@ X86Context *X86ContextGetZombie(X86Context *self, int pid) {
 	X86Emu *emu = self->emu;
 	X86Context *context;
 
-	for (context = emu->zombie_list_head; context; context = context->zombie_list_next) {
+	for (context = emu->zombie_list_head; context;
+			context = context->zombie_list_next) {
 		if (context->parent != self)
 			continue;
 		if (context->pid == pid || pid == -1)
@@ -467,7 +485,8 @@ void X86ContextHostThreadSuspendCancelUnsafe(X86Context *self) {
 
 	if (self->host_thread_suspend_active) {
 		if (pthread_cancel(self->host_thread_suspend))
-			fatal("%s: context %d: error canceling host thread", __FUNCTION__, self->pid);
+			fatal("%s: context %d: error canceling host thread", __FUNCTION__,
+					self->pid);
 		self->host_thread_suspend_active = 0;
 		emu->process_events_force = 1;
 	}
@@ -488,7 +507,8 @@ void X86ContextHostThreadTimerCancelUnsafe(X86Context *self) {
 
 	if (self->host_thread_timer_active) {
 		if (pthread_cancel(self->host_thread_timer))
-			fatal("%s: context %d: error canceling host thread", __FUNCTION__, self->pid);
+			fatal("%s: context %d: error canceling host thread", __FUNCTION__,
+					self->pid);
 		self->host_thread_timer_active = 0;
 		emu->process_events_force = 1;
 	}
@@ -505,9 +525,10 @@ void X86ContextHostThreadTimerCancel(X86Context *self) {
 /* Suspend a context, using the specified callback function and data to decide
  * whether the process can wake up every time the x86 emulation events are
  * processed. */
-void X86ContextSuspend(X86Context *self, X86ContextCanWakeupFunc can_wakeup_callback_func,
-		void *can_wakeup_callback_data, X86ContextWakeupFunc wakeup_callback_func,
-		void *wakeup_callback_data) {
+void X86ContextSuspend(X86Context *self,
+		X86ContextCanWakeupFunc can_wakeup_callback_func,
+		void *can_wakeup_callback_data,
+		X86ContextWakeupFunc wakeup_callback_func, void *wakeup_callback_data) {
 	X86Emu *emu = self->emu;
 
 	/* Checks */
@@ -555,7 +576,8 @@ void X86ContextFinishGroup(X86Context *self, int state) {
 		/* Child context of 'ctx' goes to state 'finished'.
 		 * Context 'ctx' goes to state 'zombie' or 'finished' if it has a parent */
 		if (aux == self)
-			X86ContextSetState(aux, aux->parent ? X86ContextZombie : X86ContextFinished);
+			X86ContextSetState(aux,
+					aux->parent ? X86ContextZombie : X86ContextFinished);
 		else
 			X86ContextSetState(aux, X86ContextFinished);
 		aux->exit_code = state;
@@ -596,8 +618,10 @@ void X86ContextFinish(X86Context *self, int state) {
 
 	/* Send finish signal to parent */
 	if (self->exit_signal && self->parent) {
-		x86_sys_debug("  sending signal %d to pid %d\n", self->exit_signal, self->parent->pid);
-		x86_sigset_add(&self->parent->signal_mask_table->pending, self->exit_signal);
+		x86_sys_debug("  sending signal %d to pid %d\n", self->exit_signal,
+				self->parent->pid);
+		x86_sigset_add(&self->parent->signal_mask_table->pending,
+				self->exit_signal);
 		X86EmuProcessEventsSchedule(emu);
 	}
 
@@ -615,13 +639,14 @@ void X86ContextFinish(X86Context *self, int state) {
 		X86ContextReturnFromSignalHandler(self);
 
 	/* Finish context */
-	X86ContextSetState(self, self->parent ? X86ContextZombie : X86ContextFinished);
+	X86ContextSetState(self,
+			self->parent ? X86ContextZombie : X86ContextFinished);
 	self->exit_code = state;
 	X86EmuProcessEventsSchedule(emu);
 }
 
-int X86ContextFutexWake(X86Context *self, unsigned int futex, unsigned int count,
-		unsigned int bitset) {
+int X86ContextFutexWake(X86Context *self, unsigned int futex,
+		unsigned int count, unsigned int bitset) {
 	X86Emu *emu = self->emu;
 	X86Context *wakeup_ctx;
 
@@ -630,19 +655,25 @@ int X86ContextFutexWake(X86Context *self, unsigned int futex, unsigned int count
 	/* Look for threads suspended in this futex */
 	while (count) {
 		wakeup_ctx = NULL;
-		for (self = emu->suspended_list_head; self; self = self->suspended_list_next) {
-			if (!X86ContextGetState(self, X86ContextFutex) || self->wakeup_futex != futex)
+		for (self = emu->suspended_list_head; self;
+				self = self->suspended_list_next) {
+			if (!X86ContextGetState(self, X86ContextFutex)
+					|| self->wakeup_futex != futex)
 				continue;
 			if (!(self->wakeup_futex_bitset & bitset))
 				continue;
-			if (!wakeup_ctx || self->wakeup_futex_sleep < wakeup_ctx->wakeup_futex_sleep)
+			if (!wakeup_ctx
+					|| self->wakeup_futex_sleep
+							< wakeup_ctx->wakeup_futex_sleep)
 				wakeup_ctx = self;
 		}
 
 		if (wakeup_ctx) {
 			/* Wake up context */
-			X86ContextClearState(wakeup_ctx, X86ContextSuspended | X86ContextFutex);
-			x86_sys_debug("  futex 0x%x: thread %d woken up\n", futex, wakeup_ctx->pid);
+			X86ContextClearState(wakeup_ctx,
+					X86ContextSuspended | X86ContextFutex);
+			x86_sys_debug("  futex 0x%x: thread %d woken up\n", futex,
+					wakeup_ctx->pid);
 			wakeup_count++;
 			count--;
 
@@ -682,8 +713,8 @@ void X86ContextExitRobustList(X86Context *self) {
 		mem_read(self->mem, lock_entry + 4, 4, &offset);
 		mem_read(self->mem, lock_entry + offset, 4, &lock_word);
 
-		x86_sys_debug("  lock_entry=0x%x: offset=%d, lock_word=0x%x\n", lock_entry, offset,
-				lock_word);
+		x86_sys_debug("  lock_entry=0x%x: offset=%d, lock_word=0x%x\n",
+				lock_entry, offset, lock_word);
 
 		/* Stop processing list if 'next' points to robust list */
 		if (!next || next == self->robust_list_head)
@@ -715,14 +746,16 @@ void X86ContextProcSelfMaps(X86Context *self, char *path, int size) {
 			break;
 		start = page->tag;
 		end = page->tag;
-		perm = page->perm & (mem_access_read | mem_access_write | mem_access_exec);
+		perm = page->perm
+				& (mem_access_read | mem_access_write | mem_access_exec);
 
 		/* Get end of range */
 		for (;;) {
 			page = mem_page_get(mem, end + MEM_PAGE_SIZE);
 			if (!page)
 				break;
-			page_perm = page->perm & (mem_access_read | mem_access_write | mem_access_exec);
+			page_perm = page->perm
+					& (mem_access_read | mem_access_write | mem_access_exec);
 			if (page_perm != perm)
 				break;
 			end += MEM_PAGE_SIZE;
@@ -730,8 +763,9 @@ void X86ContextProcSelfMaps(X86Context *self, char *path, int size) {
 		}
 
 		/* Dump range */
-		fprintf(f, "%08x-%08x %c%c%c%c 00000000 00:00", start, end + MEM_PAGE_SIZE,
-				perm & mem_access_read ? 'r' : '-', perm & mem_access_write ? 'w' : '-',
+		fprintf(f, "%08x-%08x %c%c%c%c 00000000 00:00", start,
+				end + MEM_PAGE_SIZE, perm & mem_access_read ? 'r' : '-',
+				perm & mem_access_write ? 'w' : '-',
 				perm & mem_access_exec ? 'x' : '-', 'p');
 		fprintf(f, "\n");
 	}
@@ -767,7 +801,8 @@ void X86ContextProcCPUInfo(X86Context *self, char *path, int size) {
 			fprintf(f, "cpu MHz : 800.000\n");
 			fprintf(f, "cache size : 3072 KB\n");
 			fprintf(f, "physical id : 0\n");
-			fprintf(f, "siblings : %d\n", x86_cpu_num_cores * x86_cpu_num_threads);
+			fprintf(f, "siblings : %d\n",
+					x86_cpu_num_cores * x86_cpu_num_threads);
 			fprintf(f, "core id : %d\n", i);
 			fprintf(f, "cpu cores : %d\n", x86_cpu_num_cores);
 			fprintf(f, "apicid : %d\n", node);
@@ -776,12 +811,13 @@ void X86ContextProcCPUInfo(X86Context *self, char *path, int size) {
 			fprintf(f, "fpu_exception : yes\n");
 			fprintf(f, "cpuid level : 10\n");
 			fprintf(f, "wp : yes\n");
-			fprintf(f, "flags : fpu vme de pse tsc msr pae mce cx8 apic sep mtrr "
-					"pge mca cmov pat pse36 clflush dts acpi mmx fxsr sse "
-					"sse2 ss ht tm pbe syscall nx lm constant_tsc arch_perfmon "
-					"pebs bts rep_good nopl aperfmperf pni dtes64 monitor ds_cpl "
-					"vmx est tm2 ssse3 cx16 xtpr pdcm sse4_1 lahf_lm ida dtherm "
-					"tpr_shadow vnmi flexpriority\n");
+			fprintf(f,
+					"flags : fpu vme de pse tsc msr pae mce cx8 apic sep mtrr "
+							"pge mca cmov pat pse36 clflush dts acpi mmx fxsr sse "
+							"sse2 ss ht tm pbe syscall nx lm constant_tsc arch_perfmon "
+							"pebs bts rep_good nopl aperfmperf pni dtes64 monitor ds_cpl "
+							"vmx est tm2 ssse3 cx16 xtpr pdcm sse4_1 lahf_lm ida dtherm "
+							"tpr_shadow vnmi flexpriority\n");
 			fprintf(f, "bogomips : 4189.40\n");
 			fprintf(f, "clflush size : 32\n");
 			fprintf(f, "cache_alignment : 32\n");
@@ -820,7 +856,8 @@ void *X86EmuHostThreadSuspend(void *arg) {
 		int err, timeout;
 
 		/* Get file descriptor */
-		fd = x86_file_desc_table_entry_get(self->file_desc_table, self->wakeup_fd);
+		fd = x86_file_desc_table_entry_get(self->file_desc_table,
+				self->wakeup_fd);
 		if (!fd)
 			fatal("syscall 'poll': invalid 'wakeup_fd'");
 
@@ -845,7 +882,8 @@ void *X86EmuHostThreadSuspend(void *arg) {
 		int err;
 
 		/* Get file descriptor */
-		fd = x86_file_desc_table_entry_get(self->file_desc_table, self->wakeup_fd);
+		fd = x86_file_desc_table_entry_get(self->file_desc_table,
+				self->wakeup_fd);
 		if (!fd)
 			fatal("syscall 'read': invalid 'wakeup_fd'");
 
@@ -861,7 +899,8 @@ void *X86EmuHostThreadSuspend(void *arg) {
 		int err;
 
 		/* Get file descriptor */
-		fd = x86_file_desc_table_entry_get(self->file_desc_table, self->wakeup_fd);
+		fd = x86_file_desc_table_entry_get(self->file_desc_table,
+				self->wakeup_fd);
 		if (!fd)
 			fatal("syscall 'write': invalid 'wakeup_fd'");
 
@@ -917,12 +956,14 @@ void *X86ContextHostThreadTimer(void *arg) {
 
 int x86_context_debug_category;
 
-struct str_map_t x86_context_state_map = { 18, { { "running", X86ContextRunning }, { "specmode",
-		X86ContextSpecMode }, { "suspended", X86ContextSuspended },
-		{ "finished", X86ContextFinished }, { "exclusive", X86ContextExclusive }, { "locked",
-				X86ContextLocked }, { "handler", X86ContextHandler }, { "sigsuspend",
-				X86ContextSigsuspend }, { "nanosleep", X86ContextNanosleep }, { "poll",
-				X86ContextPoll }, { "read", X86ContextRead }, { "write", X86ContextWrite }, {
-				"waitpid", X86ContextWaitpid }, { "zombie", X86ContextZombie }, { "futex",
-				X86ContextFutex }, { "alloc", X86ContextAlloc }, { "callback", X86ContextCallback },
-		{ "mapped", X86ContextMapped } } };
+struct str_map_t x86_context_state_map = { 18, {
+		{ "running", X86ContextRunning }, { "specmode", X86ContextSpecMode }, {
+				"suspended", X86ContextSuspended }, { "finished",
+				X86ContextFinished }, { "exclusive", X86ContextExclusive }, {
+				"locked", X86ContextLocked }, { "handler", X86ContextHandler },
+		{ "sigsuspend", X86ContextSigsuspend }, { "nanosleep",
+				X86ContextNanosleep }, { "poll", X86ContextPoll }, { "read",
+				X86ContextRead }, { "write", X86ContextWrite }, { "waitpid",
+				X86ContextWaitpid }, { "zombie", X86ContextZombie }, { "futex",
+				X86ContextFutex }, { "alloc", X86ContextAlloc }, { "callback",
+				X86ContextCallback }, { "mapped", X86ContextMapped } } };

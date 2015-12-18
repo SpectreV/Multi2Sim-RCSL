@@ -24,6 +24,7 @@
 #include <arch/x86/emu/uinst.h>
 #include <lib/util/class.h>
 #include <mem-system/module.h>
+#include <arch/fpga/emu/emu.h>
 
 
 /* Forward declarations */

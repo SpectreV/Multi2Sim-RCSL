@@ -943,9 +943,11 @@ int X86CpuRun(Timing *self) {
 	X86Emu *emu = cpu->emu;
 
 	/* Stop if no context is running */
-	if (emu->finished_list_count >= emu->context_list_count)
+	if (emu->finished_list_count >= emu->context_list_count){
+		/* No more acceleration request from CPU side */
+		emu->fpga_emu->cpu_running = 0;
 		return FALSE;
-
+	}
 	/* Fast-forward simulation */
 	if (x86_cpu_fast_forward_count && asEmu(emu)->instructions < x86_cpu_fast_forward_count)
 		X86CpuFastForward(cpu);
@@ -961,7 +963,7 @@ int X86CpuRun(Timing *self) {
 
 	/* Stop if any previous reason met */
 	if (esim_finish)
-		return TRUE;
+		return FALSE;
 
 	/* One more cycle of x86 timing simulation */
 	self->cycle++;

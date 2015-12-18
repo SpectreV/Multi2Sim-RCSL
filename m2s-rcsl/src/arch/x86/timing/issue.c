@@ -57,6 +57,7 @@ static int X86ThreadIssueSQ(X86Thread *self, int quantum)
 		store = linked_list_get(sq);
 		assert(store->uinst->opcode == x86_uinst_store);
 
+
 		/* Only committed stores issue */
 		if (store->in_rob)
 			break;
@@ -72,14 +73,17 @@ static int X86ThreadIssueSQ(X86Thread *self, int quantum)
 		client_info = mod_client_info_create(self->data_mod);
 		client_info->prefetcher_eip = store->eip;
 
+
 		/* Issue store */
-		if(store->kernelrange || store->kernelstart)
+		if (store->kernelrange || store->kernelstart) {
+
             fpga_reg_access(self->data_mod, mod_access_store,
 		        store->phy_addr, NULL, core->event_queue, store, client_info, self->data_latency, 4);
-        else 
+		}
+		else {
 		    mod_access(self->data_mod, mod_access_store,
 		        store->phy_addr, NULL, core->event_queue, store, client_info, self->data_latency, 4);
-
+		}
 		/* The cache system will place the store at the head of the
 		 * event queue when it is ready. For now, mark "in_event_queue" to
 		 * prevent the uop from being freed. */
@@ -149,9 +153,13 @@ static int X86ThreadIssueLQ(X86Thread *self, int quant)
 		client_info->prefetcher_eip = load->eip;
 
 		/* Access memory system */
-		if (load->kernelrange || load->kernelstart)
-            fpga_reg_access(self->data_mod, mod_access_load,
+
+
+		if (load->kernelrange || load->kernelstart) {
+
+			fpga_reg_access(self->data_mod, mod_access_load,
 			   load->phy_addr, NULL, core->event_queue, load, client_info, self->data_latency, 4);
+		}
 		else	
 		    mod_access(self->data_mod, mod_access_load,
 			   load->phy_addr, NULL, core->event_queue, load, client_info, self->data_latency, 4);
@@ -206,6 +214,7 @@ static int X86ThreadIssuePreQ(X86Thread *self, int quantum)
 	{
 		/* Get element from prefetch queue. If it is not ready, go to the next one */
 		prefetch = linked_list_get(preq);
+
 		if (!prefetch->ready && !X86ThreadIsUopReady(self, prefetch))
 		{
 			linked_list_next(preq);
@@ -230,6 +239,8 @@ static int X86ThreadIssuePreQ(X86Thread *self, int quantum)
 
 		prefetch->ready = 1;
 
+
+
 		/* Check that memory system is accessible */
 		if (!mod_can_access(self->data_mod, prefetch->phy_addr))
 		{
@@ -240,6 +251,8 @@ static int X86ThreadIssuePreQ(X86Thread *self, int quantum)
 		/* Remove from prefetch queue */
 		assert(prefetch->uinst->opcode == x86_uinst_prefetch);
 		X86ThreadRemovePreQ(self);
+
+
 
 		/* Access memory system */
 		mod_access(self->data_mod, mod_access_prefetch,
@@ -347,6 +360,8 @@ static int X86ThreadIssueIQ(X86Thread *self, int quant)
 		/* One more instruction issued, update quantum. */
 		quant--;
 
+
+
 		/* Trace */
 		x86_trace("x86.inst id=%lld core=%d stg=\"i\"\n",
 			uop->id_in_core, core->id);
@@ -358,6 +373,7 @@ static int X86ThreadIssueIQ(X86Thread *self, int quant)
 
 static int X86ThreadIssueLSQ(X86Thread *self, int quantum)
 {
+
 	quantum = X86ThreadIssueLQ(self, quantum);
 	quantum = X86ThreadIssueSQ(self, quantum);
 	quantum = X86ThreadIssuePreQ(self, quantum);

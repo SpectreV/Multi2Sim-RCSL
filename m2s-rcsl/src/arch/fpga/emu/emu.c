@@ -66,6 +66,7 @@ void FPGAEmuCreate(FPGAEmu *self) {
 	/* Initialize */
 	self->current_pid = 100;
 	pthread_mutex_init(&self->process_events_mutex, NULL);
+	self->cpu_running = 1;
 
 	/* Virtual functions */
 	asObject(self)->Dump = FPGAEmuDump;
@@ -220,7 +221,7 @@ void FPGAEmuLoadKernelsFromConfig(FPGAEmu *self, struct config_t *config,
 	output = config_read_string(config, section, "OutputFormat", "");
 	FPGAKernelSetInputOutputFormat(kernel, output, 1);
 
-	folding = config_read_string(config, section, "Folding", "True");
+	folding = config_read_string(config, section, "Folding", "False");
 	FPGAKernelSetFolding(kernel, folding);
 
 	if (kernel->folding) {
@@ -237,6 +238,7 @@ void FPGAEmuLoadKernelsFromConfig(FPGAEmu *self, struct config_t *config,
 
 	HWlowbound = config_read_int(config, section, "HWLowBound", 0);
 	HWhighbound = config_read_int(config, section, "HWHighBound", 0);
+
 
 	sharedmem = config_read_int(config, section, "SharedMem", 1);
 
@@ -259,6 +261,7 @@ void FPGAEmuLoadKernelsFromConfig(FPGAEmu *self, struct config_t *config,
 	kernel->kid = id;
 	kernel->HW_bounds.low = HWlowbound;
 	kernel->HW_bounds.high = HWhighbound;
+
 
 	kernel->srcbase = srcbase;
 	kernel->srcsize = srcsize;
@@ -335,11 +338,12 @@ void fpga_emu_done(void) {
 
 void fpga_task_finish_handler(int event, void *data) {
 	FPGATask *task = (FPGATask *) data;
-	FPGATaskSetState(task, FPGATaskFinished);
+	FPGATaskFinish(task);
 	FPGAKernelSetState(task->kernel, FPGAKernelIdle);
 	FPGAKernelDebug(
-			"kernel $d finishes executing its task and return to idle\n",
+			"kernel %d finishes executing its task and return to idle\n",
 			task->kernel->kid);
+	printf("kernel %d finishes executing its task and return to idle\n", task->kernel->kid);
 }
 
 void fpga_kernel_reconfigure_handler(int event, void *data) {

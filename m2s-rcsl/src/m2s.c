@@ -829,6 +829,12 @@ static void m2s_read_command_line(int *argc_ptr, char **argv) {
 			continue;
 		}
 
+		if (!strcmp(argv[argi], "--fpga-config")) {
+			m2s_need_argument(argc, argv, argi);
+			fpga_config_file_name = argv[++argi];
+			continue;
+		}
+
 		/*
 		 * Evergreen GPU Options
 		 */
@@ -2017,6 +2023,10 @@ int main(int argc, char **argv) {
 	if (x86_cpu)
 		delete(x86_cpu);
 	X86CpuDone();
+
+	if (fpga)
+		delete(fpga);
+	FPGADone();
 
 	/* Finalization of architectures */
 	arch_done();

@@ -666,6 +666,9 @@ void X86EmuLoadContextsFromConfig(X86Emu *self, struct config_t *config, char *s
 	}
 	/* Modification ends */
 
+
+
+
 	/* Load executable */
 	X86ContextLoadExe(ctx, exe);
 

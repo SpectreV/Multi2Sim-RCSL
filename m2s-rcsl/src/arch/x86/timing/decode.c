@@ -17,7 +17,6 @@
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
-
 #include <lib/esim/trace.h>
 #include <lib/util/list.h>
 #include <mem-system/module.h>
@@ -30,14 +29,11 @@
 #include "uop.h"
 #include "uop-queue.h"
 
-
-
 /*
  * Class 'X86Thread'
  */
 
-static void X86ThreadDecode(X86Thread *self)
-{
+static void X86ThreadDecode(X86Thread *self) {
 	X86Core *core = self->core;
 
 	struct list_t *fetchq = self->fetch_queue;
@@ -45,8 +41,7 @@ static void X86ThreadDecode(X86Thread *self)
 	struct x86_uop_t *uop;
 	int i;
 
-	for (i = 0; i < x86_cpu_decode_width; i++)
-	{
+	for (i = 0; i < x86_cpu_decode_width; i++) {
 		/* Empty fetch queue, full uop_queue */
 		if (!list_count(fetchq))
 			break;
@@ -58,11 +53,10 @@ static void X86ThreadDecode(X86Thread *self)
 		/* If instructions come from the trace cache, i.e., are located in
 		 * the trace cache queue, copy all of them
 		 * into the uop queue in one single decode slot. */
-		if (uop->trace_cache)
-		{
-			do
-			{
+		if (uop->trace_cache) {
+			do {
 				X86ThreadRemoveFromFetchQueue(self, 0);
+
 				list_add(uopq, uop);
 				uop->in_uop_queue = 1;
 				uop = list_get(fetchq, 0);
@@ -73,10 +67,9 @@ static void X86ThreadDecode(X86Thread *self)
 		/* Decode one macro-instruction coming from a block in the instruction
 		 * cache. If the cache access finished, extract it from the fetch queue. */
 		assert(!uop->mop_index);
-		if (!mod_in_flight_access(self->inst_mod, uop->fetch_access, uop->fetch_address))
-		{
-			do
-			{
+		if (!mod_in_flight_access(self->inst_mod, uop->fetch_access,
+				uop->fetch_address)) {
+			do {
 				/* Move from fetch queue to uop queue */
 				X86ThreadRemoveFromFetchQueue(self, 0);
 				list_add(uopq, uop);
@@ -84,7 +77,7 @@ static void X86ThreadDecode(X86Thread *self)
 
 				/* Trace */
 				x86_trace("x86.inst id=%lld core=%d stg=\"dec\"\n",
-					uop->id_in_core, core->id);
+						uop->id_in_core, core->id);
 
 				/* Next */
 				uop = list_get(fetchq, 0);
@@ -94,15 +87,11 @@ static void X86ThreadDecode(X86Thread *self)
 	}
 }
 
-
-
-
 /*
  * Class 'X86Cpu'
  */
 
-void X86CpuDecode(X86Cpu *self)
-{
+void X86CpuDecode(X86Cpu *self) {
 	int i;
 	int j;
 

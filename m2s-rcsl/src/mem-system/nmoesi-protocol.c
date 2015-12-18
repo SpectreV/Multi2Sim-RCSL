@@ -562,9 +562,6 @@ void mod_handler_nmoesi_store(int event, void *data) {
 
 		if (stack->uop) {
 			if (stack->uop->uinst->opcode == x86_uinst_store) {
-				printf("uop used with id %d, name %s, mem address %x\n",
-						stack->uop->id, stack->uop->mop_name,
-						stack->uop->ctx->realmem);
 				mem_write_copy(stack->uop->ctx->realmem, stack->uop->addr, 4,
 						&(stack->uop->data));
 			}
@@ -2939,7 +2936,7 @@ void fpga_reg_handler(int event, void *data) {
 	int rextra = mod->interconnect->rextra;
 
 	if (event == EV_FPGA_REG_LOAD) {
-		mem_debug("%lld %lld 0x%x %s load\n", esim_time, stack->id, stack->addr,
+		mem_debug("%lld %lld 0x%x %s fpga load\n", esim_time, stack->id, stack->addr,
 				mod->name);
 		mem_trace("mem.new_access name=\"A-%lld\" type=\"load\" "
 				"state=\"%s:load\" addr=0x%x\n", stack->id, mod->name,
@@ -2988,7 +2985,7 @@ void fpga_reg_handler(int event, void *data) {
 
 	if (event == EV_FPGA_REG_LOAD_FINISH) {
 
-		mem_debug("%lld %lld 0x%x %s load finish\n", esim_time, stack->id,
+		mem_debug("%lld %lld 0x%x %s fpga load finish\n", esim_time, stack->id,
 				stack->addr, mod->name);
 		mem_trace("mem.access name=\"A-%lld\" state=\"%s:load_finish\"\n",
 				stack->id, mod->name);
@@ -3025,7 +3022,7 @@ void fpga_reg_handler(int event, void *data) {
 	if (event == EV_FPGA_REG_STORE) {
 		int latency;
 
-		mem_debug("%lld %lld 0x%x %s store\n", esim_time, stack->id,
+		mem_debug("%lld %lld 0x%x %s fpga store\n", esim_time, stack->id,
 				stack->addr, mod->name);
 		mem_trace("mem.new_access name=\"A-%lld\" type=\"load\" "
 				"state=\"%s:load\" addr=0x%x\n", stack->id, mod->name,
@@ -3041,7 +3038,7 @@ void fpga_reg_handler(int event, void *data) {
 	if (event == EV_FPGA_REG_STORE_START) {
 		int latency;
 
-		mem_debug("%lld %lld 0x%x %s store\n", esim_time, stack->id,
+		mem_debug("%lld %lld 0x%x %s fpga store\n", esim_time, stack->id,
 				stack->addr, mod->name);
 		mem_trace("mem.new_access name=\"A-%lld\" type=\"store\" "
 				"state=\"%s:store\" addr=0x%x\n", stack->id, mod->name,
@@ -3083,7 +3080,7 @@ void fpga_reg_handler(int event, void *data) {
 	}
 	if (event == EV_FPGA_REG_STORE_FINISH) {
 
-		mem_debug("%lld %lld 0x%x %s store finish\n", esim_time, stack->id,
+		mem_debug("%lld %lld 0x%x %s fpga store finish\n", esim_time, stack->id,
 				stack->addr, mod->name);
 		mem_trace("mem.access name=\"A-%lld\" state=\"%s:store_finish\"\n",
 				stack->id, mod->name);
@@ -3107,7 +3104,6 @@ void fpga_reg_handler(int event, void *data) {
 			if (stack->uop->kernelstart
 					&& stack->uop->addr == stack->uop->kernel->start
 					&& stack->uop->data == 1) {
-				// fprintf(stderr, "call \n");
 				FPGATask *task = new(FPGATask, stack->uop->kernel,
 						stack->uop->ctx);
 

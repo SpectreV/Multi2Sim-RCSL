@@ -158,6 +158,7 @@ void mod_stack_wakeup_stack(struct mod_stack_t *master_stack)
 		stack = master_stack->waiting_list_head;
 		event = stack->waiting_list_event;
 		DOUBLE_LINKED_LIST_REMOVE(master_stack, waiting, stack);
+		stack->master_stack = NULL;
 		esim_schedule_event(event, stack, 0);
 		if(( stack->addr >= 0x1F48 && stack->addr<= 0x1F54))
 	;//	 fprintf(stderr, "      wake master %x, %x, %d\n", master_stack->addr, stack->addr , event);

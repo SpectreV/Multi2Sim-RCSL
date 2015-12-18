@@ -1,14 +1,8 @@
 [ Kernel 0 ]
-KernelName = qsort
-Sim = Vsort
-InputFormat = 32,1;32,20
-OutputFormat = 32,20;
-
-Folding = False
-NumImplements = 3
-Widths = 3 5 6
-Lengths = 3 5 6
-Heights = 5 4 3
+KernelName = bs
+Sim = Vbinary_search
+InputFormat = int,31
+OutputFormat = int,1
 
 HWLowBound = 0xF0000000
 HWHighBound = 0xF000001F

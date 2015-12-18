@@ -17,7 +17,6 @@
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
-
 #include <lib/esim/trace.h>
 #include <lib/util/list.h>
 
@@ -27,15 +26,11 @@
 #include "uop.h"
 #include "thread.h"
 
-
-void X86ThreadInitFetchQueue(X86Thread *self)
-{
+void X86ThreadInitFetchQueue(X86Thread *self) {
 	self->fetch_queue = list_create_with_size(x86_fetch_queue_size);
 }
 
-
-void X86ThreadFreeFetchQueue(X86Thread *self)
-{
+void X86ThreadFreeFetchQueue(X86Thread *self) {
 	struct list_t *fetchq;
 	struct x86_uop_t *uop;
 
@@ -48,43 +43,35 @@ void X86ThreadFreeFetchQueue(X86Thread *self)
 	list_free(fetchq);
 }
 
-
-struct x86_uop_t *X86ThreadRemoveFromFetchQueue(X86Thread *self, int index)
-{
+struct x86_uop_t *X86ThreadRemoveFromFetchQueue(X86Thread *self, int index) {
 	struct list_t *fetchq = self->fetch_queue;
 	struct x86_uop_t *uop;
 	assert(index >= 0 && index < list_count(fetchq));
 	uop = list_remove_at(fetchq, index);
 	uop->in_fetch_queue = 0;
-	if (!uop->trace_cache && !uop->mop_index)
-	{
+	if (!uop->trace_cache && !uop->mop_index) {
 		self->fetchq_occ -= uop->mop_size;
 		assert(self->fetchq_occ >= 0);
 	}
-	if (uop->trace_cache)
-	{
+	if (uop->trace_cache) {
 		self->trace_cache_queue_occ--;
 		assert(self->trace_cache_queue_occ >= 0);
 	}
-	if (!list_count(fetchq))
-	{
+	if (!list_count(fetchq)) {
 		assert(!self->fetchq_occ);
 		assert(!self->trace_cache_queue_occ);
 	}
 	return uop;
 }
 
-
-void X86ThreadRecoverFetchQueue(X86Thread *self)
-{
+void X86ThreadRecoverFetchQueue(X86Thread *self) {
 	X86Core *core = self->core;
 	X86Cpu *cpu = self->cpu;
 
 	struct list_t *fetchq = self->fetch_queue;
 	struct x86_uop_t *uop;
 
-	while (list_count(fetchq))
-	{
+	while (list_count(fetchq)) {
 		uop = list_get(fetchq, list_count(fetchq) - 1);
 		assert(uop->thread == self);
 		if (!uop->specmode)
@@ -92,10 +79,9 @@ void X86ThreadRecoverFetchQueue(X86Thread *self)
 		uop = X86ThreadRemoveFromFetchQueue(self, list_count(fetchq) - 1);
 
 		/* Trace */
-		if (x86_tracing())
-		{
-			x86_trace("x86.inst id=%lld core=%d stg=\"sq\"\n",
-				uop->id_in_core, core->id);
+		if (x86_tracing()) {
+			x86_trace("x86.inst id=%lld core=%d stg=\"sq\"\n", uop->id_in_core,
+					core->id);
 			X86CpuAddToTraceList(cpu, uop);
 		}
 
@@ -104,11 +90,8 @@ void X86ThreadRecoverFetchQueue(X86Thread *self)
 	}
 }
 
-
-
 /*
  * Public
  */
-
 
 int x86_fetch_queue_size;

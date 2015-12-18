@@ -203,6 +203,7 @@ static struct x86_uop_t *X86ThreadFetchInst(X86Thread *self,
 			ret_uop = uop;
 
 		/* Insert into fetch queue */
+
 		list_add(self->fetch_queue, uop);
 		if (fetch_trace_cache)
 			self->trace_cache_queue_occ++;
@@ -215,11 +216,6 @@ static struct x86_uop_t *X86ThreadFetchInst(X86Thread *self,
 
 		/* Next uinst */
 		uinst_index++;
-
-		if (uop->id == 58362) {
-			printf("uop create id %d, mem address %x\n", uop->id,
-					uop->ctx->realmem);
-		}
 
 	}
 

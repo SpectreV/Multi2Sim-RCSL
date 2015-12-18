@@ -54,7 +54,6 @@ char *fpga_config_help = "The FPGA configuration file is a plain text INI file, 
 		"      Frequency in MHz for the fpga. Value between 1 and 10K.\n"
 		"  ClbArrayWidth = <num_columns> (Default = 20)\n"
 		"  ClbArrayLength = <num_rows> (Default = 20)\n"
-		"  ClbCtxDepth = <num_ctx> (Default = 16)\n"
 		"\n"
 
 		"Section '[ Queues ]':\n"
@@ -74,7 +73,6 @@ char *fpga_report_file_name = "";
 int fpga_frequency = 1000;
 int fpga_clb_array_width = 20;
 int fpga_clb_array_length = 20;
-int fpga_clb_ctx_depth = 16;
 
 int fpga_task_qsize = 10;
 int fpga_result_qsize = 10;
@@ -111,7 +109,6 @@ void FPGAReadConfig(void) {
 	fpga_clb_array_length = config_read_int(config, section, "ClbArrayLength",
 			fpga_clb_array_length);
 
-	fpga_clb_ctx_depth = config_read_int(config, section, "ClbCtxDepth", fpga_clb_ctx_depth);
 
 	/* Section '[ Queues ]' */
 
@@ -169,7 +166,7 @@ void FPGACreate(FPGA *self, FPGAEmu *emu) {
 	/* Trace */
 	fpga_trace_header("fpga.init version=\"%d.%d\" width=%d length=%d height=%d\n",
 			FPGA_TRACE_VERSION_MAJOR, FPGA_TRACE_VERSION_MINOR, fpga_clb_array_width,
-			fpga_clb_array_length, fpga_clb_ctx_depth);
+			fpga_clb_array_length);
 
 	EV_FPGA_TASK_FINISH = esim_register_event_with_name(fpga_task_finish_handler,
 			asTiming(self)->frequency_domain, "fpga_task_finish");
@@ -238,7 +235,6 @@ static void FPGADumpConfig(FILE *f) {
 	fprintf(f, "Frequency = %d\n", fpga_frequency);
 	fprintf(f, "Width = %d\n", fpga_clb_array_width);
 	fprintf(f, "Length = %d\n", fpga_clb_array_length);
-	fprintf(f, "Height = %d\n", fpga_clb_ctx_depth);
 	fprintf(f, "\n");
 
 	/* Queues */
@@ -289,18 +285,6 @@ int FPGARun(Timing *self) {
 
 	int kernel_running = FALSE;
 
-	DOUBLE_LINKED_LIST_FOR_EACH(emu, kernel, kernel)
-	{
-		if (kernel->state == FPGAKernelRunning) {
-			kernel_running = TRUE;
-			break;
-		}
-	}
-
-	if (!kernel_running) {
-		return FALSE;
-	}
-
 	/* Stop if maximum number of cycles exceeded */
 	if (fpga_emu_max_cycles && self->cycle >= fpga_emu_max_cycles)
 		esim_finish = esim_finish_fpga_max_cycles;
@@ -309,10 +293,14 @@ int FPGARun(Timing *self) {
 	if (esim_finish)
 		return FALSE;
 
+	/* Stop if no more cpu request */
+	if(!emu->cpu_running)
+		return FALSE;
+
 	/* One more cycle of fpga timing simulation */
 	self->cycle++;
 
-	DOUBLE_LINKED_LIST_FOR_EACH(emu, running, kernel)
+	DOUBLE_LINKED_LIST_FOR_EACH(emu, kernel, kernel)
 	{
 		FPGAKernelExecute(kernel);
 	}
