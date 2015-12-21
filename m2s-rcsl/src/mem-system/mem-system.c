@@ -382,6 +382,20 @@ void mem_system_init(void)
     EV_FPGA_MEM_LARGE_STORE_FINISH = esim_register_event_with_name(fpga_mem_large_store_handler, 
 		    mem_domain_index, "FPGA_mem_large_store_finish");
 
+    EV_MOD_MEM_NMOESI_LOAD = esim_register_event_with_name(mod_handler_nmoesi_load_mem,
+			mem_domain_index, "mod_nmoesi_load_mem");
+	EV_MOD_MEM_NMOESI_LOAD_ACTION = esim_register_event_with_name(mod_handler_nmoesi_load_mem,
+			mem_domain_index, "mod_nmoesi_load_action_mem");
+	EV_MOD_MEM_NMOESI_LOAD_FINISH = esim_register_event_with_name(mod_handler_nmoesi_load_mem,
+			mem_domain_index, "mod_nmoesi_load_finish_mem");
+
+	EV_MOD_MEM_NMOESI_STORE = esim_register_event_with_name(mod_handler_nmoesi_store_mem,
+			mem_domain_index, "mod_nmoesi_store_mem");
+	EV_MOD_MEM_NMOESI_STORE_ACTION = esim_register_event_with_name(mod_handler_nmoesi_store_mem,
+			mem_domain_index, "mod_nmoesi_store_action_mem");
+	EV_MOD_MEM_NMOESI_STORE_FINISH = esim_register_event_with_name(mod_handler_nmoesi_store_mem,
+			mem_domain_index, "mod_nmoesi_store_finish_mem");
+
 
 }
 

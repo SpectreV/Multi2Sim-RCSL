@@ -664,6 +664,13 @@ void X86EmuLoadContextsFromConfig(X86Emu *self, struct config_t *config, char *s
 			}
 		}
 	}
+
+
+	ctx->mem_mod_low = config_read_int(config, section, "MemModLow", 0);
+	ctx->mem_mod_high = config_read_int(config, section, "MemModHigh", 0); 
+    mem_map(ctx->mem, ctx->mem_mod_low, 8 , mem_access_read | mem_access_write);
+
+    
 	/* Modification ends */
 
 

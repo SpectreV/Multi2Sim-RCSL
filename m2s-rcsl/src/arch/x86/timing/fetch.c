@@ -147,8 +147,19 @@ static struct x86_uop_t *X86ThreadFetchInst(X86Thread *self,
 
 		/* Calculate physical address of a memory access */
 		if (uop->flags & X86_UINST_MEM) {
+			if (uinst->address == ctx->mem_mod_low && ctx->mem_mod_low!=0)
+            	{ //fprintf(stderr, "%x, low\n", uinst->address);
+                 ctx->mem_low = uop->data-(uop->data & (self->data_mod->block_size-1));
+            	 uop->addr = uinst->address; 
+            	}
+            else if (uinst->address == ctx->mem_mod_high && ctx->mem_mod_high!=0 )
+                 { //fprintf(stderr, "%x, high\n", uinst->address);
+                 	ctx->mem_high = uop->data | (self->data_mod->block_size-1);
+                   uop->addr = uinst->address;
+                    }	
 
-			if (!FPGARegCheck(ctx, uop, uinst->address)) {
+			else if (!FPGARegCheck(ctx, uop, uinst->address)) {
+
 				if (self->standalone) {
 					uop->phy_addr = uinst->address;
 					uop->addr = uinst->address;
@@ -302,13 +313,7 @@ static void X86ThreadFetch(X86Thread *self) {
 	 * block, access the instruction cache. */
 	block = self->fetch_neip & ~(self->inst_mod->block_size - 1);
 	if (block != self->fetch_block) {
-		/*if (FPGARegMemCheck(ctx->mem, self->fetch_neip))
-		 fatal("instruction address at 0x%x: overlap with fpga registers", self->fetch_neip);
 
-		 else if (self->standalone)
-		 phy_addr = self->fetch_neip;
-
-		 else*/
 		phy_addr = mmu_translate(self->ctx->address_space_index,
 				self->fetch_neip);
 

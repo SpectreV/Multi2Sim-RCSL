@@ -82,7 +82,7 @@ void FPGAMemConfigParseEntry(Timing *self, struct config_t *config, char *sectio
 				module_name);
 
 	fpga->translatency = translation_latency;
-	fpga->axi = axi;
+	fpga->axi = axi;	
 
 }
 

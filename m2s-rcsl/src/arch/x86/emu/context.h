@@ -100,7 +100,10 @@ CLASS_BEGIN(X86Context, Object)
 	int str_op_count; /* Number of iterations in string operation */
 
 	struct list_t *kernel_list;
-
+    unsigned int mem_mod_low;
+	unsigned int mem_mod_high;
+	unsigned int mem_low;
+	unsigned int mem_high;
 	/*
 	 * Context scheduling (timing simulation)
 	 */

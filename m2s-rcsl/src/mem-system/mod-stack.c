@@ -133,8 +133,8 @@ void mod_stack_wait_in_stack(struct mod_stack_t *stack,
 	stack->waiting_list_event = event;
 	DOUBLE_LINKED_LIST_INSERT_TAIL(master_stack, waiting, stack);
     
-    if((stack->addr >= 0x1F48 && stack->addr<= 0x1F54))
-	 ;//  fprintf(stderr, "      wait master %x, %x, %d\n", master_stack->addr, stack->addr , event);
+    if((stack->addr >= 0x2F20 && stack->addr<= 0x2F2C))
+	  ;// fprintf(stderr, "      wait master %x, %x, %d,%lld\n", master_stack->addr, stack->addr , event,esim_time);
 }
 
 
@@ -160,8 +160,8 @@ void mod_stack_wakeup_stack(struct mod_stack_t *master_stack)
 		DOUBLE_LINKED_LIST_REMOVE(master_stack, waiting, stack);
 		stack->master_stack = NULL;
 		esim_schedule_event(event, stack, 0);
-		if(( stack->addr >= 0x1F48 && stack->addr<= 0x1F54))
-	;//	 fprintf(stderr, "      wake master %x, %x, %d\n", master_stack->addr, stack->addr , event);
+		if(( stack->addr >= 0x2F20 && stack->addr<= 0x2F2C))
+		;// fprintf(stderr, "      wake master %x, %x, %d, %lld\n", master_stack->addr, stack->addr , event,esim_time);
 		mem_debug(" %lld", stack->id);
 	}
 

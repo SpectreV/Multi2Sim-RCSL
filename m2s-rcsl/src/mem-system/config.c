@@ -272,11 +272,11 @@ static char *err_mem_connect =
 	"\tbetween a memory module and an associated low/high module. Please\n"
 	"\tadd the necessary links in the network configuration file.\n";
 
-/*static char *err_mem_disjoint =
+static char *err_mem_disjoint =
 	"\tIn current versions of Multi2Sim, it is not allowed having a\n" 
 	"\tmemory module shared for different architectures. Please make sure\n"
 	"\tthat the sets of modules accessible by different architectures\n"
-	"\tare disjoint.\n";*/
+	"\tare disjoint.\n";
 
 
 static void mem_config_default(struct arch_t *arch, void *user_data)
@@ -546,6 +546,7 @@ static struct mod_t *mem_config_read_cache(struct config_t *config,
 	struct net_t *net;
 	struct net_node_t *net_node;
 	struct interconnect_t *interconnect;
+	struct interconnect_t *interconnecthw;
 
 
     //axi = config_var_exists(config, section, "Interconnect");
@@ -664,6 +665,7 @@ static struct mod_t *mem_config_read_cache(struct config_t *config,
 	mod->dir_size = num_sets * assoc;
 	mod->dir_latency = dir_latency;
 	mod->latency_add = latency_add; 
+	mod->axi = axi;
 	interconnect->length = burstlength;
 	interconnect->width = burstwidth;
 	interconnect->rextra = burstextraread;
@@ -676,6 +678,35 @@ static struct mod_t *mem_config_read_cache(struct config_t *config,
 	interconnect->memoplist = list_create();
 	interconnect->latency = translation_latency;
 	mod->interconnect = interconnect;
+
+	if(config_var_exists(config, section, "InterconnectHW"))
+	{  snprintf(buf_HW, sizeof buf_HW, "InterconnectParameters %s",
+		 config_read_string(config, section, "InterconnectHW", ""));
+       burstlength = config_read_int(config, buf_HW, "BurstLength", 8);
+       burstwidth = config_read_int(config, buf_HW, "BurstWidth", 4);
+       burstextraread = config_read_int(config, buf_HW, "BurstReadExtra", 0); 
+       burstextrawrite = config_read_int(config, buf_HW, "BurstWriteExtra", 0);
+       port = config_read_int(config, buf_HW, "Port", 1);
+       inter = config_read_int(config, buf_HW, "InterLatency", 1);
+       translation_latency = config_read_int(config, buf_HW, "TransLatency", 0); 
+       interconnecthw = xcalloc(1, sizeof(struct interconnect_t));    
+       interconnecthw->length = burstlength;
+	   interconnecthw->width = burstwidth;
+	   interconnecthw->rextra = burstextraread;
+	   interconnecthw->wextra = burstextrawrite; 
+	   interconnecthw->port = port;
+	   interconnecthw->portuse = 0;
+	   interconnecthw->axi = axi;
+	   interconnecthw->gran = mod->block_size;
+	   interconnecthw->inter = inter;
+	   interconnecthw->memoplist = list_create();
+       interconnecthw->latency = translation_latency; 
+       mod->interconnect_hw = interconnecthw;          
+
+	}
+	else 
+	   mod->interconnect_hw = interconnect;	
+
 
 	/* High network */
 	net_name = config_read_string(config, section, "HighNetwork", "");
@@ -740,6 +771,7 @@ static struct mod_t *mem_config_read_main_memory(struct config_t *config,
 	struct net_t *net;
 	struct net_node_t *net_node;
 	struct interconnect_t *interconnect;
+	struct interconnect_t *interconnecthw;
 
 
 	snprintf(buf_HW, sizeof buf_HW, "InterconnectParameters %s",
@@ -804,6 +836,37 @@ static struct mod_t *mem_config_read_main_memory(struct config_t *config,
 	interconnect->memoplist = list_create();
 	interconnect->latency = translation_latency;
 	mod->interconnect = interconnect;
+	mod->axi=axi;
+
+	if(config_var_exists(config, section, "InterconnectHW"))
+	{  snprintf(buf_HW, sizeof buf_HW, "InterconnectParameters %s",
+		 config_read_string(config, section, "InterconnectHW", ""));
+       burstlength = config_read_int(config, buf_HW, "BurstLength", 8);
+       burstwidth = config_read_int(config, buf_HW, "BurstWidth", 4);
+       burstextraread = config_read_int(config, buf_HW, "BurstReadExtra", 0); 
+       burstextrawrite = config_read_int(config, buf_HW, "BurstWriteExtra", 0);
+       port = config_read_int(config, buf_HW, "Port", 1);
+       inter = config_read_int(config, buf_HW, "InterLatency", 1);
+       translation_latency = config_read_int(config, buf_HW, "TransLatency", 0); 
+       interconnecthw = xcalloc(1, sizeof(struct interconnect_t));    
+       interconnecthw->length = burstlength;
+	   interconnecthw->width = burstwidth;
+	   interconnecthw->rextra = burstextraread;
+	   interconnecthw->wextra = burstextrawrite; 
+	   interconnecthw->port = port;
+	   interconnecthw->portuse = 0;
+	   interconnecthw->axi = axi;
+	   interconnecthw->gran = mod->block_size;
+	   interconnecthw->inter = inter;
+	   interconnecthw->memoplist = list_create();
+       interconnecthw->latency = translation_latency; 
+       mod->interconnect_hw = interconnecthw;          
+
+	}
+	else 
+	   mod->interconnect_hw = interconnect;	
+
+
 
 	/* Store directory size */
 	mod->dir_size = dir_size;
@@ -1342,21 +1405,20 @@ static void mem_config_check_routes(void)
 }
 
 
-/*
- Recursive test-and-set of module architecture. If module 'mod' or any of its lower-level
+/* Recursive test-and-set of module architecture. If module 'mod' or any of its lower-level
  * modules is set to an architecture other than 'arch', return this other architecture.
  * Otherwise, set the architecture of 'mod' and all its lower-level modules to 'arch', and
- * return 'arch'.
+ * return 'arch'. */
 static struct arch_t *mem_config_set_mod_arch(struct mod_t *mod, struct arch_t *arch)
 {
 	struct mod_t *low_mod;
 	struct arch_t *low_mod_arch;
 
-	 This module has the color
+	/* This module has the color */
 	if (mod->arch)
 		return mod->arch;
 
-	 Check lower-level modules
+	/* Check lower-level modules */
 	LINKED_LIST_FOR_EACH(mod->low_mod_list)
 	{
 		low_mod = linked_list_get(mod->low_mod_list);
@@ -1365,19 +1427,18 @@ static struct arch_t *mem_config_set_mod_arch(struct mod_t *mod, struct arch_t *
 			return low_mod_arch;
 	}
 
-	 Architecture was not set. Set it and return it.
+	/* Architecture was not set. Set it and return it. */
 	mod->arch = arch;
 	return arch;
 }
-*/
 
 
-/*static void mem_config_check_disjoint(struct arch_t *arch, void *user_data)
+static void mem_config_check_disjoint(struct arch_t *arch, void *user_data)
 {
 	struct arch_t *mod_arch;
 	struct mod_t *mod;
 
-	 Color modules for this architecture
+	/* Color modules for this architecture */
 	LINKED_LIST_FOR_EACH(arch->mem_entry_mod_list)
 	{
 		mod = linked_list_get(arch->mem_entry_mod_list);
@@ -1386,7 +1447,7 @@ static struct arch_t *mem_config_set_mod_arch(struct mod_t *mod, struct arch_t *
 			fatal("%s: architectures '%s' and '%s' share memory modules.\n%s",
 				mem_config_file_name, arch->name, mod_arch->name, err_mem_disjoint);
 	}
-}*/
+}
 
 
 static void mem_config_calculate_sub_block_sizes(void)

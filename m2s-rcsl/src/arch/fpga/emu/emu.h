@@ -25,9 +25,14 @@
 
 #include <arch/common/emu.h>
 #include <lib/util/class.h>
+#include <arch/fpga/timing/fpga.h> 
 
 /* Forward declarations */
 struct config_t;
+
+extern int EV_FPGA_LOAD_FINISH;
+extern int EV_FPGA_STORE_FINISH;
+extern int EV_FPGA_EXECUTE_FINISH;
 
 /*
  * Class 'FPGAEmu'
@@ -54,6 +59,8 @@ CLASS_BEGIN(FPGAEmu, Emu)
 	 * code by directly assigning a value to 1. E.g.: when a system call is
 	 * executed to change the context's affinity. */
 	int schedule_signal;
+
+    FPGA *fpga;
 
 	/* List of kernels */
 	FPGAKernel *kernel_list_head;
@@ -122,7 +129,7 @@ extern int fpga_emu_process_prefetch_hints;
 void fpga_emu_init(void);
 void fpga_emu_done(void);
 
-void fpga_task_finish_handler(int event, void *data);
+void fpga_task_handler(int event, void *data);
 void fpga_kernel_reconfigure_handler(int event, void *data);
 
 #endif

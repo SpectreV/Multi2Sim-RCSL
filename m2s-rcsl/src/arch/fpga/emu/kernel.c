@@ -163,7 +163,7 @@ void FPGAKernelExecute(FPGAKernel *self) {
 	FPGAKernelDebug("kernel %d starts to execute the first task in its ready task queue\n", self->kid);
 
 	FPGATask *task = self->ready_list_head;
-	FPGATaskExecute(task);
+	FPGATaskLoadData(task);
 
 }
 

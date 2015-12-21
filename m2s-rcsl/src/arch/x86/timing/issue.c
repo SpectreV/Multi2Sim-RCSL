@@ -56,7 +56,10 @@ static int X86ThreadIssueSQ(X86Thread *self, int quantum)
 		/* Get store */
 		store = linked_list_get(sq);
 		assert(store->uinst->opcode == x86_uinst_store);
-
+        
+        if (((store->addr == store->ctx->mem_mod_low)&&(store->ctx->mem_mod_low!=0))||((store->addr == store->ctx->mem_mod_high)&&(store->ctx->mem_mod_high!=0)))
+	   	{ X86ThreadRemoveFromSQ(self);
+	   	  continue;} 
 
 		/* Only committed stores issue */
 		if (store->in_rob)
@@ -75,15 +78,15 @@ static int X86ThreadIssueSQ(X86Thread *self, int quantum)
 
 
 		/* Issue store */
-		if (store->kernelrange || store->kernelstart) {
-
+		if(store->kernelrange || store->kernelstart)
             fpga_reg_access(self->data_mod, mod_access_store,
 		        store->phy_addr, NULL, core->event_queue, store, client_info, self->data_latency, 4);
-		}
-		else {
-		    mod_access(self->data_mod, mod_access_store,
+        else if(store->addr>=store->ctx->mem_low && store->addr<=store->ctx->mem_high)
+              mod_mem_access(self->data_mod, mod_access_store,
+		        store->phy_addr, NULL, core->event_queue, store, client_info, self->data_latency, 4);    
+		    else 
+		    	mod_access(self->data_mod, mod_access_store,
 		        store->phy_addr, NULL, core->event_queue, store, client_info, self->data_latency, 4);
-		}
 		/* The cache system will place the store at the head of the
 		 * event queue when it is ready. For now, mark "in_event_queue" to
 		 * prevent the uop from being freed. */
@@ -130,6 +133,13 @@ static int X86ThreadIssueLQ(X86Thread *self, int quant)
 	{
 		/* Get element from load queue. If it is not ready, go to the next one */
 		load = linked_list_get(lq);
+
+		if (((load->addr == load->ctx->mem_mod_low)&&(load->ctx->mem_mod_low!=0))||((load->addr == load->ctx->mem_mod_high)&&(load->ctx->mem_mod_high!=0)))
+		   	
+		   { assert(load->uinst->opcode == x86_uinst_load);
+		   	 X86ThreadRemoveFromLQ(self);
+		  	 continue;} 
+
 		if (!load->ready && !X86ThreadIsUopReady(self, load))
 		{
 			linked_list_next(lq);
@@ -155,11 +165,13 @@ static int X86ThreadIssueLQ(X86Thread *self, int quant)
 		/* Access memory system */
 
 
-		if (load->kernelrange || load->kernelstart) {
-
-			fpga_reg_access(self->data_mod, mod_access_load,
+		if (load->kernelrange || load->kernelstart)
+            fpga_reg_access(self->data_mod, mod_access_load,
 			   load->phy_addr, NULL, core->event_queue, load, client_info, self->data_latency, 4);
-		}
+
+        else if(load->addr>=load->ctx->mem_low && load->addr<=load->ctx->mem_high)
+              mod_mem_access(self->data_mod, mod_access_load,
+			   load->phy_addr, NULL, core->event_queue, load, client_info, self->data_latency, 4);
 		else	
 		    mod_access(self->data_mod, mod_access_load,
 			   load->phy_addr, NULL, core->event_queue, load, client_info, self->data_latency, 4);

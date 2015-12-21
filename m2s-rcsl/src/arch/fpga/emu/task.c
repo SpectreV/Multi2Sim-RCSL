@@ -32,12 +32,14 @@
 #include <mem-system/memory.h>
 #include <mem-system/mmu.h>
 #include <mem-system/spec-mem.h>
+#include <mem-system/module.h> 
 
 #include <arch/x86/emu/context.h>
 
 #include "task.h"
 #include "emu.h"
 #include "kernel.h"
+
 
 int EV_FPGA_TASK_FINISH;
 
@@ -74,6 +76,7 @@ static void FPGATaskDoCreate(FPGATask *self, FPGAEmu *emu, FPGAKernel *kernel,
 	asObject(self)->Dump = FPGATaskDump;
 }
 
+
 void FPGATaskCreate(FPGATask *self, FPGAKernel *kernel, X86Context *ctx) {
 	/* Baseline initialization */
 	FPGATaskDoCreate(self, kernel->emu, kernel, ctx);
@@ -85,12 +88,6 @@ void FPGATaskCreate(FPGATask *self, FPGAKernel *kernel, X86Context *ctx) {
 		mem_read_copy(self->ctx->realmem, kernel->srcsize, 4, &srcsize);
 		self->input = (void *) xcalloc(1, srcsize);
 		self->input_size = srcsize;
-
-		void * data = (void *) xcalloc(1, srcsize);
-
-		mem_read_copy(self->ctx->realmem, kernel->srcbase, 4, self->input);
-		mem_read_copy(self->ctx->realmem, self->input, self->input_size, data);
-
 		mem_read_copy(self->ctx->realmem, kernel->dstsize, 4, &dstsize);
 		self->output = (void *) xcalloc(1, dstsize);
 		self->output_size = dstsize;
@@ -101,6 +98,7 @@ void FPGATaskCreate(FPGATask *self, FPGAKernel *kernel, X86Context *ctx) {
 		self->output_size = kernel->dstsize;
 	}
 }
+
 
 void FPGATaskDestroy(FPGATask *self) {
 	FPGAEmu *emu = self->emu;
@@ -164,12 +162,65 @@ static int FPGATaskVerilate(FPGATask *self, struct mem_t *mem,
 	return delay;
 }
 
+
+void FPGATaskLoadData(FPGATask *self)
+{   
+   	FPGAKernel *kernel = self->kernel;
+   	unsigned int addr;
+
+	assert(FPGATaskGetState(self, FPGATaskReady));
+	FPGATaskSetState(self, FPGATaskRunning | FPGATaskLoad);
+
+                if(kernel->sharedmem)
+              	{     
+              	  mem_read_copy(self->ctx->realmem, kernel->srcbase, 4, &addr);
+                  fpga_mod_access( self->emu->fpga->mod, mod_access_load, addr, NULL, NULL, NULL, 
+                        self, self->input, self->input_size, self->ctx, 0);
+               // fprintf(stderr, "startschedule: %d, %x, %x, %d\n",kernel->id,kernel->srcbase,addr,task->srcsize);
+              	}	
+              else 
+              	{   
+              		addr = kernel->srcbase;
+              		mem_read_copy(self->ctx->realmem, addr, self->input_size, self->input);                       
+                    esim_schedule_event(EV_FPGA_LOAD_FINISH, self, 0);    
+                }
+}
+
+
+
+void FPGATaskStoreData(FPGATask *self)
+{   
+   	FPGAKernel *kernel = self->kernel;
+   	unsigned int addr;
+
+	assert(FPGATaskGetState(self, FPGATaskRunning|FPGATaskExecuting));
+	FPGATaskSetState(self, FPGATaskRunning | FPGATaskStore);
+
+
+	if(kernel->sharedmem)  
+              	{
+              	  mem_read_copy(self->ctx->realmem, kernel->dstbase, 4, &addr);
+                  fpga_mod_access( self->emu->fpga->mod, mod_access_store, addr, NULL, NULL, NULL, 
+                  self, self->output, self->output_size, self->ctx, 0);
+                } 
+              else 
+              	{                               
+              	  addr = kernel->dstbase;
+              	  mem_write_copy(self->ctx->mem, addr, self->output_size, self->output);
+                  mem_write_copy(self->ctx->realmem, addr, self->output_size, self->output);  
+
+                   esim_schedule_event(EV_FPGA_STORE_FINISH, self, 0);  
+              
+                }
+                 
+}
+
+
 void FPGATaskExecute(FPGATask *self) {
 	FPGAKernel *kernel = self->kernel;
 
-	assert(FPGATaskGetState(self, FPGATaskReady));
-
-	FPGATaskSetState(self, FPGATaskRunning);
+	assert(FPGATaskGetState(self, FPGATaskRunning | FPGATaskLoad));
+	FPGATaskSetState(self, FPGATaskRunning|FPGATaskExecuting);
 
 	int i, j, delay;
 	void *data;
@@ -179,14 +230,18 @@ void FPGATaskExecute(FPGATask *self) {
 		kernel->delay = *(int*) list_get(kernel->heights,
 				kernel->current_implement);
 	}
+     
+    for (i=0;i<30;i++) 
+    {fprintf(stderr, "%d\n", *((int*)(self->input)+i) );} 
 
 	if (kernel->delay) {
-		esim_schedule_event(EV_FPGA_TASK_FINISH, self, kernel->delay);
+		esim_schedule_event(EV_FPGA_EXECUTE_FINISH, self, kernel->delay);
 	} else {
 		/* Read Input Data */
 		delay = FPGATaskVerilate(self, self->ctx->realmem, kernel->srcbase,
 				self->input_size, self->input);
-		esim_schedule_event(EV_FPGA_TASK_FINISH, self, delay);
+
+		esim_schedule_event(EV_FPGA_EXECUTE_FINISH, self, delay);
 	}
 
 }
@@ -204,20 +259,22 @@ static void FPGATaskUpdateState(FPGATask *self, FPGATaskState state) {
 
 	if (DOUBLE_LINKED_LIST_MEMBER(kernel, ready, self))
 		DOUBLE_LINKED_LIST_REMOVE(kernel, ready, self);
+
 	if (DOUBLE_LINKED_LIST_MEMBER(kernel, finished, self))
 		DOUBLE_LINKED_LIST_MEMBER(kernel, finished, self);
 
 	self->state = state;
+
 	if (self->state & FPGATaskReady) {
 		DOUBLE_LINKED_LIST_INSERT_TAIL(kernel, ready, self);
 	}
 	if (self->state & FPGATaskFinished) {
 		DOUBLE_LINKED_LIST_INSERT_TAIL(kernel, finished, self);
 	}
-	if (self->state & FPGATaskRunning) {
-		DOUBLE_LINKED_LIST_INSERT_HEAD(kernel, ready, self);
-		self->state |= FPGATaskReady;
-	}
+	//if (self->state & FPGATaskRunning) {
+	//	DOUBLE_LINKED_LIST_INSERT_HEAD(kernel, ready, self);
+	//	self->state |= FPGATaskReady;
+	//}
 
 }
 
@@ -230,10 +287,22 @@ void FPGATaskClearState(FPGATask *self, FPGATaskState state) {
 }
 
 void FPGATaskFinish(FPGATask *self) {
-	int finish = 1;
-	mem_write_copy(self->ctx->realmem, self->kernel->finish, 4, &finish);
-	mem_write_copy(self->ctx->mem, self->kernel->finish, 4, &finish);
+   FPGAKernel *kernel = self->kernel;
+
 	FPGATaskSetState(self, FPGATaskFinished);
+
+              if(kernel->finish >= kernel->HW_bounds.low && kernel->finish <= kernel->HW_bounds.high)
+              {   
+                 unsigned int data=1;
+                 mem_write_copy(self->ctx->mem, kernel->finish, 4, &data);
+                 mem_write_copy(self->ctx->realmem, kernel->finish, 4, &data);   
+              }
+              else
+              {   
+              	 unsigned int data=1;
+                 fpga_mod_access( self->emu->fpga->mod, mod_access_store, kernel->finish, NULL, NULL, NULL, 
+                 NULL, &data, 4, self->ctx, 0);	
+              }	
 }
 
 /*

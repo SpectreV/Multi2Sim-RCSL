@@ -44,6 +44,10 @@
  * Global variables
  */
 
+ int EV_FPGA_LOAD_FINISH;
+ int EV_FPGA_STORE_FINISH;
+ int EV_FPGA_EXECUTE_FINISH; 
+
 /* Configuration parameters */
 long long fpga_emu_max_inst = 0;
 long long fpga_emu_max_cycles = 0;
@@ -336,7 +340,23 @@ void fpga_emu_done(void) {
 	delete(fpga_emu);
 }
 
-void fpga_task_finish_handler(int event, void *data) {
+void fpga_task_handler(int event, void *data) {
+
+	if (event == EV_FPGA_LOAD_FINISH)
+
+{	FPGATask *task = (FPGATask *) data;
+	FPGATaskExecute(task);
+	
+}
+    
+	if (event == EV_FPGA_EXECUTE_FINISH)
+{	FPGATask *task = (FPGATask *) data;
+	FPGATaskStoreData(task);
+}
+
+ 
+	if (event == EV_FPGA_STORE_FINISH)
+{	
 	FPGATask *task = (FPGATask *) data;
 	FPGATaskFinish(task);
 	FPGAKernelSetState(task->kernel, FPGAKernelIdle);
@@ -344,6 +364,9 @@ void fpga_task_finish_handler(int event, void *data) {
 			"kernel %d finishes executing its task and return to idle\n",
 			task->kernel->kid);
 	printf("kernel %d finishes executing its task and return to idle\n", task->kernel->kid);
+
+}
+
 }
 
 void fpga_kernel_reconfigure_handler(int event, void *data) {

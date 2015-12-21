@@ -154,6 +154,7 @@ void FPGACreate(FPGA *self, FPGAEmu *emu) {
 
 	/* Initialize */
 	self->emu = emu;
+	emu->fpga = self;
 
 	/* Virtual functions */
 	asObject(self)->Dump = FPGADump;
@@ -168,7 +169,11 @@ void FPGACreate(FPGA *self, FPGAEmu *emu) {
 			FPGA_TRACE_VERSION_MAJOR, FPGA_TRACE_VERSION_MINOR, fpga_clb_array_width,
 			fpga_clb_array_length);
 
-	EV_FPGA_TASK_FINISH = esim_register_event_with_name(fpga_task_finish_handler,
+	EV_FPGA_LOAD_FINISH = esim_register_event_with_name(fpga_task_handler,
+			asTiming(self)->frequency_domain, "fpga_task_finish");
+	EV_FPGA_STORE_FINISH = esim_register_event_with_name(fpga_task_handler,
+			asTiming(self)->frequency_domain, "fpga_task_finish");
+	EV_FPGA_EXECUTE_FINISH = esim_register_event_with_name(fpga_task_handler,
 			asTiming(self)->frequency_domain, "fpga_task_finish");
 	EV_FPGA_KERNEL_LOAD_ONCHIP = esim_register_event_with_name(fpga_kernel_reconfigure_handler,
 			asTiming(self)->frequency_domain, "fpga_kernel_load_onchip");

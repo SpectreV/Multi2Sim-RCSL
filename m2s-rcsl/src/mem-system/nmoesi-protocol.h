@@ -142,6 +142,14 @@ extern int EV_FPGA_MEM_LARGE_STORE_ACTION;
 extern int EV_FPGA_MEM_LARGE_STORE_ACTION_FINISH;
 extern int EV_FPGA_MEM_LARGE_STORE_FINISH;
 
+extern int EV_MOD_MEM_NMOESI_LOAD;
+extern int EV_MOD_MEM_NMOESI_LOAD_ACTION;
+extern int EV_MOD_MEM_NMOESI_LOAD_FINISH;
+
+extern int EV_MOD_MEM_NMOESI_STORE;
+extern int EV_MOD_MEM_NMOESI_STORE_ACTION;
+extern int EV_MOD_MEM_NMOESI_STORE_FINISH;
+
 
 
 void mod_handler_nmoesi_find_and_lock(int event, void *data);
@@ -160,7 +168,8 @@ void fpga_mem_load_handler (int event, void *data);
 void fpga_mem_store_handler (int event, void *data);
 void fpga_mem_large_load_handler (int event, void *data);
 void fpga_mem_large_store_handler (int event, void *data);
-/*void tasktokernel(struct kernel_t *kernel, struct task_t *task, X86Context *ctx);*/
-
+//void tasktokernel(struct kernel_t *kernel, struct task_t *task, X86Context *ctx);
+void mod_handler_nmoesi_load_mem(int event, void *data);
+void mod_handler_nmoesi_store_mem(int event, void *data);
 #endif
 

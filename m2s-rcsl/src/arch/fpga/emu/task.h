@@ -27,7 +27,6 @@
 /* Forward declarations */
 struct bit_map_t;
 
-extern int EV_FPGA_TASK_FINISH;
 
 /*
  * Class 'FPGATask'
@@ -39,8 +38,12 @@ typedef void (*FPGATaskWakeupFunc)(FPGATask *self, void *data);
 typedef enum {
 	FPGATaskRunning = 0x00001, /* it is running */
 	FPGATaskReady = 0x00002, /* waiting in a kernel queue */
-	FPGATaskRejected = 0x00004, FPGATaskFinished = 0x00008, /* no more inst to execute */
-	FPGATaskNone = 0x00000
+	FPGATaskRejected = 0x00004, 
+	FPGATaskFinished = 0x00008, /* no more inst to execute */
+	FPGATaskNone = 0x00000,
+	FPGATaskLoad = 0x00010,
+	FPGATaskStore = 0x00020,
+	FPGATaskExecuting = 0x00040
 } FPGATaskState;
 
 CLASS_BEGIN(FPGATask, Object)
@@ -77,6 +80,8 @@ void FPGATaskDump(Object *self, FILE *f);
 void FPGATaskFinish(FPGATask *self);
 void FPGATaskFinishGroup(FPGATask *self, int state);
 void FPGATaskExecute(FPGATask *self);
+void FPGATaskLoadData(FPGATask *self);
+void FPGATaskStoreData(FPGATask *self);
 
 
 

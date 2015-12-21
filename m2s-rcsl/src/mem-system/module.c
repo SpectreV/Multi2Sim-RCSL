@@ -25,7 +25,6 @@
 #include <lib/util/misc.h>
 #include <lib/util/string.h>
 #include <lib/util/repos.h>
-#include <arch/fpga/emu/task.h>
 
 #include "cache.h"
 #include "directory.h"
@@ -126,7 +125,7 @@ long long fpga_mod_access(struct mod_t *mod, enum mod_access_kind_t access_kind,
 	stack->event_queue = event_queue;
 	stack->event_queue_item = event_queue_item;
 	stack->client_info = client_info;
-	stack->interconnect = mod->interconnect;
+	stack->interconnect = mod->interconnect_hw;
 	stack->size = size;
 	stack->ctx = ctx; 
 	stack->task = task;
@@ -134,13 +133,14 @@ long long fpga_mod_access(struct mod_t *mod, enum mod_access_kind_t access_kind,
 
 
 	/* Select initial CPU/GPU event */
-	if (mod->interconnect->axi)
+	if (mod->axi)
 
     {      
     	if (access_kind == mod_access_load)
 		{      
 			event = EV_FPGA_MEM_LOAD;
 			stack->load = 1;
+			//fprintf(stderr, "startfetch: %d,%x\n",task->kernel->id,addr);
 		}
 	else if (access_kind == mod_access_store)
 		{             
@@ -154,7 +154,7 @@ long long fpga_mod_access(struct mod_t *mod, enum mod_access_kind_t access_kind,
 		}
 	}
 
-	else if (!mod->interconnect->axi)
+	else if (!mod->axi)
 
 	{   
 		if (access_kind == mod_access_load)
@@ -210,7 +210,7 @@ long long fpga_reg_access(struct mod_t *mod, enum mod_access_kind_t access_kind,
 	stack->client_info = client_info;
 	stack->size = size;
 	stack->uop = event_queue_item;	
-
+    stack->interconnect = mod->interconnect;
     
     if(access_kind == mod_access_load)
         {
@@ -236,6 +236,58 @@ long long fpga_reg_access(struct mod_t *mod, enum mod_access_kind_t access_kind,
 }
 
 
+
+long long mod_mem_access(struct mod_t *mod, enum mod_access_kind_t access_kind, 
+	unsigned int addr, int *witness_ptr, struct linked_list_t *event_queue,
+	void *event_queue_item, struct mod_client_info_t *client_info, int latency_add, int size)
+{
+	struct mod_stack_t *stack;
+	int event;
+
+
+	/* Create module stack with new ID */
+	mod_stack_id++;
+	stack = mod_stack_create(mod_stack_id,
+		mod, addr, ESIM_EV_NONE, NULL, latency_add);
+
+	/* Initialize */
+	stack->witness_ptr = witness_ptr;
+	stack->event_queue = event_queue;
+	stack->event_queue_item = event_queue_item;
+	stack->client_info = client_info;
+	stack->size = size;
+	stack->uop = event_queue_item;
+
+
+	/* Select initial CPU/GPU event */
+    if (mod->kind == mod_kind_cache || mod->kind == mod_kind_main_memory)
+	{
+		if (access_kind == mod_access_load)
+		{
+			event = EV_MOD_MEM_NMOESI_LOAD;
+		}
+		else if (access_kind == mod_access_store)
+		{
+			event = EV_MOD_MEM_NMOESI_STORE;
+		 //   if(stack->uop->addr >= 0xBFFEFF48 && stack->uop->addr<= 0xBFFEFF54)
+          //  	fprintf(stderr, "x86pr%x,%x\n", stack->uop->addr,stack->uop->data);
+		}
+		else 
+		{
+			panic("%s: invalid access kind", __FUNCTION__);
+		}
+	}
+	else
+	{
+		panic("%s: invalid mod kind", __FUNCTION__);
+	}
+
+	/* Schedule */
+	esim_execute_event(event, stack);
+
+	/* Return access ID */
+	return stack->id;
+}
 
 /* Access a memory module.
  * Variable 'witness', if specified, will be increased when the access completes.
@@ -742,7 +794,13 @@ struct mod_stack_t *mod_can_coalesce(struct mod_t *mod,
 
 			if (stack->addr >> mod->log_block_size ==
 				addr >> mod->log_block_size)
+			{   /*if(stack->addr >= 0x2F20 && stack->addr<= 0x2F2C)
+           	      fprintf(stderr, "    here coalesce %x,%lld\n", stack->addr,esim_time);
+           	    if(stack->master_stack)
+           	      fprintf(stderr, "%x,%lld\n", stack->master_stack->addr, esim_time );   
+                */
 				return stack->master_stack ? stack->master_stack : stack;
+			    }
 		}
 		break;
 	}

@@ -22,6 +22,7 @@
 
 #include <arch/x86/emu/context.h>
 #include <arch/x86/emu/emu.h>
+#include <arch/fpga/emu/task.h> 
 #include "module.h"
 #include "memory.h" 
 

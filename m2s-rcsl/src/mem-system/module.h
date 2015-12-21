@@ -23,6 +23,7 @@
 #include <stdio.h>
 #include "memory.h" 
 #include <arch/x86/emu/context.h> 
+#include <arch/fpga/emu/task.h> 
 
 
 /* Port */
@@ -115,9 +116,12 @@ struct mod_t
 	int latency_add;
 	int dir_latency;
 	int mshr_size;
+	int axi;
 
 
 	struct interconnect_t *interconnect;
+	struct interconnect_t *interconnect_hw;
+
 
 	/* Module level starting from entry points */
 	int level;
@@ -267,7 +271,17 @@ void mod_dump(struct mod_t *mod, FILE *f);
 void mod_stack_set_reply(struct mod_stack_t *stack, int reply);
 struct mod_t *mod_stack_set_peer(struct mod_t *peer, int state);
 
+long long fpga_mod_access(struct mod_t *mod, enum mod_access_kind_t access_kind, 
+	unsigned int addr, struct linked_list_t *event_queue, void *event_queue_item,
+	struct mod_client_info_t *client_info, FPGATask *task,void * buf, int size,
+	X86Context *ctx, int latency_add);
+
 long long mod_access(struct mod_t *mod, enum mod_access_kind_t access_kind, 
+	unsigned int addr, int *witness_ptr, struct linked_list_t *event_queue,
+	void *event_queue_item, struct mod_client_info_t *client_info, int latency_add, 
+	int size);
+
+long long mod_mem_access(struct mod_t *mod, enum mod_access_kind_t access_kind, 
 	unsigned int addr, int *witness_ptr, struct linked_list_t *event_queue,
 	void *event_queue_item, struct mod_client_info_t *client_info, int latency_add, 
 	int size);
@@ -277,10 +291,7 @@ long long fpga_reg_access(struct mod_t *mod, enum mod_access_kind_t access_kind,
 	void *event_queue_item, struct mod_client_info_t *client_info, int latency_add, 
 	int size);
 
-long long fpga_mod_access(struct mod_t *mod, enum mod_access_kind_t access_kind, 
-	unsigned int addr, struct linked_list_t *event_queue, void *event_queue_item,
-	struct mod_client_info_t *client_info, FPGATask *task,
-	void * buf, int size, X86Context *ctx,  int latency_add);
+
 
 int mod_can_access(struct mod_t *mod, unsigned int addr);
 
