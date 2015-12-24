@@ -177,14 +177,10 @@ void FPGAKernelSetInputOutputFormat(FPGAKernel *self, char *format, int type) {
 		param = str_set(NULL, param);
 
 		param1 = strtok(param, delim1);
-		if(strcmp(param1, "long") || strcmp(param1, "double"))
+		if(!strcmp(param1, "long") || !strcmp(param1, "double"))
 			param_sizes[i] = 8;
-		else if (strcmp(param1, "short"))
-			param_sizes[i] = 2;
-		else if (strcmp(param1, "char"))
-			param_sizes[i] = 1;
 		else
-			param_sizes[i] = 4;
+			param_sizes[i] = 4; //FIXME!! Multi2Sim memory write/read basic size is 4 byte
 
 		param1 = strtok(NULL, delim1);
 		param_counts[i] = atoi(param1);

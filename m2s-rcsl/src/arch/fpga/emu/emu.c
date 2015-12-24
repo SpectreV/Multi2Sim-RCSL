@@ -44,9 +44,9 @@
  * Global variables
  */
 
- int EV_FPGA_LOAD_FINISH;
- int EV_FPGA_STORE_FINISH;
- int EV_FPGA_EXECUTE_FINISH; 
+int EV_FPGA_LOAD_FINISH;
+int EV_FPGA_STORE_FINISH;
+int EV_FPGA_EXECUTE_FINISH;
 
 /* Configuration parameters */
 long long fpga_emu_max_inst = 0;
@@ -243,7 +243,6 @@ void FPGAEmuLoadKernelsFromConfig(FPGAEmu *self, struct config_t *config,
 	HWlowbound = config_read_int(config, section, "HWLowBound", 0);
 	HWhighbound = config_read_int(config, section, "HWHighBound", 0);
 
-
 	sharedmem = config_read_int(config, section, "SharedMem", 1);
 
 	if (sharedmem) {
@@ -265,7 +264,6 @@ void FPGAEmuLoadKernelsFromConfig(FPGAEmu *self, struct config_t *config,
 	kernel->kid = id;
 	kernel->HW_bounds.low = HWlowbound;
 	kernel->HW_bounds.high = HWhighbound;
-
 
 	kernel->srcbase = srcbase;
 	kernel->srcsize = srcsize;
@@ -344,28 +342,28 @@ void fpga_task_handler(int event, void *data) {
 
 	if (event == EV_FPGA_LOAD_FINISH)
 
-{	FPGATask *task = (FPGATask *) data;
-	FPGATaskExecute(task);
-	
-}
-    
-	if (event == EV_FPGA_EXECUTE_FINISH)
-{	FPGATask *task = (FPGATask *) data;
-	FPGATaskStoreData(task);
-}
+	{
+		FPGATask *task = (FPGATask *) data;
+		FPGATaskExecute(task);
 
- 
-	if (event == EV_FPGA_STORE_FINISH)
-{	
-	FPGATask *task = (FPGATask *) data;
-	FPGATaskFinish(task);
-	FPGAKernelSetState(task->kernel, FPGAKernelIdle);
-	FPGAKernelDebug(
-			"kernel %d finishes executing its task and return to idle\n",
-			task->kernel->kid);
-	printf("kernel %d finishes executing its task and return to idle\n", task->kernel->kid);
+	}
 
-}
+	if (event == EV_FPGA_EXECUTE_FINISH) {
+		FPGATask *task = (FPGATask *) data;
+		FPGATaskStoreData(task);
+	}
+
+	if (event == EV_FPGA_STORE_FINISH) {
+		FPGATask *task = (FPGATask *) data;
+		FPGATaskFinish(task);
+		FPGAKernelSetState(task->kernel, FPGAKernelIdle);
+		FPGAKernelDebug(
+				"kernel %d finishes executing its task and return to idle\n",
+				task->kernel->kid);
+		printf("kernel %d finishes executing its task and return to idle\n",
+				task->kernel->kid);
+
+	}
 
 }
 

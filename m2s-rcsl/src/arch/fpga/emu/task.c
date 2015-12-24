@@ -40,7 +40,6 @@
 #include "emu.h"
 #include "kernel.h"
 
-
 int EV_FPGA_TASK_FINISH;
 
 /*
@@ -76,7 +75,6 @@ static void FPGATaskDoCreate(FPGATask *self, FPGAEmu *emu, FPGAKernel *kernel,
 	asObject(self)->Dump = FPGATaskDump;
 }
 
-
 void FPGATaskCreate(FPGATask *self, FPGAKernel *kernel, X86Context *ctx) {
 	/* Baseline initialization */
 	FPGATaskDoCreate(self, kernel->emu, kernel, ctx);
@@ -98,7 +96,6 @@ void FPGATaskCreate(FPGATask *self, FPGAKernel *kernel, X86Context *ctx) {
 		self->output_size = kernel->dstsize;
 	}
 }
-
 
 void FPGATaskDestroy(FPGATask *self) {
 	FPGAEmu *emu = self->emu;
@@ -133,16 +130,25 @@ void FPGATaskDump(Object *self, FILE *f) {
 	fprintf(f, "\n\n");
 }
 
-static int FPGATaskVerilate(FPGATask *self, struct mem_t *mem,
-		unsigned int addr, int size, void *buf) {
+static int FPGATaskVerilate(FPGATask *self) {
 
-	mem_read_copy(mem, addr, size, buf);
 	int i, j, delay;
+	void *offset = self->input;
 	char *input = "input.txt";
 	char *output = "output.txt";
 	FILE *verilate_input = fopen(input, "w");
-	fprintf(verilate_input,
-			"8\n1\n100\n5\n200\n6\n300\n7\n700\n8\n900\n9\n250\n10\n400\n11\n600\n12\n800\n13\n1500\n14\n1200\n15\n110\n16\n140\n17\n133\n18\n10");
+
+	for (i = 0; i < self->kernel->in_param_num; i++) {
+		for (j = 0; j < self->kernel->in_param_counts[i]; ++j) {
+			if (self->kernel->in_param_sizes[i] == 8) {
+				fprintf(verilate_input, "%016lx\n", *((long*) offset));
+				offset = (long*) (offset) + 1;
+			} else {
+				fprintf(verilate_input, "%x\n", *((int*) offset));
+				offset = (int*) (offset) + 1;
+			}
+		}
+	}
 	fclose(verilate_input);
 
 	char verilate_command[256];
@@ -155,91 +161,91 @@ static int FPGATaskVerilate(FPGATask *self, struct mem_t *mem,
 
 	char line[256];
 	FILE *verilate_output = fopen(output, "r");
-	if(fgets(line, sizeof(line), verilate_output))
+	offset = self->output;
+	if (fgets(line, sizeof(line), verilate_output))
 		sscanf(line, "%d", &delay);
 	else
-		fatal("Verilation of %s failed!\n", self->kernel->sim_file);
+		fatal("Verilation of %s failed, delay not generated!\n",
+				self->kernel->sim_file);
+	for (i = 0; i < self->kernel->out_param_num; i++) {
+		for (j = 0; j < self->kernel->out_param_counts[i]; ++j) {
+			if (self->kernel->out_param_sizes[i] == 8) {
+				if (fgets(line, sizeof(line), verilate_output)) {
+					sscanf(line, "%016lx\n", offset);
+					offset = (long*) (offset) + 1;
+				} else
+					fatal("Verilation of %s failed, output data incomplete!\n",
+							self->kernel->sim_file);
+			} else {
+				if (fgets(line, sizeof(line), verilate_output)) {
+					sscanf(line, "%x\n", offset);
+					offset = (int*) (offset) + 1;
+				} else
+					fatal("Verilation of %s failed, output data incomplete!\n",
+							self->kernel->sim_file);
+			}
+		}
+	}
 	return delay;
 }
 
-
-void FPGATaskLoadData(FPGATask *self)
-{   
-   	FPGAKernel *kernel = self->kernel;
-   	unsigned int addr;
+void FPGATaskLoadData(FPGATask *self) {
+	FPGAKernel *kernel = self->kernel;
+	unsigned int addr;
 
 	assert(FPGATaskGetState(self, FPGATaskReady));
 	FPGATaskSetState(self, FPGATaskRunning | FPGATaskLoad);
 
-                if(kernel->sharedmem)
-              	{     
-              	  mem_read_copy(self->ctx->realmem, kernel->srcbase, 4, &addr);
-                  fpga_mod_access( self->emu->fpga->mod, mod_access_load, addr, NULL, NULL, NULL, 
-                        self, self->input, self->input_size, self->ctx, 0);
-               // fprintf(stderr, "startschedule: %d, %x, %x, %d\n",kernel->id,kernel->srcbase,addr,task->srcsize);
-              	}	
-              else 
-              	{   
-              		addr = kernel->srcbase;
-              		mem_read_copy(self->ctx->realmem, addr, self->input_size, self->input);                       
-                    esim_schedule_event(EV_FPGA_LOAD_FINISH, self, 0);    
-                }
+	if (kernel->sharedmem) {
+		mem_read_copy(self->ctx->realmem, kernel->srcbase, 4, &addr);
+		fpga_mod_access(self->emu->fpga->mod, mod_access_load, addr, NULL, NULL,
+		NULL, self, self->input, self->input_size, self->ctx, 0);
+		// fprintf(stderr, "startschedule: %d, %x, %x, %d\n",kernel->id,kernel->srcbase,addr,task->srcsize);
+	} else {
+		addr = kernel->srcbase;
+		mem_read_copy(self->ctx->realmem, addr, self->input_size, self->input);
+		esim_schedule_event(EV_FPGA_LOAD_FINISH, self, 0);
+	}
 }
 
+void FPGATaskStoreData(FPGATask *self) {
+	FPGAKernel *kernel = self->kernel;
+	unsigned int addr;
 
-
-void FPGATaskStoreData(FPGATask *self)
-{   
-   	FPGAKernel *kernel = self->kernel;
-   	unsigned int addr;
-
-	assert(FPGATaskGetState(self, FPGATaskRunning|FPGATaskExecuting));
+	assert(FPGATaskGetState(self, FPGATaskRunning | FPGATaskExecuting));
 	FPGATaskSetState(self, FPGATaskRunning | FPGATaskStore);
 
+	if (kernel->sharedmem) {
+		mem_read_copy(self->ctx->realmem, kernel->dstbase, 4, &addr);
+		fpga_mod_access(self->emu->fpga->mod, mod_access_store, addr, NULL,
+		NULL, NULL, self, self->output, self->output_size, self->ctx, 0);
+	} else {
+		addr = kernel->dstbase;
+		mem_write_copy(self->ctx->mem, addr, self->output_size, self->output);
+		mem_write_copy(self->ctx->realmem, addr, self->output_size,
+				self->output);
 
-	if(kernel->sharedmem)  
-              	{
-              	  mem_read_copy(self->ctx->realmem, kernel->dstbase, 4, &addr);
-                  fpga_mod_access( self->emu->fpga->mod, mod_access_store, addr, NULL, NULL, NULL, 
-                  self, self->output, self->output_size, self->ctx, 0);
-                } 
-              else 
-              	{                               
-              	  addr = kernel->dstbase;
-              	  mem_write_copy(self->ctx->mem, addr, self->output_size, self->output);
-                  mem_write_copy(self->ctx->realmem, addr, self->output_size, self->output);  
+		esim_schedule_event(EV_FPGA_STORE_FINISH, self, 0);
 
-                   esim_schedule_event(EV_FPGA_STORE_FINISH, self, 0);  
-              
-                }
-                 
+	}
+
 }
-
 
 void FPGATaskExecute(FPGATask *self) {
 	FPGAKernel *kernel = self->kernel;
 
 	assert(FPGATaskGetState(self, FPGATaskRunning | FPGATaskLoad));
-	FPGATaskSetState(self, FPGATaskRunning|FPGATaskExecuting);
+	FPGATaskSetState(self, FPGATaskRunning | FPGATaskExecuting);
 
 	int i, j, delay;
 	void *data;
 	int data_size;
 
-	if (kernel->folding) {
-		kernel->delay = *(int*) list_get(kernel->heights,
-				kernel->current_implement);
-	}
-     
-    for (i=0;i<30;i++) 
-    {fprintf(stderr, "%d\n", *((int*)(self->input)+i) );} 
-
 	if (kernel->delay) {
 		esim_schedule_event(EV_FPGA_EXECUTE_FINISH, self, kernel->delay);
 	} else {
 		/* Read Input Data */
-		delay = FPGATaskVerilate(self, self->ctx->realmem, kernel->srcbase,
-				self->input_size, self->input);
+		delay = FPGATaskVerilate(self);
 
 		esim_schedule_event(EV_FPGA_EXECUTE_FINISH, self, delay);
 	}
@@ -287,22 +293,21 @@ void FPGATaskClearState(FPGATask *self, FPGATaskState state) {
 }
 
 void FPGATaskFinish(FPGATask *self) {
-   FPGAKernel *kernel = self->kernel;
+	FPGAKernel *kernel = self->kernel;
 
 	FPGATaskSetState(self, FPGATaskFinished);
 
-              if(kernel->finish >= kernel->HW_bounds.low && kernel->finish <= kernel->HW_bounds.high)
-              {   
-                 unsigned int data=1;
-                 mem_write_copy(self->ctx->mem, kernel->finish, 4, &data);
-                 mem_write_copy(self->ctx->realmem, kernel->finish, 4, &data);   
-              }
-              else
-              {   
-              	 unsigned int data=1;
-                 fpga_mod_access( self->emu->fpga->mod, mod_access_store, kernel->finish, NULL, NULL, NULL, 
-                 NULL, &data, 4, self->ctx, 0);	
-              }	
+	if (kernel->finish >= kernel->HW_bounds.low
+			&& kernel->finish <= kernel->HW_bounds.high) {
+		unsigned int data = 1;
+		mem_write_copy(self->ctx->mem, kernel->finish, 4, &data);
+		mem_write_copy(self->ctx->realmem, kernel->finish, 4, &data);
+	} else {
+		unsigned int data = 1;
+		fpga_mod_access(self->emu->fpga->mod, mod_access_store, kernel->finish,
+		NULL, NULL, NULL,
+		NULL, &data, 4, self->ctx, 0);
+	}
 }
 
 /*
